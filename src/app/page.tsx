@@ -269,9 +269,11 @@ export default function OnThisDay() {
 
         {/* Navigation */}
         <div className="text-center mb-5 pb-0 border-b-0">
-          <a href="http://localhost:8080" className="text-cyan-400 hover:underline mx-4">
-            Dev Home
-          </a>
+          {typeof window !== 'undefined' && window.location.hostname === 'localhost' && (
+            <a href="http://localhost:8080" className="text-cyan-400 hover:underline mx-4">
+              Dev Home
+            </a>
+          )}
           <a
             href="https://8i11.substack.com"
             target="_blank"
@@ -455,9 +457,11 @@ export default function OnThisDay() {
 
         {/* Bottom navigation */}
         <div className="text-center mt-8 pt-5 border-t border-white/10">
-          <a href="http://localhost:8080" className="text-cyan-400 hover:underline mx-4">
-            Dev Home
-          </a>
+          {typeof window !== 'undefined' && window.location.hostname === 'localhost' && (
+            <a href="http://localhost:8080" className="text-cyan-400 hover:underline mx-4">
+              Dev Home
+            </a>
+          )}
           <a
             href="https://8i11.substack.com"
             target="_blank"
