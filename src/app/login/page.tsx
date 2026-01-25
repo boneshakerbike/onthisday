@@ -5,10 +5,10 @@
 'use client';
 
 import { signIn } from 'next-auth/react';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function LoginPage() {
+function LoginForm() {
   const [pin, set_pin] = useState('');
   const [error, set_error] = useState('');
   const [loading, set_loading] = useState(false);
@@ -42,6 +42,138 @@ export default function LoginPage() {
   return (
     <div
       style={{
+        backgroundColor: '#16213e',
+        padding: '40px',
+        borderRadius: '12px',
+        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
+        maxWidth: '400px',
+        width: '100%',
+        textAlign: 'center',
+      }}
+    >
+      <h1
+        style={{
+          color: '#e2e2e2',
+          marginBottom: '8px',
+          fontSize: '28px',
+        }}
+      >
+        On This Day
+      </h1>
+      <p
+        style={{
+          color: '#888',
+          marginBottom: '32px',
+          fontSize: '14px',
+        }}
+      >
+        Sign in to continue
+      </p>
+
+      <button
+        onClick={handle_github}
+        disabled={loading}
+        style={{
+          width: '100%',
+          padding: '12px 20px',
+          fontSize: '16px',
+          backgroundColor: '#24292e',
+          color: '#fff',
+          border: 'none',
+          borderRadius: '6px',
+          cursor: loading ? 'not-allowed' : 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '10px',
+          opacity: loading ? 0.7 : 1,
+        }}
+      >
+        <svg
+          height="20"
+          width="20"
+          viewBox="0 0 16 16"
+          fill="currentColor"
+        >
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+        </svg>
+        Sign in with GitHub
+      </button>
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          margin: '24px 0',
+          color: '#666',
+        }}
+      >
+        <div style={{ flex: 1, height: '1px', backgroundColor: '#333' }} />
+        <span style={{ padding: '0 16px', fontSize: '14px' }}>or</span>
+        <div style={{ flex: 1, height: '1px', backgroundColor: '#333' }} />
+      </div>
+
+      <form onSubmit={handle_pin_submit}>
+        <div style={{ marginBottom: '16px' }}>
+          <input
+            type="password"
+            value={pin}
+            onChange={(e) => set_pin(e.target.value)}
+            placeholder="Guest PIN"
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              fontSize: '16px',
+              backgroundColor: '#1a1a2e',
+              color: '#e2e2e2',
+              border: '1px solid #333',
+              borderRadius: '6px',
+              textAlign: 'center',
+              letterSpacing: '4px',
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
+
+        {error && (
+          <p
+            style={{
+              color: '#ff6b6b',
+              fontSize: '14px',
+              marginBottom: '16px',
+            }}
+          >
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading || !pin}
+          style={{
+            width: '100%',
+            padding: '12px 20px',
+            fontSize: '16px',
+            backgroundColor: '#0f3460',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: loading || !pin ? 'not-allowed' : 'pointer',
+            opacity: loading || !pin ? 0.7 : 1,
+          }}
+        >
+          Enter as Guest
+        </button>
+      </form>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <div
+      style={{
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
@@ -50,133 +182,9 @@ export default function LoginPage() {
         padding: '20px',
       }}
     >
-      <div
-        style={{
-          backgroundColor: '#16213e',
-          padding: '40px',
-          borderRadius: '12px',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-          maxWidth: '400px',
-          width: '100%',
-          textAlign: 'center',
-        }}
-      >
-        <h1
-          style={{
-            color: '#e2e2e2',
-            marginBottom: '8px',
-            fontSize: '28px',
-          }}
-        >
-          On This Day
-        </h1>
-        <p
-          style={{
-            color: '#888',
-            marginBottom: '32px',
-            fontSize: '14px',
-          }}
-        >
-          Sign in to continue
-        </p>
-
-        <button
-          onClick={handle_github}
-          disabled={loading}
-          style={{
-            width: '100%',
-            padding: '12px 20px',
-            fontSize: '16px',
-            backgroundColor: '#24292e',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '10px',
-            opacity: loading ? 0.7 : 1,
-          }}
-        >
-          <svg
-            height="20"
-            width="20"
-            viewBox="0 0 16 16"
-            fill="currentColor"
-          >
-            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-          </svg>
-          Sign in with GitHub
-        </button>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            margin: '24px 0',
-            color: '#666',
-          }}
-        >
-          <div style={{ flex: 1, height: '1px', backgroundColor: '#333' }} />
-          <span style={{ padding: '0 16px', fontSize: '14px' }}>or</span>
-          <div style={{ flex: 1, height: '1px', backgroundColor: '#333' }} />
-        </div>
-
-        <form onSubmit={handle_pin_submit}>
-          <div style={{ marginBottom: '16px' }}>
-            <input
-              type="password"
-              value={pin}
-              onChange={(e) => set_pin(e.target.value)}
-              placeholder="Guest PIN"
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                fontSize: '16px',
-                backgroundColor: '#1a1a2e',
-                color: '#e2e2e2',
-                border: '1px solid #333',
-                borderRadius: '6px',
-                textAlign: 'center',
-                letterSpacing: '4px',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
-
-          {error && (
-            <p
-              style={{
-                color: '#ff6b6b',
-                fontSize: '14px',
-                marginBottom: '16px',
-              }}
-            >
-              {error}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading || !pin}
-            style={{
-              width: '100%',
-              padding: '12px 20px',
-              fontSize: '16px',
-              backgroundColor: '#0f3460',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: loading || !pin ? 'not-allowed' : 'pointer',
-              opacity: loading || !pin ? 0.7 : 1,
-            }}
-          >
-            Enter as Guest
-          </button>
-        </form>
-      </div>
+      <Suspense fallback={<div style={{ color: '#888' }}>Loading...</div>}>
+        <LoginForm />
+      </Suspense>
     </div>
   );
 }
