@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSession, signOut } from 'next-auth/react';
 import JSZip from 'jszip';
 import Papa from 'papaparse';
 
@@ -37,6 +38,7 @@ interface GenerateResponse {
 }
 
 export default function OnThisDay() {
+  const { data: session } = useSession();
   const [date, set_date] = useState<{ month: number; day: number; display: string } | null>(null);
   const [posts, set_posts] = useState<Post[]>([]);
   const [archive, set_archive] = useState<string | null>(null);
@@ -251,6 +253,19 @@ export default function OnThisDay() {
       <div className="max-w-3xl mx-auto">
         <h1 className="text-center text-3xl font-light text-cyan-400 mb-2">On This Day</h1>
         <p className="text-center text-gray-500 mb-8">{date?.display || 'Loading...'}</p>
+
+        {/* User info and logout */}
+        {session && (
+          <div className="text-center mb-4 text-sm text-gray-500">
+            Signed in as {session.user?.name || session.user?.email || 'Guest'}
+            <button
+              onClick={() => signOut()}
+              className="ml-3 text-gray-400 hover:text-cyan-400 underline"
+            >
+              Sign out
+            </button>
+          </div>
+        )}
 
         {/* Navigation */}
         <div className="text-center mb-5 pb-0 border-b-0">
