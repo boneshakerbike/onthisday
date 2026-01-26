@@ -283,6 +283,19 @@ export async function get_post_count(): Promise<number> {
 }
 
 /**
+ * Update HTML content for an existing post
+ */
+export async function update_post_html(post_id: string, html: string): Promise<void> {
+  await ensure_schema();
+  const db = get_client();
+
+  await db.execute({
+    sql: 'UPDATE posts SET content_html = ? WHERE post_id = ?',
+    args: [html, post_id]
+  });
+}
+
+/**
  * Generate Substack URL from post_id
  */
 export function get_post_url(post_id: string): string {

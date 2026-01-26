@@ -195,36 +195,68 @@ export default function OnThisDay() {
         console.warn('CSV parse warnings:', parsed.errors);
       }
 
-      const html_files: Record<string, string> = {};
-      const html_entries = zip.file(/posts\/.*\.html$/i);
-
-      for (const entry of html_entries) {
-        const html = await entry.async('text');
-        const match = entry.name.match(/posts\/(\d+\.[^/]+)\.html$/i);
-        if (match) {
-          html_files[match[1]] = html;
-        }
-      }
-
-      const res = await fetch('/api/upload', {
+      // Step 1: Upload posts without HTML (small payload)
+      set_upload_status({ type: 'success', message: 'Uploading post metadata...' });
+      const posts_res = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          batch_type: 'posts_only',
           filename: file.name,
-          posts: parsed.data,
-          html_files
+          posts: parsed.data
         })
       });
 
-      const result = await res.json();
+      const posts_result = await posts_res.json();
+      if (!posts_result.success) {
+        throw new Error(posts_result.error || 'Failed to upload posts');
+      }
 
-      if (result.success) {
-        set_upload_status({ type: 'success', message: `Loaded ${result.count} posts from ${file.name}` });
-        if (date) {
-          fetch_posts(date.month, date.day);
+      // Step 2: Extract and upload HTML in batches
+      const html_entries = zip.file(/posts\/.*\.html$/i);
+      const batch_size = 50; // ~50 files per batch to stay under 4.5MB
+      let uploaded_html = 0;
+
+      for (let i = 0; i < html_entries.length; i += batch_size) {
+        const batch_entries = html_entries.slice(i, i + batch_size);
+        const html_batch: Record<string, string> = {};
+
+        for (const entry of batch_entries) {
+          const html = await entry.async('text');
+          const match = entry.name.match(/posts\/(\d+\.[^/]+)\.html$/i);
+          if (match) {
+            html_batch[match[1]] = html;
+          }
         }
-      } else {
-        throw new Error(result.error || 'Upload failed');
+
+        set_upload_status({
+          type: 'success',
+          message: `Uploading content... ${Math.min(i + batch_size, html_entries.length)}/${html_entries.length}`
+        });
+
+        const html_res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            batch_type: 'html_batch',
+            html_files: html_batch
+          })
+        });
+
+        const html_result = await html_res.json();
+        if (!html_result.success) {
+          throw new Error(html_result.error || 'Failed to upload HTML batch');
+        }
+        uploaded_html += Object.keys(html_batch).length;
+      }
+
+      set_upload_status({
+        type: 'success',
+        message: `Loaded ${posts_result.count} posts with ${uploaded_html} content files`
+      });
+
+      if (date) {
+        fetch_posts(date.month, date.day);
       }
     } catch (error) {
       set_upload_status({
