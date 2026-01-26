@@ -39,18 +39,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Import posts to database
-    const count = import_posts(data.posts, html_map);
+    const count = await import_posts(data.posts, html_map);
 
     // Update archive info
     if (data.filename) {
-      set_archive_info(data.filename);
+      await set_archive_info(data.filename);
     }
+
+    const total = await get_post_count();
 
     return NextResponse.json({
       success: true,
       message: `Imported ${count} posts`,
       count,
-      total: get_post_count()
+      total
     });
   } catch (error) {
     console.error('Upload error:', error);

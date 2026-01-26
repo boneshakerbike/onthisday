@@ -30,9 +30,9 @@ export async function GET(request: NextRequest) {
   });
 
   try {
-    const posts = get_posts_on_date(month, day);
-    const archive = get_archive_info();
-    const total_posts = get_post_count();
+    const posts = await get_posts_on_date(month, day);
+    const archive = await get_archive_info();
+    const total_posts = await get_post_count();
 
     // Add URLs to posts
     const posts_with_urls = posts.map(post => ({

@@ -1,33 +1,47 @@
 /**
  * Database utilities for On This Day
- * Uses better-sqlite3 for local development
+ * Uses Turso (libSQL) in production, better-sqlite3 for local development
  */
 
-import Database from 'better-sqlite3';
-import path from 'path';
+import { createClient, Client } from '@libsql/client';
 
-const DB_PATH = path.join(process.cwd(), 'data', 'posts.db');
+// Detect if we're using Turso (production) or SQLite (local)
+const is_turso = !!process.env.TURSO_DATABASE_URL;
 
-let db: Database.Database | null = null;
+let client: Client | null = null;
 
-export function get_db(): Database.Database {
-  if (!db) {
-    // Ensure data directory exists
-    const fs = require('fs');
-    const dir = path.dirname(DB_PATH);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+function get_client(): Client {
+  if (!client) {
+    if (is_turso) {
+      // Production: Turso
+      client = createClient({
+        url: process.env.TURSO_DATABASE_URL!,
+        authToken: process.env.TURSO_AUTH_TOKEN,
+      });
+    } else {
+      // Local development: SQLite file
+      const path = require('path');
+      const fs = require('fs');
+      const db_path = path.join(process.cwd(), 'data', 'posts.db');
+
+      // Ensure data directory exists
+      const dir = path.dirname(db_path);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      client = createClient({
+        url: `file:${db_path}`,
+      });
     }
-
-    db = new Database(DB_PATH);
-    db.pragma('journal_mode = WAL');
-    init_schema(db);
   }
-  return db;
+  return client;
 }
 
-function init_schema(db: Database.Database): void {
-  db.exec(`
+async function init_schema(): Promise<void> {
+  const db = get_client();
+
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS posts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       post_id TEXT UNIQUE NOT NULL,
@@ -39,20 +53,36 @@ function init_schema(db: Database.Database): void {
       type TEXT,
       content_html TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
+    )
+  `);
 
-    CREATE INDEX IF NOT EXISTS idx_posts_local_date ON posts(local_date);
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS idx_posts_local_date ON posts(local_date)
+  `);
+
+  await db.execute(`
     CREATE INDEX IF NOT EXISTS idx_posts_month_day ON posts(
       substr(local_date, 6, 2),
       substr(local_date, 9, 2)
-    );
+    )
+  `);
 
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS archive_info (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       filename TEXT,
       uploaded_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
+    )
   `);
+}
+
+// Initialize schema on module load
+let schema_initialized = false;
+async function ensure_schema(): Promise<void> {
+  if (!schema_initialized) {
+    await init_schema();
+    schema_initialized = true;
+  }
 }
 
 /**
@@ -60,7 +90,6 @@ function init_schema(db: Database.Database): void {
  */
 function utc_to_mountain(utc_date: string): string {
   const date = new Date(utc_date);
-  // Format in Mountain Time
   return date.toLocaleDateString('en-CA', {
     timeZone: 'America/Denver',
     year: 'numeric',
@@ -91,26 +120,31 @@ export interface PostWithMeta extends Post {
 /**
  * Get posts matching a specific month and day across all years
  */
-export function get_posts_on_date(month: number, day: number): PostWithMeta[] {
-  const db = get_db();
+export async function get_posts_on_date(month: number, day: number): Promise<PostWithMeta[]> {
+  await ensure_schema();
+  const db = get_client();
+
   const month_str = month.toString().padStart(2, '0');
   const day_str = day.toString().padStart(2, '0');
 
-  const rows = db.prepare(`
-    SELECT * FROM posts
-    WHERE substr(local_date, 6, 2) = ?
-      AND substr(local_date, 9, 2) = ?
-    ORDER BY local_date ASC
-  `).all(month_str, day_str) as Post[];
+  const result = await db.execute({
+    sql: `
+      SELECT * FROM posts
+      WHERE substr(local_date, 6, 2) = ?
+        AND substr(local_date, 9, 2) = ?
+      ORDER BY local_date ASC
+    `,
+    args: [month_str, day_str]
+  });
 
   const current_year = new Date().getFullYear();
 
-  return rows.map(row => {
-    // Parse year from local_date (YYYY-MM-DD format)
-    const year = parseInt(row.local_date.substring(0, 4), 10);
-    const date = new Date(row.local_date + 'T12:00:00');
+  return result.rows.map(row => {
+    const post = row as unknown as Post;
+    const year = parseInt(post.local_date.substring(0, 4), 10);
+    const date = new Date(post.local_date + 'T12:00:00');
     return {
-      ...row,
+      ...post,
       year,
       formatted_date: date.toLocaleDateString('en-US', {
         month: 'long',
@@ -118,7 +152,7 @@ export function get_posts_on_date(month: number, day: number): PostWithMeta[] {
         year: 'numeric'
       }),
       years_ago: current_year - year,
-      blurb: row.subtitle || extract_blurb(row.content_html)
+      blurb: post.subtitle || extract_blurb(post.content_html)
     };
   });
 }
@@ -132,9 +166,7 @@ function extract_blurb(html: string | null, max_len: number = 200): string | nul
   const match = html.match(/<p[^>]*>(.+?)<\/p>/is);
   if (!match) return null;
 
-  // Strip HTML tags
   let text = match[1].replace(/<[^>]*>/g, '');
-  // Decode HTML entities (basic)
   text = text.replace(/&amp;/g, '&')
              .replace(/&lt;/g, '<')
              .replace(/&gt;/g, '>')
@@ -153,82 +185,101 @@ function extract_blurb(html: string | null, max_len: number = 200): string | nul
 /**
  * Clear all posts and insert new ones from CSV data
  */
-export function import_posts(posts: Array<{
+export async function import_posts(posts: Array<{
   post_id: string;
   title: string;
   subtitle?: string;
   post_date: string;
   audience?: string;
   type?: string;
-}>, html_files: Map<string, string>): number {
-  const db = get_db();
+}>, html_files: Map<string, string>): Promise<number> {
+  await ensure_schema();
+  const db = get_client();
 
   // Drop and recreate table to handle schema changes
-  db.exec('DROP TABLE IF EXISTS posts');
-  init_schema(db);
+  await db.execute('DROP TABLE IF EXISTS posts');
+  schema_initialized = false;
+  await ensure_schema();
 
-  const insert = db.prepare(`
-    INSERT INTO posts (post_id, title, subtitle, post_date, local_date, audience, type, content_html)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
+  let count = 0;
 
-  const insert_many = db.transaction((posts_data: typeof posts) => {
-    let count = 0;
-    for (const post of posts_data) {
+  // Process in batches to avoid overwhelming the connection
+  const batch_size = 100;
+  for (let i = 0; i < posts.length; i += batch_size) {
+    const batch = posts.slice(i, i + batch_size);
+
+    for (const post of batch) {
       if (!post.post_date || !post.title) continue;
 
-      // Convert UTC to Mountain Time
       const local_date = utc_to_mountain(post.post_date);
-
-      // Find matching HTML content
       const html = html_files.get(post.post_id) || null;
 
-      insert.run(
-        post.post_id,
-        post.title,
-        post.subtitle || null,
-        post.post_date,
-        local_date,
-        post.audience || null,
-        post.type || null,
-        html
-      );
+      await db.execute({
+        sql: `
+          INSERT INTO posts (post_id, title, subtitle, post_date, local_date, audience, type, content_html)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        args: [
+          post.post_id,
+          post.title,
+          post.subtitle || null,
+          post.post_date,
+          local_date,
+          post.audience || null,
+          post.type || null,
+          html
+        ]
+      });
       count++;
     }
-    return count;
-  });
+  }
 
-  return insert_many(posts);
+  return count;
 }
 
 /**
  * Update archive info
  */
-export function set_archive_info(filename: string): void {
-  const db = get_db();
-  db.prepare(`
-    INSERT OR REPLACE INTO archive_info (id, filename, uploaded_at)
-    VALUES (1, ?, CURRENT_TIMESTAMP)
-  `).run(filename);
+export async function set_archive_info(filename: string): Promise<void> {
+  await ensure_schema();
+  const db = get_client();
+
+  await db.execute({
+    sql: `
+      INSERT OR REPLACE INTO archive_info (id, filename, uploaded_at)
+      VALUES (1, ?, CURRENT_TIMESTAMP)
+    `,
+    args: [filename]
+  });
 }
 
 /**
  * Get archive info
  */
-export function get_archive_info(): { filename: string; uploaded_at: string } | null {
-  const db = get_db();
-  const row = db.prepare('SELECT filename, uploaded_at FROM archive_info WHERE id = 1').get() as
-    { filename: string; uploaded_at: string } | undefined;
-  return row || null;
+export async function get_archive_info(): Promise<{ filename: string; uploaded_at: string } | null> {
+  await ensure_schema();
+  const db = get_client();
+
+  const result = await db.execute('SELECT filename, uploaded_at FROM archive_info WHERE id = 1');
+
+  if (result.rows.length === 0) return null;
+
+  const row = result.rows[0];
+  return {
+    filename: row.filename as string,
+    uploaded_at: row.uploaded_at as string
+  };
 }
 
 /**
  * Get total post count
  */
-export function get_post_count(): number {
-  const db = get_db();
-  const row = db.prepare('SELECT COUNT(*) as count FROM posts').get() as { count: number };
-  return row.count;
+export async function get_post_count(): Promise<number> {
+  await ensure_schema();
+  const db = get_client();
+
+  const result = await db.execute('SELECT COUNT(*) as count FROM posts');
+  return Number(result.rows[0].count);
 }
 
 /**

@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const posts = get_posts_on_date(month, day);
+    const posts = await get_posts_on_date(month, day);
 
     if (posts.length === 0) {
       return NextResponse.json(
