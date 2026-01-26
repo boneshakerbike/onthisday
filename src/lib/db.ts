@@ -183,6 +183,15 @@ function extract_blurb(html: string | null, max_len: number = 200): string | nul
 }
 
 /**
+ * Clear all posts from the database
+ */
+export async function clear_posts(): Promise<void> {
+  await ensure_schema();
+  const db = get_client();
+  await db.execute('DELETE FROM posts');
+}
+
+/**
  * Clear all posts and insert new ones from CSV data
  */
 export async function import_posts(posts: Array<{
@@ -193,45 +202,49 @@ export async function import_posts(posts: Array<{
   audience?: string;
   type?: string;
 }>, html_files: Map<string, string>): Promise<number> {
+  await clear_posts();
+  return append_posts(posts, html_files);
+}
+
+/**
+ * Append posts without clearing existing data
+ */
+export async function append_posts(posts: Array<{
+  post_id: string;
+  title: string;
+  subtitle?: string;
+  post_date: string;
+  audience?: string;
+  type?: string;
+}>, html_files: Map<string, string>): Promise<number> {
   await ensure_schema();
   const db = get_client();
 
-  // Drop and recreate table to handle schema changes
-  await db.execute('DROP TABLE IF EXISTS posts');
-  schema_initialized = false;
-  await ensure_schema();
-
   let count = 0;
 
-  // Process in batches to avoid overwhelming the connection
-  const batch_size = 100;
-  for (let i = 0; i < posts.length; i += batch_size) {
-    const batch = posts.slice(i, i + batch_size);
+  for (const post of posts) {
+    if (!post.post_date || !post.title) continue;
 
-    for (const post of batch) {
-      if (!post.post_date || !post.title) continue;
+    const local_date = utc_to_mountain(post.post_date);
+    const html = html_files.get(post.post_id) || null;
 
-      const local_date = utc_to_mountain(post.post_date);
-      const html = html_files.get(post.post_id) || null;
-
-      await db.execute({
-        sql: `
-          INSERT INTO posts (post_id, title, subtitle, post_date, local_date, audience, type, content_html)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-        args: [
-          post.post_id,
-          post.title,
-          post.subtitle || null,
-          post.post_date,
-          local_date,
-          post.audience || null,
-          post.type || null,
-          html
-        ]
-      });
-      count++;
-    }
+    await db.execute({
+      sql: `
+        INSERT OR REPLACE INTO posts (post_id, title, subtitle, post_date, local_date, audience, type, content_html)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      args: [
+        post.post_id,
+        post.title,
+        post.subtitle || null,
+        post.post_date,
+        local_date,
+        post.audience || null,
+        post.type || null,
+        html
+      ]
+    });
+    count++;
   }
 
   return count;

@@ -5,11 +5,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { import_posts, set_archive_info, get_post_count, update_post_html } from '@/lib/db';
+import { clear_posts, append_posts, set_archive_info, get_post_count, update_post_html } from '@/lib/db';
 
 interface UploadPayload {
   filename?: string;
-  batch_type: 'full' | 'posts_only' | 'html_batch';
+  batch_type: 'clear' | 'posts_batch' | 'html_batch';
   posts?: Array<{
     post_id: string;
     title: string;
@@ -24,10 +24,21 @@ interface UploadPayload {
 export async function POST(request: NextRequest) {
   try {
     const data: UploadPayload = await request.json();
-    const batch_type = data.batch_type || 'full';
+    const batch_type = data.batch_type;
 
-    if (batch_type === 'posts_only' || batch_type === 'full') {
-      // Import posts (with or without HTML)
+    if (batch_type === 'clear') {
+      // Clear all posts and set archive info
+      await clear_posts();
+      if (data.filename) {
+        await set_archive_info(data.filename);
+      }
+      return NextResponse.json({
+        success: true,
+        message: 'Cleared posts'
+      });
+
+    } else if (batch_type === 'posts_batch') {
+      // Append posts (without clearing)
       if (!data.posts || !Array.isArray(data.posts)) {
         return NextResponse.json(
           { error: 'Invalid data: posts array required' },
@@ -35,18 +46,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const html_map = new Map<string, string>();
-      if (batch_type === 'full' && data.html_files) {
-        for (const [post_id, html] of Object.entries(data.html_files)) {
-          html_map.set(post_id, html);
-        }
-      }
-
-      const count = await import_posts(data.posts, html_map);
-
-      if (data.filename) {
-        await set_archive_info(data.filename);
-      }
+      const count = await append_posts(data.posts, new Map());
 
       return NextResponse.json({
         success: true,

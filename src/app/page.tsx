@@ -195,24 +195,49 @@ export default function OnThisDay() {
         console.warn('CSV parse warnings:', parsed.errors);
       }
 
-      // Step 1: Upload posts without HTML (small payload)
-      set_upload_status({ type: 'success', message: 'Uploading post metadata...' });
-      const posts_res = await fetch('/api/upload', {
+      // Step 1: Clear existing posts
+      set_upload_status({ type: 'success', message: 'Preparing database...' });
+      const clear_res = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          batch_type: 'posts_only',
-          filename: file.name,
-          posts: parsed.data
+          batch_type: 'clear',
+          filename: file.name
         })
       });
 
-      const posts_result = await posts_res.json();
-      if (!posts_result.success) {
-        throw new Error(posts_result.error || 'Failed to upload posts');
+      const clear_result = await clear_res.json();
+      if (!clear_result.success) {
+        throw new Error(clear_result.error || 'Failed to clear posts');
       }
 
-      // Step 2: Extract and upload HTML in batches
+      // Step 2: Upload posts in batches
+      const posts_batch_size = 500;
+      let total_posts = 0;
+      for (let i = 0; i < parsed.data.length; i += posts_batch_size) {
+        const batch = parsed.data.slice(i, i + posts_batch_size);
+        set_upload_status({
+          type: 'success',
+          message: `Uploading posts... ${Math.min(i + posts_batch_size, parsed.data.length)}/${parsed.data.length}`
+        });
+
+        const posts_res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            batch_type: 'posts_batch',
+            posts: batch
+          })
+        });
+
+        const posts_result = await posts_res.json();
+        if (!posts_result.success) {
+          throw new Error(posts_result.error || 'Failed to upload posts');
+        }
+        total_posts += posts_result.count;
+      }
+
+      // Step 3: Extract and upload HTML in batches
       const html_entries = zip.file(/posts\/.*\.html$/i);
       const batch_size = 50; // ~50 files per batch to stay under 4.5MB
       let uploaded_html = 0;
@@ -252,7 +277,7 @@ export default function OnThisDay() {
 
       set_upload_status({
         type: 'success',
-        message: `Loaded ${posts_result.count} posts with ${uploaded_html} content files`
+        message: `Loaded ${total_posts} posts with ${uploaded_html} content files`
       });
 
       if (date) {
