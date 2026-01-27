@@ -316,3 +316,44 @@ export function get_post_url(post_id: string): string {
   const slug = parts[1] || post_id;
   return `https://8i11.substack.com/p/${encodeURIComponent(slug)}`;
 }
+
+/**
+ * Get all post IDs in the database
+ */
+export async function get_all_post_ids(): Promise<string[]> {
+  await ensure_schema();
+  const db = get_client();
+
+  const result = await db.execute('SELECT post_id FROM posts');
+  return result.rows.map(row => row.post_id as string);
+}
+
+/**
+ * Add a single post from RSS feed data
+ */
+export async function add_post_from_rss(post: {
+  post_id: string;
+  title: string;
+  url: string;
+  post_date: string;
+  content_html: string;
+}): Promise<void> {
+  await ensure_schema();
+  const db = get_client();
+
+  const local_date = utc_to_mountain(post.post_date);
+
+  await db.execute({
+    sql: `
+      INSERT OR IGNORE INTO posts (post_id, title, subtitle, post_date, local_date, audience, type, content_html)
+      VALUES (?, ?, NULL, ?, ?, 'everyone', 'newsletter', ?)
+    `,
+    args: [
+      post.post_id,
+      post.title,
+      post.post_date,
+      local_date,
+      post.content_html
+    ]
+  });
+}

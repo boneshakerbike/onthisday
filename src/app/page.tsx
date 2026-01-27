@@ -64,6 +64,9 @@ export default function OnThisDay() {
   // Track if we're on localhost (for Dev Home link)
   const [is_localhost, set_is_localhost] = useState(false);
 
+  // RSS sync state
+  const [sync_status, set_sync_status] = useState<string | null>(null);
+
   // Check if API key is configured and if we're on localhost
   useEffect(() => {
     set_is_localhost(window.location.hostname === 'localhost');
@@ -71,6 +74,21 @@ export default function OnThisDay() {
       .then(res => res.json())
       .then(data => set_has_api_key(data.has_api_key))
       .catch(() => set_has_api_key(false));
+
+    // Background RSS sync
+    set_sync_status('Checking for new posts...');
+    fetch('/api/sync')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          set_sync_status(data.message);
+          // Clear status after 3 seconds
+          setTimeout(() => set_sync_status(null), 3000);
+        } else {
+          set_sync_status(null);
+        }
+      })
+      .catch(() => set_sync_status(null));
   }, []);
 
   const fetch_posts = useCallback(async (month?: number, day?: number) => {
@@ -370,6 +388,13 @@ export default function OnThisDay() {
         {archive && (
           <p className="text-center text-xs text-gray-600 mb-5">
             Archive: {archive} ({total_posts.toLocaleString()} posts)
+          </p>
+        )}
+
+        {/* RSS sync status */}
+        {sync_status && (
+          <p className="text-center text-xs text-cyan-400/70 mb-3 animate-pulse">
+            {sync_status}
           </p>
         )}
 
