@@ -330,6 +330,10 @@ export default function OnThisDay() {
     <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] text-gray-200 p-5">
       <div className="max-w-3xl mx-auto">
         <h1 className="text-center text-3xl font-light text-cyan-400 mb-2">On This Day</h1>
+        <div className="text-center mb-2 -mt-1">
+          <span className="bg-black text-white text-[0.65em] px-2 py-0.5 rounded uppercase font-semibold tracking-wide border border-gray-700">Next.js</span>
+          <span className="bg-[#1b4332] text-[#95d5b2] text-[0.65em] px-2 py-0.5 rounded uppercase font-semibold tracking-wide ml-1">Production</span>
+        </div>
         <p className="text-center text-gray-500 mb-8">{date?.display || 'Loading...'}</p>
 
         {/* User info and logout */}
