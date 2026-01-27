@@ -33,7 +33,12 @@ interface GenerateResponse {
   success: boolean;
   story: string;
   posts_used: number;
-  usage: { input_tokens: number; output_tokens: number };
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  };
   error?: string;
 }
 
@@ -54,7 +59,7 @@ export default function OnThisDay() {
   const [generated_story, set_generated_story] = useState<string | null>(null);
   const [story_copy_status, set_story_copy_status] = useState('');
   const [generate_error, set_generate_error] = useState<string | null>(null);
-  const [token_usage, set_token_usage] = useState<{ input: number; output: number } | null>(null);
+  const [token_usage, set_token_usage] = useState<{ input: number; output: number; cached: number } | null>(null);
 
   // Track if we're on localhost (for Dev Home link)
   const [is_localhost, set_is_localhost] = useState(false);
@@ -154,7 +159,11 @@ export default function OnThisDay() {
 
       if (data.success) {
         set_generated_story(data.story);
-        set_token_usage({ input: data.usage.input_tokens, output: data.usage.output_tokens });
+        set_token_usage({
+          input: data.usage.input_tokens,
+          output: data.usage.output_tokens,
+          cached: data.usage.cache_read_input_tokens || 0
+        });
       } else {
         set_generate_error(data.error || 'Failed to generate story');
       }
@@ -474,6 +483,7 @@ export default function OnThisDay() {
                     {token_usage && (
                       <span className="text-xs text-gray-600">
                         {token_usage.input + token_usage.output} tokens
+                        {token_usage.cached > 0 && ` (${token_usage.cached} cached)`}
                       </span>
                     )}
                     <button

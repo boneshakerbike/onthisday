@@ -67,7 +67,8 @@ ${plain_text || post.blurb || '(no content available)'}
       day: 'numeric'
     });
 
-    const prompt = `You are writing an "On This Day" reflection post for my Substack newsletter.
+    // System prompt (cached) - static instructions that don't change between requests
+    const system_prompt = `You are writing an "On This Day" reflection post for my Substack newsletter.
 
 BASE VOICE (from story generation style):
 - Tone: Balance humor with insight (target 3 on Funny vs. Serious)
@@ -82,16 +83,17 @@ ADAPTIVE VOICE REFINEMENT:
 First, analyze the provided posts for recurring themes, word choices, and tonal patterns. Subtly adjust the base voice to echo these detected nuances while maintaining the core style parameters above.
 
 CONTENT STRUCTURE:
-1. Creative title incorporating "${date_display}" (3-6 words total, quirky and curiosity-sparking)
+1. Creative title incorporating the date (3-6 words total, quirky and curiosity-sparking)
    Examples: "Why March 15th?" or "January 30th Blues" or "October 12th Strikes Again"
 2. Weave themes from posts showing evolution/consistency
 3. Natural link integration
 4. Reflective ending with appreciative insight
 5. 150-250 words maximum
 
-FORMAT: HTML with <h2> title, <p> paragraphs, <a href> links
+FORMAT: HTML with <h2> title, <p> paragraphs, <a href> links`;
 
-Here are my posts from ${date_display}:
+    // User message (dynamic) - changes with each request
+    const user_message = `Write a reflection for ${date_display}. Here are my posts from this date:
 
 ${formatted_posts}`;
 
@@ -100,8 +102,15 @@ ${formatted_posts}`;
     const message = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1024,
+      system: [
+        {
+          type: 'text',
+          text: system_prompt,
+          cache_control: { type: 'ephemeral' }
+        }
+      ],
       messages: [
-        { role: 'user', content: prompt }
+        { role: 'user', content: user_message }
       ]
     });
 
@@ -128,7 +137,9 @@ ${formatted_posts}`;
       posts_used: posts.length,
       usage: {
         input_tokens: message.usage.input_tokens,
-        output_tokens: message.usage.output_tokens
+        output_tokens: message.usage.output_tokens,
+        cache_creation_input_tokens: (message.usage as Record<string, number>).cache_creation_input_tokens || 0,
+        cache_read_input_tokens: (message.usage as Record<string, number>).cache_read_input_tokens || 0
       }
     });
 
