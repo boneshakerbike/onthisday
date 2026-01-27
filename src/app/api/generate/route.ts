@@ -138,8 +138,8 @@ ${formatted_posts}`;
       usage: {
         input_tokens: message.usage.input_tokens,
         output_tokens: message.usage.output_tokens,
-        cache_creation_input_tokens: (message.usage as Record<string, number>).cache_creation_input_tokens || 0,
-        cache_read_input_tokens: (message.usage as Record<string, number>).cache_read_input_tokens || 0
+        cache_creation_input_tokens: (message.usage as unknown as Record<string, number>).cache_creation_input_tokens || 0,
+        cache_read_input_tokens: (message.usage as unknown as Record<string, number>).cache_read_input_tokens || 0
       }
     });
 
