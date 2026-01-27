@@ -84,12 +84,16 @@ export default function OnThisDay() {
           set_sync_status(data.message);
           // Clear status after 3 seconds
           setTimeout(() => set_sync_status(null), 3000);
+          // If new posts were added, refresh the current view
+          if (data.added > 0) {
+            fetch_posts();
+          }
         } else {
           set_sync_status(null);
         }
       })
       .catch(() => set_sync_status(null));
-  }, []);
+  }, [fetch_posts]);
 
   const fetch_posts = useCallback(async (month?: number, day?: number) => {
     set_loading(true);
