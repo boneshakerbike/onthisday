@@ -56,8 +56,12 @@ export default function OnThisDay() {
   const [generate_error, set_generate_error] = useState<string | null>(null);
   const [token_usage, set_token_usage] = useState<{ input: number; output: number } | null>(null);
 
-  // Check if API key is configured
+  // Track if we're on localhost (for Dev Home link)
+  const [is_localhost, set_is_localhost] = useState(false);
+
+  // Check if API key is configured and if we're on localhost
   useEffect(() => {
+    set_is_localhost(window.location.hostname === 'localhost');
     fetch('/api/config')
       .then(res => res.json())
       .then(data => set_has_api_key(data.has_api_key))
@@ -120,11 +124,15 @@ export default function OnThisDay() {
       await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
       set_copy_status('Copied!');
     } catch {
-      const text = posts.map(p => `${p.year}: ${p.title} - ${p.url}`).join('\n');
-      await navigator.clipboard.writeText(text);
-      set_copy_status('Copied as text');
+      try {
+        const text = posts.map(p => `${p.year}: ${p.title} - ${p.url}`).join('\n');
+        await navigator.clipboard.writeText(text);
+        set_copy_status('Copied as text');
+      } catch {
+        set_copy_status('Copy failed');
+      }
     }
-    setTimeout(() => set_copy_status(''), 2000);
+    setTimeout(() => set_copy_status(''), 3000);
   };
 
   const generate_story = async () => {
@@ -165,12 +173,16 @@ export default function OnThisDay() {
       await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
       set_story_copy_status('Copied!');
     } catch {
-      const temp = document.createElement('div');
-      temp.innerHTML = generated_story;
-      await navigator.clipboard.writeText(temp.textContent || '');
-      set_story_copy_status('Copied as text');
+      try {
+        const temp = document.createElement('div');
+        temp.innerHTML = generated_story;
+        await navigator.clipboard.writeText(temp.textContent || '');
+        set_story_copy_status('Copied as text');
+      } catch {
+        set_story_copy_status('Copy failed');
+      }
     }
-    setTimeout(() => set_story_copy_status(''), 2000);
+    setTimeout(() => set_story_copy_status(''), 3000);
   };
 
   const handle_upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -326,7 +338,7 @@ export default function OnThisDay() {
 
         {/* Navigation */}
         <div className="text-center mb-5 pb-0 border-b-0">
-          {typeof window !== 'undefined' && window.location.hostname === 'localhost' && (
+          {is_localhost && (
             <a href="http://localhost:8080" className="text-cyan-400 hover:underline mx-4">
               Dev Home
             </a>
@@ -514,7 +526,7 @@ export default function OnThisDay() {
 
         {/* Bottom navigation */}
         <div className="text-center mt-8 pt-5 border-t border-white/10">
-          {typeof window !== 'undefined' && window.location.hostname === 'localhost' && (
+          {is_localhost && (
             <a href="http://localhost:8080" className="text-cyan-400 hover:underline mx-4">
               Dev Home
             </a>
