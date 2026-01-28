@@ -106,7 +106,8 @@ export default function OnThisDay() {
           setTimeout(() => set_sync_status(null), 3000);
           // If new posts were added, refresh the current view
           if (data.added > 0) {
-            fetch_posts();
+            const now = new Date();
+            fetch_posts(now.getMonth() + 1, now.getDate());
           }
         } else {
           set_sync_status(null);
@@ -116,7 +117,9 @@ export default function OnThisDay() {
   }, [fetch_posts]);
 
   useEffect(() => {
-    fetch_posts();
+    // Always use client's local date to avoid server timezone issues
+    const now = new Date();
+    fetch_posts(now.getMonth() + 1, now.getDate());
   }, [fetch_posts]);
 
   const handle_date_change = (e: React.ChangeEvent<HTMLInputElement>) => {
