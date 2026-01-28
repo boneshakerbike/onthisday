@@ -67,6 +67,26 @@ export default function OnThisDay() {
   // RSS sync state
   const [sync_status, set_sync_status] = useState<string | null>(null);
 
+  const fetch_posts = useCallback(async (month?: number, day?: number) => {
+    set_loading(true);
+    set_generated_story(null);
+    set_generate_error(null);
+    set_token_usage(null);
+    try {
+      const params = month && day ? `?date=${month}-${day}` : '';
+      const res = await fetch(`/api/posts${params}`);
+      const data: PostsResponse = await res.json();
+
+      set_date(data.date);
+      set_posts(data.posts);
+      set_archive(data.archive);
+      set_total_posts(data.total_posts);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+    }
+    set_loading(false);
+  }, []);
+
   // Check if API key is configured and if we're on localhost
   useEffect(() => {
     set_is_localhost(window.location.hostname === 'localhost');
@@ -94,26 +114,6 @@ export default function OnThisDay() {
       })
       .catch(() => set_sync_status(null));
   }, [fetch_posts]);
-
-  const fetch_posts = useCallback(async (month?: number, day?: number) => {
-    set_loading(true);
-    set_generated_story(null);
-    set_generate_error(null);
-    set_token_usage(null);
-    try {
-      const params = month && day ? `?date=${month}-${day}` : '';
-      const res = await fetch(`/api/posts${params}`);
-      const data: PostsResponse = await res.json();
-
-      set_date(data.date);
-      set_posts(data.posts);
-      set_archive(data.archive);
-      set_total_posts(data.total_posts);
-    } catch (error) {
-      console.error('Error fetching posts:', error);
-    }
-    set_loading(false);
-  }, []);
 
   useEffect(() => {
     fetch_posts();
