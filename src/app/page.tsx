@@ -32,6 +32,7 @@ interface PostsResponse {
 interface GenerateResponse {
   success: boolean;
   story: string;
+  story_id?: string;
   posts_used: number;
   usage: {
     input_tokens: number;
@@ -57,6 +58,8 @@ export default function OnThisDay() {
   const [has_api_key, set_has_api_key] = useState(false);
   const [generating, set_generating] = useState(false);
   const [generated_story, set_generated_story] = useState<string | null>(null);
+  const [story_id, set_story_id] = useState<string | null>(null);
+  const [existing_story, set_existing_story] = useState<{ id: string; created_at: string } | null>(null);
   const [story_copy_status, set_story_copy_status] = useState('');
   const [generate_error, set_generate_error] = useState<string | null>(null);
   const [token_usage, set_token_usage] = useState<{ input: number; output: number; cached: number } | null>(null);
@@ -70,6 +73,8 @@ export default function OnThisDay() {
   const fetch_posts = useCallback(async (month?: number, day?: number) => {
     set_loading(true);
     set_generated_story(null);
+    set_story_id(null);
+    set_existing_story(null);
     set_generate_error(null);
     set_token_usage(null);
     try {
@@ -81,6 +86,19 @@ export default function OnThisDay() {
       set_posts(data.posts);
       set_archive(data.archive);
       set_total_posts(data.total_posts);
+
+      // Check for existing story for this date
+      if (month && day) {
+        const date_key = `${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+        const story_res = await fetch(`/api/story?date=${date_key}`);
+        const story_data = await story_res.json();
+        if (story_data.story) {
+          set_existing_story({
+            id: story_data.story.id,
+            created_at: story_data.story.created_at
+          });
+        }
+      }
     } catch (error) {
       console.error('Error fetching posts:', error);
     }
@@ -171,6 +189,7 @@ export default function OnThisDay() {
     set_generating(true);
     set_generate_error(null);
     set_generated_story(null);
+    set_story_id(null);
     set_token_usage(null);
 
     try {
@@ -184,6 +203,14 @@ export default function OnThisDay() {
 
       if (data.success) {
         set_generated_story(data.story);
+        set_story_id(data.story_id || null);
+        // Update existing_story to the newly generated one
+        if (data.story_id) {
+          set_existing_story({
+            id: data.story_id,
+            created_at: new Date().toISOString()
+          });
+        }
         set_token_usage({
           input: data.usage.input_tokens,
           output: data.usage.output_tokens,
@@ -205,7 +232,7 @@ export default function OnThisDay() {
     try {
       const blob = new Blob([generated_story], { type: 'text/html' });
       await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
-      set_story_copy_status('Copied!');
+      set_story_copy_status('Copied for Substack!');
     } catch {
       try {
         const temp = document.createElement('div');
@@ -215,6 +242,81 @@ export default function OnThisDay() {
       } catch {
         set_story_copy_status('Copy failed');
       }
+    }
+    setTimeout(() => set_story_copy_status(''), 3000);
+  };
+
+  const copy_story_social = async () => {
+    if (!generated_story) return;
+
+    try {
+      // Convert HTML to plain text with URLs inline
+      let text = generated_story;
+      // Convert links to "text (url)" format
+      text = text.replace(/<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi, '$2 ($1)');
+      // Convert headers to plain text with line breaks
+      text = text.replace(/<h[1-6][^>]*>([^<]+)<\/h[1-6]>/gi, '$1\n\n');
+      // Convert paragraphs to text with line breaks
+      text = text.replace(/<\/p>/gi, '\n\n');
+      text = text.replace(/<p[^>]*>/gi, '');
+      // Remove any remaining HTML tags
+      text = text.replace(/<[^>]+>/g, '');
+      // Clean up whitespace
+      text = text.replace(/\n{3,}/g, '\n\n').trim();
+      // Decode HTML entities
+      const temp = document.createElement('div');
+      temp.innerHTML = text;
+      text = temp.textContent || text;
+
+      await navigator.clipboard.writeText(text);
+      set_story_copy_status('Copied for Social!');
+    } catch {
+      set_story_copy_status('Copy failed');
+    }
+    setTimeout(() => set_story_copy_status(''), 3000);
+  };
+
+  const copy_story_markdown = async () => {
+    if (!generated_story) return;
+
+    try {
+      let md = generated_story;
+      // Convert links to markdown format
+      md = md.replace(/<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi, '[$2]($1)');
+      // Convert headers
+      md = md.replace(/<h1[^>]*>([^<]+)<\/h1>/gi, '# $1\n\n');
+      md = md.replace(/<h2[^>]*>([^<]+)<\/h2>/gi, '## $1\n\n');
+      md = md.replace(/<h3[^>]*>([^<]+)<\/h3>/gi, '### $1\n\n');
+      // Convert paragraphs
+      md = md.replace(/<\/p>/gi, '\n\n');
+      md = md.replace(/<p[^>]*>/gi, '');
+      // Remove any remaining HTML tags
+      md = md.replace(/<[^>]+>/g, '');
+      // Clean up whitespace
+      md = md.replace(/\n{3,}/g, '\n\n').trim();
+      // Decode HTML entities
+      const temp = document.createElement('div');
+      temp.innerHTML = md;
+      md = temp.textContent || md;
+
+      await navigator.clipboard.writeText(md);
+      set_story_copy_status('Copied as Markdown!');
+    } catch {
+      set_story_copy_status('Copy failed');
+    }
+    setTimeout(() => set_story_copy_status(''), 3000);
+  };
+
+  const copy_story_link = async () => {
+    if (!story_id) return;
+
+    try {
+      const base_url = window.location.origin;
+      const link = `${base_url}/story/${story_id}`;
+      await navigator.clipboard.writeText(link);
+      set_story_copy_status('Link copied!');
+    } catch {
+      set_story_copy_status('Copy failed');
     }
     setTimeout(() => set_story_copy_status(''), 3000);
   };
@@ -490,7 +592,7 @@ export default function OnThisDay() {
               )}
             </div>
 
-            {/* Generate Story button */}
+            {/* Generate Story button and existing story link */}
             {has_api_key && (
               <div className="text-center mb-8">
                 <button
@@ -498,8 +600,26 @@ export default function OnThisDay() {
                   disabled={generating}
                   className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg text-white font-medium hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {generating ? 'Writing...' : 'Generate Story'}
+                  {generating ? 'Writing...' : existing_story ? 'Regenerate Story' : 'Generate Story'}
                 </button>
+                {/* Show link to existing story */}
+                {(existing_story || story_id) && !generated_story && (
+                  <div className="mt-3">
+                    <a
+                      href={`/story/${story_id || existing_story?.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-400 hover:text-purple-300 text-sm"
+                    >
+                      View saved story →
+                    </a>
+                    {existing_story && (
+                      <span className="text-gray-600 text-xs ml-2">
+                        (created {new Date(existing_story.created_at).toLocaleDateString()})
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -513,21 +633,51 @@ export default function OnThisDay() {
             {/* Generated story */}
             {generated_story && (
               <div className="mb-8 p-6 bg-white/5 border border-purple-400/30 rounded-xl">
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                   <h3 className="text-purple-400 font-medium">Generated Story</h3>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
                     {token_usage && (
-                      <span className="text-xs text-gray-600">
+                      <span className="text-xs text-gray-600 mr-2">
                         {token_usage.input + token_usage.output} tokens
                         {token_usage.cached > 0 && ` (${token_usage.cached} cached)`}
                       </span>
                     )}
                     <button
                       onClick={copy_story}
-                      className="px-4 py-1 border border-purple-400 rounded text-purple-400 text-sm hover:bg-purple-400 hover:text-white transition-all"
+                      className="px-3 py-1 border border-purple-400 rounded text-purple-400 text-xs hover:bg-purple-400 hover:text-white transition-all"
                     >
-                      Copy for Substack
+                      Substack
                     </button>
+                    <button
+                      onClick={copy_story_social}
+                      className="px-3 py-1 border border-cyan-400 rounded text-cyan-400 text-xs hover:bg-cyan-400 hover:text-[#1a1a2e] transition-all"
+                    >
+                      Social
+                    </button>
+                    <button
+                      onClick={copy_story_markdown}
+                      className="px-3 py-1 border border-gray-400 rounded text-gray-400 text-xs hover:bg-gray-400 hover:text-[#1a1a2e] transition-all"
+                    >
+                      Markdown
+                    </button>
+                    {story_id && (
+                      <>
+                        <a
+                          href={`/story/${story_id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3 py-1 border border-green-400 rounded text-green-400 text-xs hover:bg-green-400 hover:text-[#1a1a2e] transition-all inline-block"
+                        >
+                          View Page
+                        </a>
+                        <button
+                          onClick={copy_story_link}
+                          className="px-3 py-1 border border-green-400 rounded text-green-400 text-xs hover:bg-green-400 hover:text-[#1a1a2e] transition-all"
+                        >
+                          Copy Link
+                        </button>
+                      </>
+                    )}
                     {story_copy_status && (
                       <span className="text-green-400 text-sm">{story_copy_status}</span>
                     )}

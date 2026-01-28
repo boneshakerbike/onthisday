@@ -1,10 +1,14 @@
 /**
  * API route: GET /api/health
  * Returns database health stats including duplicate check
+ *
+ * POST /api/health?action=cleanup_stories
+ * Removes duplicate stories, keeping only the most recent per date
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@libsql/client';
+import { cleanup_duplicate_stories } from '@/lib/db';
 
 const is_turso = !!process.env.TURSO_DATABASE_URL;
 
@@ -26,11 +30,27 @@ export async function GET() {
   try {
     const db = get_client();
 
+    // Posts stats
     const total = await db.execute('SELECT COUNT(*) as count FROM posts');
     const unique = await db.execute('SELECT COUNT(DISTINCT post_id) as count FROM posts');
-    const duplicates = await db.execute(
+    const post_duplicates = await db.execute(
       'SELECT post_id, COUNT(*) as count FROM posts GROUP BY post_id HAVING COUNT(*) > 1'
     );
+
+    // Stories stats
+    let stories_total = 0;
+    let stories_duplicate_dates = 0;
+    try {
+      const stories = await db.execute('SELECT COUNT(*) as count FROM stories');
+      stories_total = Number(stories.rows[0].count);
+
+      const story_dups = await db.execute(
+        'SELECT date_key, COUNT(*) as count FROM stories GROUP BY date_key HAVING COUNT(*) > 1'
+      );
+      stories_duplicate_dates = story_dups.rows.length;
+    } catch {
+      // Stories table might not exist yet
+    }
 
     const total_count = Number(total.rows[0].count);
     const unique_count = Number(unique.rows[0].count);
@@ -38,12 +58,15 @@ export async function GET() {
     return NextResponse.json({
       status: 'ok',
       database: is_turso ? 'turso' : 'sqlite',
-      total_posts: total_count,
-      unique_post_ids: unique_count,
-      duplicate_count: duplicates.rows.length,
-      duplicates: duplicates.rows.length > 0
-        ? duplicates.rows.map(r => ({ post_id: r.post_id, count: r.count }))
-        : null
+      posts: {
+        total: total_count,
+        unique: unique_count,
+        duplicates: post_duplicates.rows.length,
+      },
+      stories: {
+        total: stories_total,
+        duplicate_dates: stories_duplicate_dates,
+      }
     });
 
   } catch (error) {
@@ -52,4 +75,29 @@ export async function GET() {
       { status: 500 }
     );
   }
+}
+
+export async function POST(request: NextRequest) {
+  const action = request.nextUrl.searchParams.get('action');
+
+  if (action === 'cleanup_stories') {
+    try {
+      const removed = await cleanup_duplicate_stories();
+      return NextResponse.json({
+        success: true,
+        message: `Removed ${removed} duplicate stories`,
+        removed
+      });
+    } catch (error) {
+      return NextResponse.json(
+        { success: false, error: error instanceof Error ? error.message : 'Cleanup failed' },
+        { status: 500 }
+      );
+    }
+  }
+
+  return NextResponse.json(
+    { error: 'Unknown action. Use ?action=cleanup_stories' },
+    { status: 400 }
+  );
 }

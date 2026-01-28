@@ -1,0 +1,43 @@
+/**
+ * API route: GET /api/story?date=MM-DD
+ * Returns the most recent story for a given date, if one exists
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { get_story_by_date } from '@/lib/db';
+
+export async function GET(request: NextRequest) {
+  try {
+    const date_key = request.nextUrl.searchParams.get('date');
+
+    if (!date_key) {
+      return NextResponse.json(
+        { error: 'date parameter required (format: MM-DD)' },
+        { status: 400 }
+      );
+    }
+
+    const story = await get_story_by_date(date_key);
+
+    if (!story) {
+      return NextResponse.json({ story: null });
+    }
+
+    return NextResponse.json({
+      story: {
+        id: story.id,
+        date_display: story.date_display,
+        post_count: story.post_count,
+        image_url: story.image_url,
+        created_at: story.created_at,
+      }
+    });
+
+  } catch (error) {
+    console.error('Story fetch error:', error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to fetch story' },
+      { status: 500 }
+    );
+  }
+}

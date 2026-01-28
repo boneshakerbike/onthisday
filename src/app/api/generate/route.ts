@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
-import { get_posts_on_date, get_post_url } from '@/lib/db';
+import { get_posts_on_date, get_post_url, save_story } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   const api_key = process.env.ANTHROPIC_API_KEY;
@@ -34,6 +34,23 @@ export async function POST(request: NextRequest) {
         { error: 'No posts found for this date' },
         { status: 404 }
       );
+    }
+
+    // Try to extract an image from the posts (first one found)
+    let image_url: string | null = null;
+    for (const post of posts) {
+      if (post.content_html) {
+        // Look for img tags with src attribute
+        const img_match = post.content_html.match(/<img[^>]+src=["']([^"']+)["']/i);
+        if (img_match && img_match[1]) {
+          // Skip tiny images (likely tracking pixels) and data URLs
+          const src = img_match[1];
+          if (!src.startsWith('data:') && !src.includes('pixel') && !src.includes('tracking')) {
+            image_url = src;
+            break;
+          }
+        }
+      }
     }
 
     // Format posts for the prompt
@@ -131,9 +148,14 @@ ${formatted_posts}`;
     }
     story = story.trim();
 
+    // Save story to database and get shareable ID
+    const date_key = `${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    const story_id = await save_story(date_key, date_display, story, posts.length, image_url);
+
     return NextResponse.json({
       success: true,
       story,
+      story_id,
       posts_used: posts.length,
       usage: {
         input_tokens: message.usage.input_tokens,
