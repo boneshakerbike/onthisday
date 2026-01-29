@@ -224,7 +224,7 @@ export async function import_posts(posts: Array<{
   post_date: string;
   audience?: string;
   type?: string;
-}>, html_files: Map<string, string>): Promise<number> {
+}>, html_files: Map<string, string>): Promise<{ processed: number; inserted: number }> {
   await clear_posts();
   return append_posts(posts, html_files);
 }
@@ -239,11 +239,12 @@ export async function append_posts(posts: Array<{
   post_date: string;
   audience?: string;
   type?: string;
-}>, html_files: Map<string, string>): Promise<number> {
+}>, html_files: Map<string, string>): Promise<{ processed: number; inserted: number }> {
   await ensure_schema();
   const db = get_client();
 
-  let count = 0;
+  let processed = 0;
+  let inserted = 0;
 
   for (const post of posts) {
     if (!post.post_date || !post.title) continue;
@@ -251,9 +252,9 @@ export async function append_posts(posts: Array<{
     const local_date = utc_to_mountain(post.post_date);
     const html = html_files.get(post.post_id) || null;
 
-    await db.execute({
+    const result = await db.execute({
       sql: `
-        INSERT OR REPLACE INTO posts (post_id, title, subtitle, post_date, local_date, audience, type, content_html)
+        INSERT OR IGNORE INTO posts (post_id, title, subtitle, post_date, local_date, audience, type, content_html)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
       args: [
@@ -267,10 +268,13 @@ export async function append_posts(posts: Array<{
         html
       ]
     });
-    count++;
+    processed++;
+    if (result.rowsAffected > 0) {
+      inserted++;
+    }
   }
 
-  return count;
+  return { processed, inserted };
 }
 
 /**
@@ -321,14 +325,20 @@ export async function get_post_count(): Promise<number> {
 /**
  * Update HTML content for an existing post
  */
-export async function update_post_html(post_id: string, html: string): Promise<void> {
+export async function update_post_html(post_id: string, html: string, only_if_empty: boolean = false): Promise<boolean> {
   await ensure_schema();
   const db = get_client();
 
-  await db.execute({
-    sql: 'UPDATE posts SET content_html = ? WHERE post_id = ?',
+  const sql = only_if_empty
+    ? 'UPDATE posts SET content_html = ? WHERE post_id = ? AND (content_html IS NULL OR content_html = "")'
+    : 'UPDATE posts SET content_html = ? WHERE post_id = ?';
+
+  const result = await db.execute({
+    sql,
     args: [html, post_id]
   });
+
+  return result.rowsAffected > 0;
 }
 
 /**

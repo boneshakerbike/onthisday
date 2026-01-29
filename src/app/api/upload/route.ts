@@ -9,7 +9,8 @@ import { clear_posts, append_posts, set_archive_info, get_post_count, update_pos
 
 interface UploadPayload {
   filename?: string;
-  batch_type: 'clear' | 'posts_batch' | 'html_batch';
+  batch_type: 'clear' | 'init' | 'posts_batch' | 'html_batch';
+  incremental?: boolean;
   posts?: Array<{
     post_id: string;
     title: string;
@@ -37,8 +38,18 @@ export async function POST(request: NextRequest) {
         message: 'Cleared posts'
       });
 
+    } else if (batch_type === 'init') {
+      // Set archive info without clearing (for incremental import)
+      if (data.filename) {
+        await set_archive_info(data.filename);
+      }
+      return NextResponse.json({
+        success: true,
+        message: 'Initialized for incremental import'
+      });
+
     } else if (batch_type === 'posts_batch') {
-      // Append posts (without clearing)
+      // Append posts (skips existing with INSERT OR IGNORE)
       if (!data.posts || !Array.isArray(data.posts)) {
         return NextResponse.json(
           { error: 'Invalid data: posts array required' },
@@ -46,17 +57,19 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const count = await append_posts(data.posts, new Map());
+      const result = await append_posts(data.posts, new Map());
 
       return NextResponse.json({
         success: true,
-        message: `Imported ${count} posts`,
-        count,
+        message: `Processed ${result.processed} posts, ${result.inserted} new`,
+        count: result.inserted,
+        processed: result.processed,
         total: await get_post_count()
       });
 
     } else if (batch_type === 'html_batch') {
-      // Update HTML content for existing posts
+      // Update HTML content for posts
+      // If incremental=true, only update posts that don't have HTML yet
       if (!data.html_files) {
         return NextResponse.json(
           { error: 'Invalid data: html_files required for html_batch' },
@@ -64,16 +77,26 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const only_if_empty = data.incremental === true;
       let updated = 0;
+      let skipped = 0;
+
       for (const [post_id, html] of Object.entries(data.html_files)) {
-        await update_post_html(post_id, html);
-        updated++;
+        const was_updated = await update_post_html(post_id, html, only_if_empty);
+        if (was_updated) {
+          updated++;
+        } else {
+          skipped++;
+        }
       }
 
       return NextResponse.json({
         success: true,
-        message: `Updated ${updated} posts with HTML`,
+        message: only_if_empty
+          ? `Updated ${updated} posts, skipped ${skipped} (already have content)`
+          : `Updated ${updated} posts with HTML`,
         updated,
+        skipped,
         total: await get_post_count()
       });
     }

@@ -53,6 +53,7 @@ export default function OnThisDay() {
   const [copy_status, set_copy_status] = useState('');
   const [upload_status, set_upload_status] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [uploading, set_uploading] = useState(false);
+  const [full_reimport, set_full_reimport] = useState(false);
 
   // Story generation state
   const [has_api_key, set_has_api_key] = useState(false);
@@ -343,30 +344,31 @@ export default function OnThisDay() {
         console.warn('CSV parse warnings:', parsed.errors);
       }
 
-      // Step 1: Clear existing posts
-      set_upload_status({ type: 'success', message: 'Preparing database...' });
-      const clear_res = await fetch('/api/upload', {
+      // Step 1: Initialize (clear if full reimport, otherwise just set archive info)
+      set_upload_status({ type: 'success', message: full_reimport ? 'Clearing database...' : 'Preparing incremental import...' });
+      const init_res = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          batch_type: 'clear',
+          batch_type: full_reimport ? 'clear' : 'init',
           filename: file.name
         })
       });
 
-      const clear_result = await clear_res.json();
-      if (!clear_result.success) {
-        throw new Error(clear_result.error || 'Failed to clear posts');
+      const init_result = await init_res.json();
+      if (!init_result.success) {
+        throw new Error(init_result.error || 'Failed to initialize');
       }
 
       // Step 2: Upload posts in batches
       const posts_batch_size = 500;
-      let total_posts = 0;
+      let total_processed = 0;
+      let total_new = 0;
       for (let i = 0; i < parsed.data.length; i += posts_batch_size) {
         const batch = parsed.data.slice(i, i + posts_batch_size);
         set_upload_status({
           type: 'success',
-          message: `Uploading posts... ${Math.min(i + posts_batch_size, parsed.data.length)}/${parsed.data.length}`
+          message: `Processing posts... ${Math.min(i + posts_batch_size, parsed.data.length)}/${parsed.data.length}${total_new > 0 ? ` (${total_new} new)` : ''}`
         });
 
         const posts_res = await fetch('/api/upload', {
@@ -382,13 +384,15 @@ export default function OnThisDay() {
         if (!posts_result.success) {
           throw new Error(posts_result.error || 'Failed to upload posts');
         }
-        total_posts += posts_result.count;
+        total_processed += posts_result.processed || posts_result.count;
+        total_new += posts_result.count;
       }
 
-      // Step 3: Extract and upload HTML in batches
+      // Step 3: Extract and upload HTML in batches (only for new posts if incremental)
       const html_entries = zip.file(/posts\/.*\.html$/i);
       const batch_size = 50; // ~50 files per batch to stay under 4.5MB
       let uploaded_html = 0;
+      let skipped_html = 0;
 
       for (let i = 0; i < html_entries.length; i += batch_size) {
         const batch_entries = html_entries.slice(i, i + batch_size);
@@ -404,7 +408,7 @@ export default function OnThisDay() {
 
         set_upload_status({
           type: 'success',
-          message: `Uploading content... ${Math.min(i + batch_size, html_entries.length)}/${html_entries.length}`
+          message: `Processing content... ${Math.min(i + batch_size, html_entries.length)}/${html_entries.length}${uploaded_html > 0 ? ` (${uploaded_html} new)` : ''}`
         });
 
         const html_res = await fetch('/api/upload', {
@@ -412,7 +416,8 @@ export default function OnThisDay() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             batch_type: 'html_batch',
-            html_files: html_batch
+            html_files: html_batch,
+            incremental: !full_reimport
           })
         });
 
@@ -420,12 +425,17 @@ export default function OnThisDay() {
         if (!html_result.success) {
           throw new Error(html_result.error || 'Failed to upload HTML batch');
         }
-        uploaded_html += Object.keys(html_batch).length;
+        uploaded_html += html_result.updated || Object.keys(html_batch).length;
+        skipped_html += html_result.skipped || 0;
       }
+
+      const summary = full_reimport
+        ? `Loaded ${total_new} posts with ${uploaded_html} content files`
+        : `Added ${total_new} new posts (${total_processed - total_new} existing skipped)`;
 
       set_upload_status({
         type: 'success',
-        message: `Loaded ${total_posts} posts with ${uploaded_html} content files`
+        message: summary
       });
 
       if (date) {
@@ -756,14 +766,26 @@ export default function OnThisDay() {
                 </p>
               )}
               <p className="text-gray-500 mb-4">Upload a new Substack export (.zip)</p>
-              <input
-                type="file"
-                accept=".zip"
-                onChange={handle_upload}
-                disabled={uploading}
-                className="text-gray-400 mr-3"
-              />
-              {uploading && <span className="text-cyan-400">Processing...</span>}
+              <div className="mb-4">
+                <input
+                  type="file"
+                  accept=".zip"
+                  onChange={handle_upload}
+                  disabled={uploading}
+                  className="text-gray-400 mr-3"
+                />
+                {uploading && <span className="text-cyan-400">Processing...</span>}
+              </div>
+              <label className="flex items-center justify-center gap-2 text-sm text-gray-500 mb-4 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={full_reimport}
+                  onChange={(e) => set_full_reimport(e.target.checked)}
+                  disabled={uploading}
+                  className="rounded"
+                />
+                Full reimport (clear existing posts first)
+              </label>
               <p className="text-xs text-gray-600 mt-4">
                 Get your archive from{' '}
                 <a
