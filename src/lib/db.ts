@@ -269,7 +269,7 @@ export async function append_posts(posts: Array<{
       ]
     });
     processed++;
-    if (result.rowsAffected > 0) {
+    if (result.rowsAffected && result.rowsAffected > 0) {
       inserted++;
     }
   }
@@ -338,7 +338,7 @@ export async function update_post_html(post_id: string, html: string, only_if_em
     args: [html, post_id]
   });
 
-  return result.rowsAffected > 0;
+  return (result.rowsAffected ?? 0) > 0;
 }
 
 /**
