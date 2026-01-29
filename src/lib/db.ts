@@ -330,7 +330,7 @@ export async function update_post_html(post_id: string, html: string, only_if_em
   const db = get_client();
 
   const sql = only_if_empty
-    ? 'UPDATE posts SET content_html = ? WHERE post_id = ? AND (content_html IS NULL OR content_html = "")'
+    ? "UPDATE posts SET content_html = ? WHERE post_id = ? AND (content_html IS NULL OR content_html = '')"
     : 'UPDATE posts SET content_html = ? WHERE post_id = ?';
 
   const result = await db.execute({
