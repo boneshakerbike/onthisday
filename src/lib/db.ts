@@ -489,6 +489,56 @@ export async function get_story(id: string): Promise<Story | null> {
 }
 
 /**
+ * Clean up duplicate posts where slug matches but post_id format differs
+ * Keeps posts with numeric prefix (from CSV), removes slug-only (from RSS)
+ * Returns number of duplicates removed
+ */
+export async function cleanup_duplicate_posts(): Promise<number> {
+  await ensure_schema();
+  const db = get_client();
+
+  // Get all post_ids
+  const all_posts = await db.execute('SELECT id, post_id FROM posts');
+
+  // Group by slug (part after dot, or whole id if no dot)
+  const by_slug: Map<string, Array<{ id: number; post_id: string; has_prefix: boolean }>> = new Map();
+
+  for (const row of all_posts.rows) {
+    const post_id = row.post_id as string;
+    const parts = post_id.split('.', 2);
+    const slug = parts.length > 1 ? parts[1] : parts[0];
+    const has_prefix = parts.length > 1 && /^\d+$/.test(parts[0]);
+
+    if (!by_slug.has(slug)) {
+      by_slug.set(slug, []);
+    }
+    by_slug.get(slug)!.push({
+      id: row.id as number,
+      post_id,
+      has_prefix
+    });
+  }
+
+  // Find duplicates and delete the ones without prefix
+  let removed = 0;
+  for (const [, posts] of by_slug) {
+    if (posts.length > 1) {
+      // Keep the one with prefix, delete others
+      const to_delete = posts.filter(p => !p.has_prefix);
+      for (const post of to_delete) {
+        await db.execute({
+          sql: 'DELETE FROM posts WHERE id = ?',
+          args: [post.id]
+        });
+        removed++;
+      }
+    }
+  }
+
+  return removed;
+}
+
+/**
  * Clean up duplicate stories, keeping only the most recent for each date
  * Returns number of duplicates removed
  */

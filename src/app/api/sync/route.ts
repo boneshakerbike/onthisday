@@ -84,10 +84,17 @@ export async function GET() {
 
     // Get existing post IDs from database
     const existing_ids = await get_all_post_ids();
-    const existing_set = new Set(existing_ids);
 
-    // Find missing posts
-    const missing_posts = rss_posts.filter(p => !existing_set.has(p.post_id));
+    // Build set of slugs (handle both "12345.slug" and "slug" formats)
+    const existing_slugs = new Set(
+      existing_ids.map(id => {
+        const parts = id.split('.', 2);
+        return parts[1] || parts[0]; // Get slug part, or whole id if no dot
+      })
+    );
+
+    // Find missing posts (compare by slug to avoid format mismatch)
+    const missing_posts = rss_posts.filter(p => !existing_slugs.has(p.post_id));
 
     // Add missing posts to database
     let added = 0;

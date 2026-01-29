@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@libsql/client';
-import { cleanup_duplicate_stories } from '@/lib/db';
+import { cleanup_duplicate_stories, cleanup_duplicate_posts } from '@/lib/db';
 
 const is_turso = !!process.env.TURSO_DATABASE_URL;
 
@@ -86,6 +86,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: `Removed ${removed} duplicate stories`,
+        removed
+      });
+    } catch (error) {
+      return NextResponse.json(
+        { success: false, error: error instanceof Error ? error.message : 'Cleanup failed' },
+        { status: 500 }
+      );
+    }
+  }
+
+  if (action === 'cleanup_posts') {
+    try {
+      const removed = await cleanup_duplicate_posts();
+      return NextResponse.json({
+        success: true,
+        message: `Removed ${removed} duplicate posts`,
         removed
       });
     } catch (error) {
