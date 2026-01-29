@@ -51,7 +51,7 @@ src/
 ├── lib/
 │   ├── db.ts                     # Database abstraction & queries
 │   └── auth.ts                   # NextAuth configuration
-└── middleware.ts                 # Route protection middleware
+└── proxy.ts                      # Route protection (Next.js 16+)
 ```
 
 ## Database Schema
@@ -222,7 +222,7 @@ ANTHROPIC_API_KEY=<Claude API key>
 | `src/app/api/generate/route.ts` | ~180 | Claude AI integration + story saving |
 | `src/app/story/[id]/page.tsx` | ~210 | Public shareable story page |
 | `src/app/login/page.tsx` | ~191 | Authentication UI |
-| `src/middleware.ts` | - | Route protection |
+| `src/proxy.ts` | ~25 | Route protection (Next.js 16+) |
 
 ## Notes for AI Assistants
 
