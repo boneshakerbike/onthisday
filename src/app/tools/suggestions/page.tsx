@@ -34,9 +34,13 @@ export default function SuggestionsPage() {
 
   async function fetch_suggestions() {
     try {
+      // Always fetch from production to see centralized suggestions
+      const base_url = is_localhost
+        ? 'https://onthisday-xi.vercel.app'
+        : '';
       const url = filter === 'all'
-        ? '/api/suggestions'
-        : `/api/suggestions?status=${filter}`;
+        ? `${base_url}/api/suggestions`
+        : `${base_url}/api/suggestions?status=${filter}`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
@@ -158,25 +162,41 @@ export default function SuggestionsPage() {
           </p>
         </div>
 
-        {/* New suggestion form */}
-        <form onSubmit={handle_submit} className="mb-8">
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={new_content}
-              onChange={(e) => set_new_content(e.target.value)}
-              placeholder="Add a new suggestion or idea..."
-              className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400/50"
-            />
-            <button
-              type="submit"
-              disabled={!new_content.trim() || submitting}
-              className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-medium transition-all"
-            >
-              {submitting ? 'Adding...' : 'Add'}
-            </button>
+        {/* New suggestion form - only on production */}
+        {is_localhost ? (
+          <div className="mb-8 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+            <p className="text-yellow-400 text-sm">
+              Suggestions are stored in the production database.{' '}
+              <a
+                href="https://onthisday-xi.vercel.app/tools/suggestions"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-yellow-300"
+              >
+                Add suggestions on the live site →
+              </a>
+            </p>
           </div>
-        </form>
+        ) : (
+          <form onSubmit={handle_submit} className="mb-8">
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={new_content}
+                onChange={(e) => set_new_content(e.target.value)}
+                placeholder="Add a new suggestion or idea..."
+                className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400/50"
+              />
+              <button
+                type="submit"
+                disabled={!new_content.trim() || submitting}
+                className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-medium transition-all"
+              >
+                {submitting ? 'Adding...' : 'Add'}
+              </button>
+            </div>
+          </form>
+        )}
 
         {/* Filter tabs */}
         <div className="flex gap-2 mb-6">
@@ -227,63 +247,65 @@ export default function SuggestionsPage() {
                     )}
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {s.status === 'pending' && (
-                      <>
-                        <button
-                          onClick={() => update_status(s.id, 'considering')}
-                          className="px-2 py-1 text-xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-all"
-                        >
-                          Considering
-                        </button>
-                        <button
-                          onClick={() => {
-                            set_editing_id(s.id);
-                            set_edit_outcome('');
-                          }}
-                          className="px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-all"
-                        >
-                          Done
-                        </button>
-                        <button
-                          onClick={() => update_status(s.id, 'rejected')}
-                          className="px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-all"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
-                    {s.status === 'considering' && (
-                      <>
-                        <button
-                          onClick={() => {
-                            set_editing_id(s.id);
-                            set_edit_outcome('');
-                          }}
-                          className="px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-all"
-                        >
-                          Done
-                        </button>
-                        <button
-                          onClick={() => update_status(s.id, 'rejected')}
-                          className="px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-all"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
-                    <button
-                      onClick={() => delete_suggestion(s.id)}
-                      className="px-2 py-1 text-xs text-gray-500 hover:text-red-400 transition-all"
-                    >
-                      Delete
-                    </button>
-                  </div>
+                  {/* Actions - only on production */}
+                  {!is_localhost && (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {s.status === 'pending' && (
+                        <>
+                          <button
+                            onClick={() => update_status(s.id, 'considering')}
+                            className="px-2 py-1 text-xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-all"
+                          >
+                            Considering
+                          </button>
+                          <button
+                            onClick={() => {
+                              set_editing_id(s.id);
+                              set_edit_outcome('');
+                            }}
+                            className="px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-all"
+                          >
+                            Done
+                          </button>
+                          <button
+                            onClick={() => update_status(s.id, 'rejected')}
+                            className="px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-all"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      {s.status === 'considering' && (
+                        <>
+                          <button
+                            onClick={() => {
+                              set_editing_id(s.id);
+                              set_edit_outcome('');
+                            }}
+                            className="px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-all"
+                          >
+                            Done
+                          </button>
+                          <button
+                            onClick={() => update_status(s.id, 'rejected')}
+                            className="px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-all"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                      <button
+                        onClick={() => delete_suggestion(s.id)}
+                        className="px-2 py-1 text-xs text-gray-500 hover:text-red-400 transition-all"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                {/* Outcome input modal */}
-                {editing_id === s.id && (
+                {/* Outcome input modal - only on production */}
+                {!is_localhost && editing_id === s.id && (
                   <div className="mt-4 p-3 bg-white/5 border border-white/10 rounded-lg">
                     <label className="block text-sm text-gray-400 mb-2">
                       What was the outcome? (optional)
