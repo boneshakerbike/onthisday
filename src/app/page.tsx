@@ -317,13 +317,15 @@ export default function OnThisDay() {
     if (!generated_story || !date || !story_id) return;
 
     try {
-      // Extract title from generated story
-      const title_match = generated_story.match(/<h2[^>]*>([^<]+)<\/h2>/i);
-      const title = title_match ? title_match[1] : 'On This Day';
+      // Calculate year span
+      const years = posts.map(p => p.year).sort((a, b) => a - b);
+      const year_range = years.length > 1
+        ? `${years[0]}-${years[years.length - 1]}`
+        : `${years[0]}`;
 
       // Build short social text (~280 chars max)
       const story_url = `${window.location.origin}/story/${story_id}`;
-      const text = `${title}\n\n${date.display} - ${posts.length} post${posts.length !== 1 ? 's' : ''} from my journal.\n\n${story_url}`;
+      const text = `On This Day: ${date.display}\n\n${posts.length} post${posts.length !== 1 ? 's' : ''} from my journal, ${year_range}.\n\n${story_url}`;
 
       await navigator.clipboard.writeText(text);
       set_story_copy_status('Copied for Social!');

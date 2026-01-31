@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import NavTabs from '@/components/nav_tabs';
 
 interface Story {
@@ -17,12 +17,15 @@ interface Story {
   created_at: string;
 }
 
+type SortOrder = 'date_asc' | 'date_desc' | 'created_asc' | 'created_desc';
+
 export default function StoriesPage() {
   const [is_localhost, set_is_localhost] = useState(false);
   const [stories, set_stories] = useState<Story[]>([]);
   const [loading, set_loading] = useState(true);
   const [copy_status, set_copy_status] = useState<string | null>(null);
   const [deleting, set_deleting] = useState<string | null>(null);
+  const [sort_order, set_sort_order] = useState<SortOrder>('date_asc');
 
   useEffect(() => {
     set_is_localhost(window.location.hostname === 'localhost');
@@ -42,6 +45,22 @@ export default function StoriesPage() {
     set_loading(false);
   };
 
+  const sorted_stories = useMemo(() => {
+    const sorted = [...stories];
+    switch (sort_order) {
+      case 'date_asc':
+        return sorted.sort((a, b) => a.date_key.localeCompare(b.date_key));
+      case 'date_desc':
+        return sorted.sort((a, b) => b.date_key.localeCompare(a.date_key));
+      case 'created_asc':
+        return sorted.sort((a, b) => a.created_at.localeCompare(b.created_at));
+      case 'created_desc':
+        return sorted.sort((a, b) => b.created_at.localeCompare(a.created_at));
+      default:
+        return sorted;
+    }
+  }, [stories, sort_order]);
+
   const extract_title = (content: string): string => {
     const match = content.match(/<h2[^>]*>([^<]+)<\/h2>/i);
     return match ? match[1] : 'Untitled';
@@ -55,9 +74,8 @@ export default function StoriesPage() {
         set_copy_status('Copied for Substack!');
       } else if (format === 'social') {
         // Short format for social (~280 chars max)
-        const title = extract_title(story.content);
         const story_url = `${window.location.origin}/story/${story.id}`;
-        const text = `${title}\n\n${story.date_display} - ${story.post_count} post${story.post_count !== 1 ? 's' : ''} from my journal.\n\n${story_url}`;
+        const text = `On This Day: ${story.date_display}\n\n${story.post_count} post${story.post_count !== 1 ? 's' : ''} from my journal.\n\n${story_url}`;
         await navigator.clipboard.writeText(text);
         set_copy_status('Copied for Social!');
       } else {
@@ -120,9 +138,36 @@ export default function StoriesPage() {
         <h1 className="text-center text-3xl font-light text-cyan-400 mb-2">
           Your Stories
         </h1>
-        <p className="text-center text-gray-500 mb-8">
+        <p className="text-center text-gray-500 mb-6">
           {loading ? 'Loading...' : `${stories.length} generated ${stories.length === 1 ? 'story' : 'stories'}`}
         </p>
+
+        {/* Sort controls */}
+        {!loading && stories.length > 1 && (
+          <div className="flex justify-center gap-2 mb-6">
+            <span className="text-gray-500 text-sm self-center mr-2">Sort:</span>
+            <button
+              onClick={() => set_sort_order(sort_order === 'date_asc' ? 'date_desc' : 'date_asc')}
+              className={`px-3 py-1 rounded text-xs transition-all ${
+                sort_order.startsWith('date_')
+                  ? 'bg-cyan-400/20 text-cyan-400 border border-cyan-400/50'
+                  : 'bg-white/5 text-gray-400 border border-white/10 hover:border-cyan-400/30'
+              }`}
+            >
+              Date {sort_order === 'date_asc' ? '↑' : sort_order === 'date_desc' ? '↓' : ''}
+            </button>
+            <button
+              onClick={() => set_sort_order(sort_order === 'created_desc' ? 'created_asc' : 'created_desc')}
+              className={`px-3 py-1 rounded text-xs transition-all ${
+                sort_order.startsWith('created_')
+                  ? 'bg-cyan-400/20 text-cyan-400 border border-cyan-400/50'
+                  : 'bg-white/5 text-gray-400 border border-white/10 hover:border-cyan-400/30'
+              }`}
+            >
+              Created {sort_order === 'created_asc' ? '↑' : sort_order === 'created_desc' ? '↓' : ''}
+            </button>
+          </div>
+        )}
 
         {/* Copy status toast */}
         {copy_status && (
@@ -143,7 +188,7 @@ export default function StoriesPage() {
         {/* Stories list */}
         {!loading && stories.length > 0 && (
           <div className="space-y-4">
-            {stories.map((story) => (
+            {sorted_stories.map((story) => (
               <div
                 key={story.id}
                 className="bg-white/5 rounded-xl p-5 border border-white/10 hover:border-cyan-400/50 transition-all"
