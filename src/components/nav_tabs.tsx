@@ -97,6 +97,13 @@ export default function NavTabs({ is_localhost = false }: NavTabsProps) {
                 >
                   Markdown Converter
                 </Link>
+                <Link
+                  href="/tools/suggestions"
+                  onClick={() => set_tools_open(false)}
+                  className="block px-4 py-2 text-sm text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400 transition-all"
+                >
+                  Suggestions
+                </Link>
               </div>
             )}
           </div>

@@ -640,3 +640,167 @@ export async function delete_story(id: string): Promise<boolean> {
 
   return result.rowsAffected > 0;
 }
+
+// ============================================================================
+// Suggestions
+// ============================================================================
+
+export interface Suggestion {
+  id: string;
+  content: string;
+  status: 'pending' | 'considering' | 'done' | 'rejected';
+  created_at: string;
+  resolved_at: string | null;
+  outcome: string | null;
+}
+
+/**
+ * Initialize suggestions table
+ */
+async function init_suggestions_schema(): Promise<void> {
+  const db = get_client();
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS suggestions (
+      id TEXT PRIMARY KEY,
+      content TEXT NOT NULL,
+      status TEXT DEFAULT 'pending',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      resolved_at TEXT,
+      outcome TEXT
+    )
+  `);
+}
+
+// Track if suggestions schema is initialized
+let suggestions_schema_initialized = false;
+async function ensure_suggestions_schema(): Promise<void> {
+  if (!suggestions_schema_initialized) {
+    await init_suggestions_schema();
+    suggestions_schema_initialized = true;
+  }
+}
+
+/**
+ * Generate a short unique ID for suggestions
+ */
+function generate_suggestion_id(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let id = '';
+  for (let i = 0; i < 8; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return id;
+}
+
+/**
+ * Create a new suggestion
+ */
+export async function create_suggestion(content: string): Promise<string> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  const id = generate_suggestion_id();
+  await db.execute({
+    sql: `INSERT INTO suggestions (id, content) VALUES (?, ?)`,
+    args: [id, content]
+  });
+
+  return id;
+}
+
+/**
+ * Get all suggestions, optionally filtered by status
+ */
+export async function get_suggestions(status?: string): Promise<Suggestion[]> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  let result;
+  if (status) {
+    result = await db.execute({
+      sql: 'SELECT * FROM suggestions WHERE status = ? ORDER BY created_at DESC',
+      args: [status]
+    });
+  } else {
+    result = await db.execute(
+      'SELECT * FROM suggestions ORDER BY created_at DESC'
+    );
+  }
+
+  return result.rows.map(row => ({
+    id: row.id as string,
+    content: row.content as string,
+    status: row.status as Suggestion['status'],
+    created_at: row.created_at as string,
+    resolved_at: (row.resolved_at as string) || null,
+    outcome: (row.outcome as string) || null
+  }));
+}
+
+/**
+ * Get a single suggestion by ID
+ */
+export async function get_suggestion(id: string): Promise<Suggestion | null> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'SELECT * FROM suggestions WHERE id = ?',
+    args: [id]
+  });
+
+  if (result.rows.length === 0) return null;
+
+  const row = result.rows[0];
+  return {
+    id: row.id as string,
+    content: row.content as string,
+    status: row.status as Suggestion['status'],
+    created_at: row.created_at as string,
+    resolved_at: (row.resolved_at as string) || null,
+    outcome: (row.outcome as string) || null
+  };
+}
+
+/**
+ * Update a suggestion's status and outcome
+ */
+export async function update_suggestion(
+  id: string,
+  status: Suggestion['status'],
+  outcome?: string
+): Promise<boolean> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  const resolved_at = (status === 'done' || status === 'rejected')
+    ? new Date().toISOString()
+    : null;
+
+  const result = await db.execute({
+    sql: `
+      UPDATE suggestions
+      SET status = ?, outcome = ?, resolved_at = ?
+      WHERE id = ?
+    `,
+    args: [status, outcome || null, resolved_at, id]
+  });
+
+  return result.rowsAffected > 0;
+}
+
+/**
+ * Delete a suggestion
+ */
+export async function delete_suggestion(id: string): Promise<boolean> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'DELETE FROM suggestions WHERE id = ?',
+    args: [id]
+  });
+
+  return result.rowsAffected > 0;
+}
