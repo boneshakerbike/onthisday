@@ -314,26 +314,16 @@ export default function OnThisDay() {
   };
 
   const copy_story_social = async () => {
-    if (!generated_story) return;
+    if (!generated_story || !date || !story_id) return;
 
     try {
-      // Convert HTML to plain text with URLs inline
-      let text = generated_story;
-      // Convert links to "text (url)" format
-      text = text.replace(/<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi, '$2 ($1)');
-      // Convert headers to plain text with line breaks
-      text = text.replace(/<h[1-6][^>]*>([^<]+)<\/h[1-6]>/gi, '$1\n\n');
-      // Convert paragraphs to text with line breaks
-      text = text.replace(/<\/p>/gi, '\n\n');
-      text = text.replace(/<p[^>]*>/gi, '');
-      // Remove any remaining HTML tags
-      text = text.replace(/<[^>]+>/g, '');
-      // Clean up whitespace
-      text = text.replace(/\n{3,}/g, '\n\n').trim();
-      // Decode HTML entities
-      const temp = document.createElement('div');
-      temp.innerHTML = text;
-      text = temp.textContent || text;
+      // Extract title from generated story
+      const title_match = generated_story.match(/<h2[^>]*>([^<]+)<\/h2>/i);
+      const title = title_match ? title_match[1] : 'On This Day';
+
+      // Build short social text (~280 chars max)
+      const story_url = `${window.location.origin}/story/${story_id}`;
+      const text = `${title}\n\n${date.display} - ${posts.length} post${posts.length !== 1 ? 's' : ''} from my journal.\n\n${story_url}`;
 
       await navigator.clipboard.writeText(text);
       set_story_copy_status('Copied for Social!');

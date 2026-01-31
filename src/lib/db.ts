@@ -603,3 +603,40 @@ export async function get_story_by_date(date_key: string): Promise<Story | null>
     created_at: row.created_at as string
   };
 }
+
+/**
+ * Get all stories, ordered by date_key
+ */
+export async function get_all_stories(): Promise<Story[]> {
+  await ensure_schema();
+  const db = get_client();
+
+  const result = await db.execute(
+    'SELECT * FROM stories ORDER BY date_key ASC'
+  );
+
+  return result.rows.map(row => ({
+    id: row.id as string,
+    date_key: row.date_key as string,
+    date_display: row.date_display as string,
+    content: row.content as string,
+    post_count: row.post_count as number,
+    image_url: (row.image_url as string) || null,
+    created_at: row.created_at as string
+  }));
+}
+
+/**
+ * Delete a story by ID
+ */
+export async function delete_story(id: string): Promise<boolean> {
+  await ensure_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'DELETE FROM stories WHERE id = ?',
+    args: [id]
+  });
+
+  return result.rowsAffected > 0;
+}
