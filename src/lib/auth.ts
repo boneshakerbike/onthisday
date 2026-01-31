@@ -20,13 +20,16 @@ export const auth_options: NextAuthOptions = {
         pin: { label: 'PIN', type: 'password' },
       },
       async authorize(credentials) {
-        const guest_pin = process.env.GUEST_PIN;
+        // Support multiple PINs: GUEST_PINS=pin1,pin2,pin3 or legacy GUEST_PIN=pin
+        const guest_pins = process.env.GUEST_PINS?.split(',').map(p => p.trim()) || [];
+        const legacy_pin = process.env.GUEST_PIN;
+        if (legacy_pin) guest_pins.push(legacy_pin);
 
-        if (!guest_pin) {
+        if (guest_pins.length === 0) {
           return null;
         }
 
-        if (credentials?.pin === guest_pin) {
+        if (credentials?.pin && guest_pins.includes(credentials.pin)) {
           return {
             id: 'guest',
             name: 'Guest',
@@ -43,16 +46,23 @@ export const auth_options: NextAuthOptions = {
   },
   callbacks: {
     async signIn({ user, account }) {
-      // Allow all GitHub users or guests with valid PIN
+      // Allow guests with valid PIN
       if (account?.provider === 'guest-pin') {
         return true;
       }
 
-      // Optional: restrict to specific GitHub username
-      // const allowed_users = ['boneshakerbike'];
-      // if (account?.provider === 'github' && !allowed_users.includes(user.name ?? '')) {
-      //   return false;
-      // }
+      // Restrict GitHub login to allowed users
+      // Set ALLOWED_GITHUB_USERS=user1,user2 in env, or defaults to boneshakerbike
+      const allowed_users = process.env.ALLOWED_GITHUB_USERS?.split(',').map(u => u.trim())
+        || ['boneshakerbike'];
+
+      if (account?.provider === 'github') {
+        const username = user.name ?? '';
+        if (!allowed_users.includes(username)) {
+          console.log(`GitHub login denied for: ${username}`);
+          return false;
+        }
+      }
 
       return true;
     },
