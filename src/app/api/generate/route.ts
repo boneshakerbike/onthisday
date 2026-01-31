@@ -103,9 +103,9 @@ CONTENT STRUCTURE:
 1. Creative title incorporating the date (3-6 words total, quirky and curiosity-sparking)
    Examples: "Why March 15th?" or "January 30th Blues" or "October 12th Strikes Again"
 2. Weave themes from posts showing evolution/consistency
-3. Natural link integration
+3. IMPORTANT: Include a link to EVERY post provided - no exceptions. Each URL must appear EXACTLY ONCE (no duplicates)
 4. Reflective ending with appreciative insight
-5. 150-250 words maximum
+5. 150-300 words (scale with post count: ~30 words per post minimum)
 
 FORMAT: HTML with <h2> title, <p> paragraphs, <a href> links`;
 
