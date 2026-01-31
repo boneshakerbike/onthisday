@@ -6,9 +6,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSession, signOut } from 'next-auth/react';
 import JSZip from 'jszip';
 import Papa from 'papaparse';
+import NavTabs from '@/components/nav_tabs';
 
 interface Post {
   post_id: string;
@@ -44,7 +44,6 @@ interface GenerateResponse {
 }
 
 export default function OnThisDay() {
-  const { data: session } = useSession();
   const [date, set_date] = useState<{ month: number; day: number; display: string } | null>(null);
   const [posts, set_posts] = useState<Post[]>([]);
   const [archive, set_archive] = useState<string | null>(null);
@@ -70,6 +69,9 @@ export default function OnThisDay() {
 
   // RSS sync state
   const [sync_status, set_sync_status] = useState<string | null>(null);
+
+  // AI copy state
+  const [ai_copying, set_ai_copying] = useState(false);
 
   const fetch_posts = useCallback(async (month?: number, day?: number) => {
     set_loading(true);
@@ -156,9 +158,23 @@ export default function OnThisDay() {
   };
 
   const copy_for_substack = async (version: 'simple' | 'full') => {
-    if (!posts.length) return;
+    if (!posts.length || !date) return;
+
+    // Calculate year span for intro
+    const years = posts.map(p => p.year).sort((a, b) => a - b);
+    const earliest_year = years[0];
+    const latest_year = years[years.length - 1];
+    const year_span = latest_year - earliest_year;
+
+    // Build intro paragraph
+    const post_word = posts.length === 1 ? 'post' : 'posts';
+    const year_range = year_span > 0
+      ? `Since ${earliest_year}, I have written ${posts.length} ${post_word} that landed on this date.`
+      : `I have ${posts.length} ${post_word} from ${earliest_year} on this date.`;
 
     let html = '<h2>On This Day</h2>\n';
+    html += `<p>${date.display} has shown up a few times over the years. ${year_range} Different places, different versions of me. Looking back at them feels like checking old trail conditions.</p>\n`;
+
     for (const post of posts) {
       if (version === 'simple') {
         html += `<p>${post.year}: <a href="${post.url}">${post.title}</a></p>\n`;
@@ -181,6 +197,56 @@ export default function OnThisDay() {
         set_copy_status('Copy failed');
       }
     }
+    setTimeout(() => set_copy_status(''), 3000);
+  };
+
+  const copy_with_ai_intro = async () => {
+    if (!posts.length || !date) return;
+
+    set_ai_copying(true);
+    set_copy_status('');
+
+    try {
+      // Call the AI intro endpoint
+      const res = await fetch('/api/intro', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date_display: date.display,
+          posts: posts.map(p => ({
+            year: p.year,
+            title: p.title,
+            blurb: p.blurb
+          }))
+        })
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to generate intro');
+      }
+
+      // Build HTML with AI intro
+      let html = '<h2>On This Day</h2>\n';
+      html += `<p>${data.intro}</p>\n`;
+
+      for (const post of posts) {
+        const blurb_part = post.blurb ? ` – ${post.blurb}` : '';
+        html += `<p>${post.year}: <a href="${post.url}">${post.title}</a>${blurb_part}</p>\n`;
+      }
+
+      // Copy to clipboard
+      const blob = new Blob([html], { type: 'text/html' });
+      await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
+      set_copy_status('Copied with AI intro!');
+
+    } catch (error) {
+      console.error('AI copy error:', error);
+      set_copy_status('AI intro failed');
+    }
+
+    set_ai_copying(false);
     setTimeout(() => set_copy_status(''), 3000);
   };
 
@@ -466,42 +532,13 @@ export default function OnThisDay() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] text-gray-200 p-5">
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-center text-3xl font-light text-cyan-400 mb-2">On This Day</h1>
-        <div className="text-center mb-2 -mt-1">
-          <span className="bg-black text-white text-[0.65em] px-2 py-0.5 rounded uppercase font-semibold tracking-wide border border-gray-700">Next.js</span>
-          <span className="bg-[#1b4332] text-[#95d5b2] text-[0.65em] px-2 py-0.5 rounded uppercase font-semibold tracking-wide ml-1">Production</span>
-        </div>
-        <p className="text-center text-gray-500 mb-8">{date?.display || 'Loading...'}</p>
-
-        {/* User info and logout */}
-        {session && (
-          <div className="text-center mb-4 text-sm text-gray-500">
-            Signed in as {session.user?.name || session.user?.email || 'Guest'}
-            <button
-              onClick={() => signOut()}
-              className="ml-3 text-gray-400 hover:text-cyan-400 underline"
-            >
-              Sign out
-            </button>
-          </div>
-        )}
-
         {/* Navigation */}
-        <div className="text-center mb-5 pb-0 border-b-0">
-          {is_localhost && (
-            <a href="http://localhost:8080" className="text-cyan-400 hover:underline mx-4">
-              Dev Home
-            </a>
-          )}
-          <a
-            href="https://8i11.substack.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-cyan-400 hover:underline mx-4"
-          >
-            Visit Substack
-          </a>
-        </div>
+        <NavTabs is_localhost={is_localhost} />
+
+        {/* Page heading - the date */}
+        <h1 className="text-center text-3xl font-light text-cyan-400 mb-8">
+          {date?.display || 'Loading...'}
+        </h1>
 
         {/* Archive info */}
         {archive && (
@@ -584,21 +621,30 @@ export default function OnThisDay() {
             </p>
 
             {/* Export buttons */}
-            <div className="text-center mb-6">
+            <div className="text-center mb-6 flex flex-wrap justify-center gap-2">
               <button
                 onClick={() => copy_for_substack('simple')}
-                className="px-5 py-2 mx-1 border-2 border-cyan-400 rounded-lg bg-transparent text-cyan-400 text-sm font-medium hover:bg-cyan-400 hover:text-[#1a1a2e] transition-all"
+                className="px-5 py-2 border-2 border-cyan-400 rounded-lg bg-transparent text-cyan-400 text-sm font-medium hover:bg-cyan-400 hover:text-[#1a1a2e] transition-all"
               >
                 Copy Titles Only
               </button>
               <button
                 onClick={() => copy_for_substack('full')}
-                className="px-5 py-2 mx-1 border-2 border-cyan-400 rounded-lg bg-transparent text-cyan-400 text-sm font-medium hover:bg-cyan-400 hover:text-[#1a1a2e] transition-all"
+                className="px-5 py-2 border-2 border-cyan-400 rounded-lg bg-transparent text-cyan-400 text-sm font-medium hover:bg-cyan-400 hover:text-[#1a1a2e] transition-all"
               >
                 Copy with Blurbs
               </button>
+              {has_api_key && (
+                <button
+                  onClick={copy_with_ai_intro}
+                  disabled={ai_copying}
+                  className="px-5 py-2 border-2 border-purple-400 rounded-lg bg-transparent text-purple-400 text-sm font-medium hover:bg-purple-400 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {ai_copying ? 'Writing...' : 'Copy with AI Intro'}
+                </button>
+              )}
               {copy_status && (
-                <span className="ml-3 text-green-400 text-sm">{copy_status}</span>
+                <span className="text-green-400 text-sm self-center">{copy_status}</span>
               )}
             </div>
 
@@ -729,23 +775,6 @@ export default function OnThisDay() {
             ))}
           </>
         )}
-
-        {/* Bottom navigation */}
-        <div className="text-center mt-8 pt-5 border-t border-white/10">
-          {is_localhost && (
-            <a href="http://localhost:8080" className="text-cyan-400 hover:underline mx-4">
-              Dev Home
-            </a>
-          )}
-          <a
-            href="https://8i11.substack.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-cyan-400 hover:underline mx-4"
-          >
-            Visit Substack
-          </a>
-        </div>
 
         {/* Upload section */}
         <div className="mt-10 pt-5 border-t border-white/10">
