@@ -104,6 +104,14 @@ export default function NavTabs({ is_localhost = false }: NavTabsProps) {
                 >
                   Suggestions
                 </Link>
+                <div className="border-t border-white/10 my-1"></div>
+                <Link
+                  href="/tools/admin"
+                  onClick={() => set_tools_open(false)}
+                  className="block px-4 py-2 text-sm text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400 transition-all"
+                >
+                  Admin Reference
+                </Link>
               </div>
             )}
           </div>
