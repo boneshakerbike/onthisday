@@ -65,12 +65,7 @@ export default function NavTabs({ is_localhost = false }: NavTabsProps) {
             On This Day
           </Link>
 
-          {/* Stories */}
-          <Link href="/stories" className={tab_class('/stories')}>
-            Stories
-          </Link>
-
-          {/* Archive */}
+          {/* Archive (stories) */}
           <Link href="/archive" className={tab_class('/archive')}>
             Archive
           </Link>
