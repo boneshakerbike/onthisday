@@ -36,7 +36,7 @@ export default function SuggestionsPage() {
     try {
       // Always fetch from production to see centralized suggestions
       const base_url = is_localhost
-        ? 'https://onthisday-xi.vercel.app'
+        ? 'https://8i11.vercel.app'
         : '';
       const url = filter === 'all'
         ? `${base_url}/api/suggestions`
@@ -168,7 +168,7 @@ export default function SuggestionsPage() {
             <p className="text-yellow-400 text-sm">
               Suggestions are stored in the production database.{' '}
               <a
-                href="https://onthisday-xi.vercel.app/tools/suggestions"
+                href="https://8i11.vercel.app/tools/suggestions"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline hover:text-yellow-300"

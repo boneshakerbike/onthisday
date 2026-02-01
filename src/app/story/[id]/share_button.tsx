@@ -16,7 +16,7 @@ export default function ShareButton({ storyId }: ShareButtonProps) {
 
   const share_url = typeof window !== 'undefined'
     ? `${window.location.origin}/story/${storyId}`
-    : `https://onthisday-xi.vercel.app/story/${storyId}`;
+    : `https://8i11.vercel.app/story/${storyId}`;
 
   const handle_share = async () => {
     // Try native share first (mobile)
