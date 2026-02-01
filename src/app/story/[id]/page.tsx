@@ -35,14 +35,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     : `A reflection on ${story.post_count} posts from ${story.date_display}`;
 
   const metadata: Metadata = {
-    title: `${title} | On This Day`,
+    title,
     description,
     openGraph: {
       title,
       description,
       type: 'article',
       publishedTime: story.created_at,
-      siteName: 'On This Day',
+      siteName: '8i11',
     },
     twitter: {
       card: story.image_url ? 'summary_large_image' : 'summary',
