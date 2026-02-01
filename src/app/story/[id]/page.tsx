@@ -168,17 +168,49 @@ export default async function StoryPage({ params }: PageProps) {
               color: #9c9c9c;
             }
 
-            .story-footer a {
+            .footer-actions {
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              gap: 16px;
+              margin-bottom: 32px;
+            }
+
+            .footer-actions .archive-btn {
+              padding: 12px 24px;
+              background: transparent;
+              color: #7c7c7c;
+              border: 1px solid #d4d4d4;
+              border-radius: 8px;
+              font-size: 0.95em;
+              font-weight: 500;
+              text-decoration: none;
+              transition: all 0.2s ease;
+              display: inline-flex;
+              align-items: center;
+              gap: 8px;
+            }
+
+            .footer-actions .archive-btn:hover {
+              color: #c4704b;
+              border-color: #c4704b;
+            }
+
+            .story-footer .footer-meta {
+              color: #9c9c9c;
+            }
+
+            .story-footer .footer-meta a {
               color: #7c7c7c;
               text-decoration: none;
             }
 
-            .story-footer a:hover {
+            .story-footer .footer-meta a:hover {
               color: #c4704b;
             }
 
             .footer-brand {
-              margin-top: 16px;
+              margin-top: 8px;
             }
 
             .footer-divider {
@@ -233,19 +265,6 @@ export default async function StoryPage({ params }: PageProps) {
 
             .nav-spacer {
               flex: 1;
-            }
-
-            .archive-link {
-              display: inline-block;
-              margin-top: 16px;
-              font-size: 0.85em;
-              color: #7c7c7c;
-              text-decoration: none;
-              transition: color 0.2s ease;
-            }
-
-            .archive-link:hover {
-              color: #c4704b;
             }
 
             .story-image {
@@ -304,22 +323,30 @@ export default async function StoryPage({ params }: PageProps) {
             </nav>
           )}
 
-          {/* Minimal footer */}
+          {/* Footer with actions */}
           <footer className="story-footer">
-            <p>Generated {created_date}</p>
-            <p className="footer-brand">
-              <a
-                href="https://8i11.substack.com"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                William Martin Journal
-              </a>
-            </p>
-            <Link href="/archive" className="archive-link">
-              Browse all stories
-            </Link>
-            <ShareButton storyId={id} />
+            <div className="footer-actions">
+              <Link href="/archive" className="archive-btn">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                Browse Archive
+              </Link>
+              <ShareButton storyId={id} />
+            </div>
+            <div className="footer-meta">
+              <p>Generated {created_date}</p>
+              <p className="footer-brand">
+                <a
+                  href="https://8i11.substack.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  William Martin Journal
+                </a>
+              </p>
+            </div>
           </footer>
         </div>
       </div>

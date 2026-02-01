@@ -54,7 +54,6 @@ export default function ShareButton({ storyId }: ShareButtonProps) {
     <button
       onClick={handle_share}
       style={{
-        marginTop: '24px',
         padding: '12px 24px',
         background: copied ? '#4a9c6d' : '#c4704b',
         color: '#fff',

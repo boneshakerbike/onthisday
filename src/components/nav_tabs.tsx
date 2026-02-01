@@ -70,6 +70,11 @@ export default function NavTabs({ is_localhost = false }: NavTabsProps) {
             Stories
           </Link>
 
+          {/* Archive */}
+          <Link href="/archive" className={tab_class('/archive')}>
+            Archive
+          </Link>
+
           {/* Tools dropdown */}
           <div className="relative" ref={dropdown_ref}>
             <button
