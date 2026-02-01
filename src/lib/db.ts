@@ -641,6 +641,38 @@ export async function delete_story(id: string): Promise<boolean> {
   return result.rowsAffected > 0;
 }
 
+/**
+ * Get adjacent stories for navigation (prev/next by date_key)
+ */
+export async function get_adjacent_stories(date_key: string): Promise<{
+  prev: { id: string; date_display: string } | null;
+  next: { id: string; date_display: string } | null;
+}> {
+  await ensure_schema();
+  const db = get_client();
+
+  // Get previous story (smaller date_key)
+  const prev_result = await db.execute({
+    sql: 'SELECT id, date_display FROM stories WHERE date_key < ? ORDER BY date_key DESC LIMIT 1',
+    args: [date_key]
+  });
+
+  // Get next story (larger date_key)
+  const next_result = await db.execute({
+    sql: 'SELECT id, date_display FROM stories WHERE date_key > ? ORDER BY date_key ASC LIMIT 1',
+    args: [date_key]
+  });
+
+  return {
+    prev: prev_result.rows.length > 0
+      ? { id: prev_result.rows[0].id as string, date_display: prev_result.rows[0].date_display as string }
+      : null,
+    next: next_result.rows.length > 0
+      ? { id: next_result.rows[0].id as string, date_display: next_result.rows[0].date_display as string }
+      : null
+  };
+}
+
 // ============================================================================
 // Suggestions
 // ============================================================================

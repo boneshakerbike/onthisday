@@ -5,7 +5,8 @@
 
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { get_story } from '@/lib/db';
+import Link from 'next/link';
+import { get_story, get_adjacent_stories } from '@/lib/db';
 import ShareButton from './share_button';
 
 interface PageProps {
@@ -70,6 +71,9 @@ export default async function StoryPage({ params }: PageProps) {
   if (!story) {
     notFound();
   }
+
+  // Get prev/next stories for navigation
+  const { prev, next } = await get_adjacent_stories(story.date_key);
 
   // Extract title from story HTML (looks for <h2>...</h2>)
   const title_match = story.content.match(/<h2[^>]*>([^<]+)<\/h2>/i);
@@ -182,6 +186,68 @@ export default async function StoryPage({ params }: PageProps) {
               color: #d4d4d4;
             }
 
+            .story-nav {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-top: 32px;
+              padding-top: 24px;
+              border-top: 1px solid #e5e0d8;
+            }
+
+            .nav-link {
+              display: flex;
+              flex-direction: column;
+              text-decoration: none;
+              color: #7c7c7c;
+              transition: color 0.2s ease;
+              max-width: 45%;
+            }
+
+            .nav-link:hover {
+              color: #c4704b;
+            }
+
+            .nav-link.prev {
+              align-items: flex-start;
+            }
+
+            .nav-link.next {
+              align-items: flex-end;
+              text-align: right;
+            }
+
+            .nav-label {
+              font-size: 0.75em;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              margin-bottom: 4px;
+              opacity: 0.7;
+            }
+
+            .nav-date {
+              font-family: 'Lora', Georgia, serif;
+              font-size: 1em;
+              color: inherit;
+            }
+
+            .nav-spacer {
+              flex: 1;
+            }
+
+            .archive-link {
+              display: inline-block;
+              margin-top: 16px;
+              font-size: 0.85em;
+              color: #7c7c7c;
+              text-decoration: none;
+              transition: color 0.2s ease;
+            }
+
+            .archive-link:hover {
+              color: #c4704b;
+            }
+
             .story-image {
               width: 100%;
               max-height: 400px;
@@ -216,6 +282,28 @@ export default async function StoryPage({ params }: PageProps) {
             dangerouslySetInnerHTML={{ __html: body_content }}
           />
 
+          {/* Navigation between stories */}
+          {(prev || next) && (
+            <nav className="story-nav">
+              {prev ? (
+                <Link href={`/story/${prev.id}`} className="nav-link prev">
+                  <span className="nav-label">Previous</span>
+                  <span className="nav-date">{prev.date_display}</span>
+                </Link>
+              ) : (
+                <div className="nav-spacer" />
+              )}
+              {next ? (
+                <Link href={`/story/${next.id}`} className="nav-link next">
+                  <span className="nav-label">Next</span>
+                  <span className="nav-date">{next.date_display}</span>
+                </Link>
+              ) : (
+                <div className="nav-spacer" />
+              )}
+            </nav>
+          )}
+
           {/* Minimal footer */}
           <footer className="story-footer">
             <p>Generated {created_date}</p>
@@ -228,6 +316,9 @@ export default async function StoryPage({ params }: PageProps) {
                 William Martin Journal
               </a>
             </p>
+            <Link href="/archive" className="archive-link">
+              Browse all stories
+            </Link>
             <ShareButton storyId={id} />
           </footer>
         </div>
