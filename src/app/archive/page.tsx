@@ -169,7 +169,18 @@ export default function ArchivePage() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: base_styles + (is_authenticated ? admin_styles : '') }} />
-      <div className="archive-page">
+      <div className={`archive-page ${is_authenticated ? 'has-admin-nav' : ''}`}>
+        {/* Admin navigation for logged-in users */}
+        {is_authenticated && (
+          <nav className="admin-nav">
+            <div className="nav-links">
+              <Link href="/">On This Day</Link>
+              <Link href="/archive">Archive</Link>
+            </div>
+            <span className="nav-indicator">Viewing as admin</span>
+          </nav>
+        )}
+
         <div className="archive-container">
           {/* Copy status toast */}
           {copy_status && (
@@ -181,9 +192,6 @@ export default function ArchivePage() {
             <p className="archive-subtitle">
               {stories.length} {stories.length === 1 ? 'story' : 'stories'} across the calendar
             </p>
-            {is_authenticated && (
-              <Link href="/" className="back-link">← Back to app</Link>
-            )}
           </header>
 
           {/* Sort controls for authenticated users */}
@@ -438,6 +446,46 @@ const base_styles = `
     font-size: 0.9em;
     z-index: 1000;
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+
+  .admin-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgba(26, 26, 46, 0.95);
+    backdrop-filter: blur(8px);
+    padding: 12px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 100;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .admin-nav a {
+    color: #00d9ff;
+    text-decoration: none;
+    font-size: 0.9em;
+    transition: opacity 0.2s;
+  }
+
+  .admin-nav a:hover {
+    opacity: 0.8;
+  }
+
+  .admin-nav .nav-links {
+    display: flex;
+    gap: 20px;
+  }
+
+  .admin-nav .nav-indicator {
+    color: #666;
+    font-size: 0.8em;
+  }
+
+  .archive-page.has-admin-nav .archive-container {
+    padding-top: 100px;
   }
 `;
 
