@@ -1,11 +1,13 @@
 /**
  * API route: /api/stories
- * GET - List all stories
- * DELETE - Delete a story by ID
+ * GET - List all stories (public)
+ * DELETE - Delete a story by ID (requires auth)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
 import { get_all_stories, delete_story } from '@/lib/db';
+import { auth_options } from '@/lib/auth';
 
 export async function GET() {
   try {
@@ -21,6 +23,15 @@ export async function GET() {
 }
 
 export async function DELETE(request: NextRequest) {
+  // Require authentication for delete
+  const session = await getServerSession(auth_options);
+  if (!session) {
+    return NextResponse.json(
+      { error: 'Authentication required' },
+      { status: 401 }
+    );
+  }
+
   try {
     const { id } = await request.json();
 
