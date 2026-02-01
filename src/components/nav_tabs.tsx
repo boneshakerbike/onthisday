@@ -18,13 +18,18 @@ export default function NavTabs({ is_localhost = false }: NavTabsProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [tools_open, set_tools_open] = useState(false);
-  const dropdown_ref = useRef<HTMLDivElement>(null);
+  const [games_open, set_games_open] = useState(false);
+  const tools_ref = useRef<HTMLDivElement>(null);
+  const games_ref = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     function handle_click_outside(event: MouseEvent) {
-      if (dropdown_ref.current && !dropdown_ref.current.contains(event.target as Node)) {
+      if (tools_ref.current && !tools_ref.current.contains(event.target as Node)) {
         set_tools_open(false);
+      }
+      if (games_ref.current && !games_ref.current.contains(event.target as Node)) {
+        set_games_open(false);
       }
     }
 
@@ -71,7 +76,7 @@ export default function NavTabs({ is_localhost = false }: NavTabsProps) {
           </Link>
 
           {/* Tools dropdown */}
-          <div className="relative" ref={dropdown_ref}>
+          <div className="relative" ref={tools_ref}>
             <button
               onClick={() => set_tools_open(!tools_open)}
               className={`${tab_class('/tools')} flex items-center gap-1`}
@@ -104,13 +109,6 @@ export default function NavTabs({ is_localhost = false }: NavTabsProps) {
                 >
                   Suggestions
                 </Link>
-                <Link
-                  href="/games"
-                  onClick={() => set_tools_open(false)}
-                  className="block px-4 py-2 text-sm text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400 transition-all"
-                >
-                  Games
-                </Link>
                 <div className="border-t border-white/10 my-1"></div>
                 <Link
                   href="/tools/admin"
@@ -118,6 +116,37 @@ export default function NavTabs({ is_localhost = false }: NavTabsProps) {
                   className="block px-4 py-2 text-sm text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400 transition-all"
                 >
                   Admin Reference
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Games dropdown */}
+          <div className="relative" ref={games_ref}>
+            <button
+              onClick={() => set_games_open(!games_open)}
+              className={`${tab_class('/games')} flex items-center gap-1`}
+            >
+              Games
+              <svg
+                className={`w-4 h-4 transition-transform ${games_open ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* Dropdown menu */}
+            {games_open && (
+              <div className="absolute top-full left-0 mt-1 py-1 bg-[#1a1a2e] border border-white/10 rounded-lg shadow-xl min-w-[150px] z-50">
+                <Link
+                  href="/games/frogger"
+                  onClick={() => set_games_open(false)}
+                  className="block px-4 py-2 text-sm text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400 transition-all"
+                >
+                  Frogger
                 </Link>
               </div>
             )}
