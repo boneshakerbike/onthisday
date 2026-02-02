@@ -184,9 +184,8 @@ export default function ArchivePage() {
           <nav className="admin-nav">
             <div className="nav-links">
               <Link href="/">On This Day</Link>
-              <Link href="/archive">Archive</Link>
             </div>
-            <span className="nav-indicator">Viewing as admin</span>
+            <span className="nav-indicator">Archive</span>
           </nav>
         )}
 

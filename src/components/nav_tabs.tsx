@@ -51,10 +51,10 @@ export default function NavTabs({ is_localhost = false }: NavTabsProps) {
   };
 
   return (
-    <header className="mb-6 border-b border-white/10 overflow-x-auto">
-      <div className="flex items-center justify-between min-w-max">
-        {/* Left: Navigation tabs */}
-        <nav className="flex items-center">
+    <header className="mb-6 border-b border-white/10">
+      <div className="flex items-center justify-between">
+        {/* Left: Navigation tabs - scrollable on mobile */}
+        <nav className="flex items-center overflow-x-auto">
           {/* Dev Home - only on localhost */}
           {is_localhost && (
             <a
@@ -70,10 +70,12 @@ export default function NavTabs({ is_localhost = false }: NavTabsProps) {
             On This Day
           </Link>
 
-          {/* Archive (stories) */}
-          <Link href="/archive" className={tab_class('/archive')}>
-            Archive
-          </Link>
+          {/* Archive (stories) - hide when on archive page */}
+          {!pathname.startsWith('/archive') && (
+            <Link href="/archive" className={tab_class('/archive')}>
+              Archive
+            </Link>
+          )}
 
           {/* Tools dropdown */}
           <div className="relative" ref={tools_ref}>
