@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Background with subtle border -->
+  <rect x="2" y="2" width="60" height="60" rx="10" fill="#1a1a2e"/>
+  <!-- Clean vertical 8 from 05 but refined -->
+  <circle cx="32" cy="22" r="13" stroke="#22d3ee" stroke-width="5" fill="none"/>
+  <circle cx="32" cy="44" r="13" stroke="#22d3ee" stroke-width="5" fill="none"/>
+  <!-- Terracotta accent at intersection -->
+  <circle cx="32" cy="33" r="5" fill="#c4704b"/>
+</svg>
