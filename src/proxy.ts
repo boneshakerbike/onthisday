@@ -21,6 +21,6 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // Protect all routes except login, story, archive, games, api/auth, api/health, api/suggestions, api/stories, and static files
   matcher: [
-    '/((?!login|story|archive|games|api/auth|api/health|api/suggestions|api/stories|_next/static|_next/image|favicon.ico).*)',
+    '/((?!login|story|archive|games|api/auth|api/health|api/suggestions|api/stories|_next/static|_next/image|favicon.ico|icon.svg).*)',
   ],
 };
