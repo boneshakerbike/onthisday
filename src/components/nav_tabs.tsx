@@ -107,12 +107,10 @@ export default function NavTabs({ is_localhost = false, theme = 'dark' }: NavTab
             On This Day
           </Link>
 
-          {/* Archive (stories) - hide when on archive page */}
-          {!pathname.startsWith('/archive') && (
-            <Link href="/archive" className={tab_class('/archive')}>
-              Archive
-            </Link>
-          )}
+          {/* Archive (stories) */}
+          <Link href="/archive" className={tab_class('/archive')}>
+            Archive
+          </Link>
 
           {/* Tools dropdown */}
           <div className="relative">
