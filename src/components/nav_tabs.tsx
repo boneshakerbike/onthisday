@@ -107,11 +107,6 @@ export default function NavTabs({ is_localhost = false, theme = 'dark' }: NavTab
             On This Day
           </Link>
 
-          {/* Archive (stories) */}
-          <Link href="/archive" className={tab_class('/archive')}>
-            Archive
-          </Link>
-
           {/* Tools dropdown */}
           <div className="relative">
             <button
@@ -183,6 +178,13 @@ export default function NavTabs({ is_localhost = false, theme = 'dark' }: NavTab
         style={{ position: 'fixed', top: tools_pos.top, left: tools_pos.left }}
         className={`py-1 rounded-lg shadow-xl min-w-[180px] z-[9999] ${is_light ? 'bg-white border border-[#e5e0d8]' : 'bg-[#1a1a2e] border border-white/10'}`}
       >
+        <Link
+          href="/archive"
+          onClick={() => set_tools_open(false)}
+          className={`block px-4 py-2 text-sm transition-all ${is_light ? 'text-gray-600 hover:bg-[#c4704b]/10 hover:text-[#c4704b]' : 'text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400'}`}
+        >
+          Archive
+        </Link>
         <Link
           href="/tools/markdown"
           onClick={() => set_tools_open(false)}

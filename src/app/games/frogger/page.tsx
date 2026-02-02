@@ -6,7 +6,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+import NavTabs from '@/components/nav_tabs';
 
 interface Lane {
   type: 'safe' | 'goal' | 'road' | 'water';
@@ -22,6 +22,7 @@ export default function FroggerPage() {
   const [high_score, set_high_score] = useState(0);
   const [game_over, set_game_over] = useState(false);
   const [message, set_message] = useState<{ title: string; text: string } | null>(null);
+  const [is_localhost, set_is_localhost] = useState(false);
 
   const GRID = 40;
   const COLS = 10;
@@ -48,6 +49,7 @@ export default function FroggerPage() {
   ]);
 
   useEffect(() => {
+    set_is_localhost(window.location.hostname === 'localhost');
     const saved = localStorage.getItem('frogger_high');
     if (saved) {
       set_high_score(parseInt(saved));
@@ -255,8 +257,23 @@ export default function FroggerPage() {
     };
   }, [high_score]);
 
-  const handle_button = (dir: string) => (e: React.TouchEvent | React.MouseEvent) => {
+  // Track if touch was used to prevent double-firing
+  const touch_used_ref = useRef(false);
+
+  const handle_touch = (dir: string) => (e: React.TouchEvent) => {
     e.preventDefault();
+    touch_used_ref.current = true;
+    move(dir);
+    // Reset after a short delay
+    setTimeout(() => { touch_used_ref.current = false; }, 300);
+  };
+
+  const handle_click = (dir: string) => (e: React.MouseEvent) => {
+    // Skip if this was triggered by touch
+    if (touch_used_ref.current) {
+      e.preventDefault();
+      return;
+    }
     move(dir);
   };
 
@@ -269,21 +286,21 @@ export default function FroggerPage() {
           display: flex;
           flex-direction: column;
           align-items: center;
-          justify-content: center;
           font-family: 'Segoe UI', system-ui, sans-serif;
           color: #e4e4e4;
           padding: 20px;
         }
-        .back-link {
-          position: absolute;
-          top: 20px;
-          left: 20px;
-          color: #666;
-          text-decoration: none;
-          font-size: 0.9em;
+        .nav-wrapper {
+          width: 100%;
+          max-width: 600px;
+          margin-bottom: 10px;
         }
-        .back-link:hover {
-          color: #00d9ff;
+        .game-content {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          flex: 1;
+          justify-content: center;
         }
         h1 {
           color: #00d9ff;
@@ -379,7 +396,10 @@ export default function FroggerPage() {
         }
       `}</style>
 
-      <Link href="/games" className="back-link">← Games</Link>
+      <div className="nav-wrapper">
+        <NavTabs is_localhost={is_localhost} />
+      </div>
+      <div className="game-content">
       <h1>Frogger</h1>
       <div className="score-display">
         Score: <span>{score}</span> | High: <span>{high_score}</span>
@@ -399,14 +419,15 @@ export default function FroggerPage() {
       </div>
 
       <div className="controls">
-        <button className="up" onTouchStart={handle_button('up')} onClick={handle_button('up')}>↑</button>
-        <button className="left" onTouchStart={handle_button('left')} onClick={handle_button('left')}>←</button>
-        <button className="down" onTouchStart={handle_button('down')} onClick={handle_button('down')}>↓</button>
-        <button className="right" onTouchStart={handle_button('right')} onClick={handle_button('right')}>→</button>
+        <button className="up" onTouchStart={handle_touch('up')} onClick={handle_click('up')}>↑</button>
+        <button className="left" onTouchStart={handle_touch('left')} onClick={handle_click('left')}>←</button>
+        <button className="down" onTouchStart={handle_touch('down')} onClick={handle_click('down')}>↓</button>
+        <button className="right" onTouchStart={handle_touch('right')} onClick={handle_click('right')}>→</button>
       </div>
 
       <p className="hint hint-desktop">Use arrow keys to move</p>
       <p className="hint hint-touch">Tap buttons or swipe to move</p>
+      </div>
     </div>
   );
 }

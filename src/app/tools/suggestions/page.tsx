@@ -20,7 +20,7 @@ interface Suggestion {
 export default function SuggestionsPage() {
   const [suggestions, set_suggestions] = useState<Suggestion[]>([]);
   const [new_content, set_new_content] = useState('');
-  const [filter, set_filter] = useState<string>('all');
+  const [filter, set_filter] = useState<string>('pending');
   const [loading, set_loading] = useState(true);
   const [submitting, set_submitting] = useState(false);
   const [is_localhost, set_is_localhost] = useState(false);

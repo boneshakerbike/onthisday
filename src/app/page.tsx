@@ -650,24 +650,30 @@ export default function OnThisDay() {
                 >
                   {generating ? 'Writing...' : existing_story ? 'Regenerate Story' : 'Generate Story'}
                 </button>
-                {/* Show link to existing story */}
-                {(existing_story || story_id) && !generated_story && (
-                  <div className="mt-3">
-                    <a
-                      href={`/story/${story_id || existing_story?.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-purple-400 hover:text-purple-300 text-sm"
-                    >
-                      View saved story →
-                    </a>
-                    {existing_story && (
-                      <span className="text-gray-600 text-xs ml-2">
-                        (created {new Date(existing_story.created_at).toLocaleDateString()})
-                      </span>
-                    )}
-                  </div>
-                )}
+                {/* Show link to existing story or Archive */}
+                <div className="mt-3 flex items-center justify-center gap-4">
+                  {(existing_story || story_id) && !generated_story && (
+                    <>
+                      <a
+                        href={`/story/${story_id || existing_story?.id}`}
+                        className="text-purple-400 hover:text-purple-300 text-sm"
+                      >
+                        View saved story →
+                      </a>
+                      {existing_story && (
+                        <span className="text-gray-600 text-xs">
+                          (created {new Date(existing_story.created_at).toLocaleDateString()})
+                        </span>
+                      )}
+                    </>
+                  )}
+                  <a
+                    href="/archive"
+                    className="text-gray-500 hover:text-cyan-400 text-sm"
+                  >
+                    Archive →
+                  </a>
+                </div>
               </div>
             )}
 
