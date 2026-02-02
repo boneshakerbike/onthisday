@@ -23,8 +23,8 @@ interface Story {
 
 type SortOrder = 'date_asc' | 'date_desc' | 'created_asc' | 'created_desc';
 
-// Group stories by month
-function group_by_month(stories: Story[]) {
+// Group stories by month (respects sort order)
+function group_by_month(stories: Story[], sort_order: SortOrder) {
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
@@ -41,9 +41,18 @@ function group_by_month(stories: Story[]) {
     grouped[month_name].push(story);
   }
 
-  return months
-    .filter(m => grouped[m]?.length > 0)
-    .map(month => ({ month, stories: grouped[month] }));
+  // For created_at sorting, don't group - return all in one "group"
+  if (sort_order.startsWith('created_')) {
+    return [{ month: '', stories }];
+  }
+
+  // For date sorting, order months according to sort direction
+  let ordered_months = months.filter(m => grouped[m]?.length > 0);
+  if (sort_order === 'date_desc') {
+    ordered_months = ordered_months.reverse();
+  }
+
+  return ordered_months.map(month => ({ month, stories: grouped[month] }));
 }
 
 export default function ArchivePage() {
@@ -90,7 +99,7 @@ export default function ArchivePage() {
     }
   }, [stories, sort_order]);
 
-  const grouped = useMemo(() => group_by_month(sorted_stories), [sorted_stories]);
+  const grouped = useMemo(() => group_by_month(sorted_stories, sort_order), [sorted_stories, sort_order]);
 
   const get_title = (content: string, date_display: string): string => {
     const match = content.match(/<h2[^>]*>([^<]+)<\/h2>/i);
@@ -220,11 +229,13 @@ export default function ArchivePage() {
             </div>
           ) : (
             grouped.map(({ month, stories: month_stories }) => (
-              <section key={month} className="month-section">
-                <h2 className="month-title">
-                  {month}
-                  <span className="story-count">{month_stories.length}</span>
-                </h2>
+              <section key={month || 'all'} className="month-section">
+                {month && (
+                  <h2 className="month-title">
+                    {month}
+                    <span className="story-count">{month_stories.length}</span>
+                  </h2>
+                )}
                 <ul className="story-list">
                   {month_stories.map((story) => (
                     <li key={story.id} className="story-item">
