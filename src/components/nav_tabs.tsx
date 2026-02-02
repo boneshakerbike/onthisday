@@ -43,7 +43,7 @@ export default function NavTabs({ is_localhost = false }: NavTabsProps) {
   };
 
   const tab_class = (path: string) => {
-    const base = 'px-4 py-2 text-sm font-medium transition-all border-b-2';
+    const base = 'px-3 py-2 text-sm font-medium transition-all border-b-2 whitespace-nowrap';
     if (is_active(path)) {
       return `${base} text-cyan-400 border-cyan-400`;
     }
@@ -51,17 +51,17 @@ export default function NavTabs({ is_localhost = false }: NavTabsProps) {
   };
 
   return (
-    <header className="mb-6 border-b border-white/10">
-      <div className="flex items-center justify-between">
+    <header className="mb-6 border-b border-white/10 overflow-x-auto">
+      <div className="flex items-center justify-between min-w-max">
         {/* Left: Navigation tabs */}
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center">
           {/* Dev Home - only on localhost */}
           {is_localhost && (
             <a
               href="http://localhost:8080"
-              className="px-4 py-2 text-sm font-medium text-gray-500 hover:text-cyan-400 transition-all border-b-2 border-transparent"
+              className="px-3 py-2 text-sm font-medium text-gray-500 hover:text-cyan-400 transition-all border-b-2 border-transparent whitespace-nowrap"
             >
-              Dev Home
+              Dev
             </a>
           )}
 
@@ -157,7 +157,7 @@ export default function NavTabs({ is_localhost = false }: NavTabsProps) {
             href="https://8i11.substack.com/publish/posts/drafts"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-4 py-2 text-sm font-medium text-gray-500 hover:text-cyan-400 transition-all border-b-2 border-transparent"
+            className="px-3 py-2 text-sm font-medium text-gray-500 hover:text-cyan-400 transition-all border-b-2 border-transparent whitespace-nowrap"
           >
             Drafts ↗
           </a>
@@ -165,8 +165,8 @@ export default function NavTabs({ is_localhost = false }: NavTabsProps) {
 
         {/* Right: User info */}
         {session && (
-          <div className="text-xs text-gray-500 pr-1">
-            {session.user?.name || session.user?.email || 'Guest'}
+          <div className="text-xs text-gray-500 pr-1 whitespace-nowrap ml-4">
+            <span className="hidden sm:inline">{session.user?.name || session.user?.email || 'Guest'}</span>
             <button
               onClick={() => signOut()}
               className="ml-2 text-gray-500 hover:text-cyan-400 underline"

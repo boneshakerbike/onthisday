@@ -144,7 +144,7 @@ export default function SuggestionsPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#0f0f1a] to-[#1a1a2e] text-white">
-      <div className="max-w-4xl mx-auto p-6">
+      <div className="max-w-4xl mx-auto p-4 sm:p-6">
         <NavTabs is_localhost={is_localhost} />
 
         {/* Header */}
@@ -199,12 +199,12 @@ export default function SuggestionsPage() {
         )}
 
         {/* Filter tabs */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           {['all', 'pending', 'considering', 'done', 'rejected'].map((f) => (
             <button
               key={f}
               onClick={() => set_filter(f)}
-              className={`px-3 py-1.5 text-sm rounded-lg transition-all ${
+              className={`px-3 py-1.5 text-sm rounded-lg transition-all whitespace-nowrap flex-shrink-0 ${
                 filter === f
                   ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
                   : 'bg-white/5 text-gray-400 border border-white/10 hover:border-cyan-500/30'
@@ -231,17 +231,17 @@ export default function SuggestionsPage() {
                 key={s.id}
                 className="p-4 bg-white/5 border border-white/10 rounded-lg hover:border-white/20 transition-all"
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
                       {status_badge(s.status)}
                       <span className="text-xs text-gray-500">
                         {format_date(s.created_at)}
                       </span>
                     </div>
-                    <p className="text-gray-200">{s.content}</p>
+                    <p className="text-gray-200 break-words">{s.content}</p>
                     {s.outcome && (
-                      <p className="mt-2 text-sm text-gray-400 italic">
+                      <p className="mt-2 text-sm text-gray-400 italic break-words">
                         Outcome: {s.outcome}
                       </p>
                     )}
@@ -249,7 +249,7 @@ export default function SuggestionsPage() {
 
                   {/* Actions - only on production */}
                   {!is_localhost && (
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {s.status === 'pending' && (
                         <>
                           <button
