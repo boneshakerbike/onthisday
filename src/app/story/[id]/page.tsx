@@ -10,6 +10,7 @@ import { getServerSession } from 'next-auth';
 import { get_story, get_adjacent_stories } from '@/lib/db';
 import { auth_options } from '@/lib/auth';
 import ShareButton from './share_button';
+import NavTabs from '@/components/nav_tabs';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -281,56 +282,15 @@ export default async function StoryPage({ params }: PageProps) {
               margin-bottom: 40px;
             }
 
-            .admin-nav {
-              position: fixed;
-              top: 0;
-              left: 0;
-              right: 0;
-              background: rgba(26, 26, 46, 0.95);
-              backdrop-filter: blur(8px);
-              padding: 12px 24px;
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              z-index: 100;
-              border-bottom: 1px solid rgba(255,255,255,0.1);
-            }
-
-            .admin-nav a {
-              color: #00d9ff;
-              text-decoration: none;
-              font-size: 0.9em;
-              transition: opacity 0.2s;
-            }
-
-            .admin-nav a:hover {
-              opacity: 0.8;
-            }
-
-            .admin-nav .nav-links {
-              display: flex;
-              gap: 20px;
-            }
-
-            .story-page.has-admin-nav .story-container {
-              padding-top: 100px;
-            }
           `,
         }}
       />
-      <div className={`story-page ${is_authenticated ? 'has-admin-nav' : ''}`}>
-        {/* Admin navigation for logged-in users */}
-        {is_authenticated && (
-          <nav className="admin-nav">
-            <div className="nav-links">
-              <Link href="/">On This Day</Link>
-              <Link href="/archive">Archive</Link>
-            </div>
-            <span style={{ color: '#666', fontSize: '0.8em' }}>Viewing as admin</span>
-          </nav>
-        )}
-
+      <div className="story-page">
         <div className="story-container">
+          {/* Navigation for logged-in users */}
+          {is_authenticated && (
+            <NavTabs theme="light" />
+          )}
           {/* Header with title as hero */}
           <header className="story-header">
             <h1 className="story-title">{title}</h1>

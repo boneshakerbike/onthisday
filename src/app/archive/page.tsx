@@ -10,6 +10,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import NavTabs from '@/components/nav_tabs';
 
 interface Story {
   id: string;
@@ -178,18 +179,12 @@ export default function ArchivePage() {
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: base_styles + (is_authenticated ? admin_styles : '') }} />
-      <div className={`archive-page ${is_authenticated ? 'has-admin-nav' : ''}`}>
-        {/* Admin navigation for logged-in users */}
-        {is_authenticated && (
-          <nav className="admin-nav">
-            <div className="nav-links">
-              <Link href="/">On This Day</Link>
-            </div>
-            <span className="nav-indicator">Archive</span>
-          </nav>
-        )}
-
+      <div className="archive-page">
         <div className="archive-container">
+          {/* Navigation for logged-in users */}
+          {is_authenticated && (
+            <NavTabs theme="light" />
+          )}
           {/* Copy status toast */}
           {copy_status && (
             <div className="toast">{copy_status}</div>
@@ -458,45 +453,6 @@ const base_styles = `
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   }
 
-  .admin-nav {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: rgba(26, 26, 46, 0.95);
-    backdrop-filter: blur(8px);
-    padding: 12px 24px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    z-index: 100;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-  }
-
-  .admin-nav a {
-    color: #00d9ff;
-    text-decoration: none;
-    font-size: 0.9em;
-    transition: opacity 0.2s;
-  }
-
-  .admin-nav a:hover {
-    opacity: 0.8;
-  }
-
-  .admin-nav .nav-links {
-    display: flex;
-    gap: 20px;
-  }
-
-  .admin-nav .nav-indicator {
-    color: #666;
-    font-size: 0.8em;
-  }
-
-  .archive-page.has-admin-nav .archive-container {
-    padding-top: 100px;
-  }
 `;
 
 const admin_styles = `
