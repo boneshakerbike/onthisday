@@ -62,7 +62,7 @@ Output ONLY the intro, nothing else.`;
     const client = new Anthropic({ apiKey: api_key });
 
     const message = await client.messages.create({
-      model: 'claude-sonnet-4-latest',
+      model: 'claude-sonnet-4-20250514',
       max_tokens: 150,
       messages: [
         { role: 'user', content: prompt }
