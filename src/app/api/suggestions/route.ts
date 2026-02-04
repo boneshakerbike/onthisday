@@ -18,24 +18,35 @@ import {
   Suggestion
 } from '@/lib/db';
 
-// CORS headers for cross-origin requests (localhost dev)
+// CORS headers for cross-origin requests (localhost dev + CLI)
 function cors_headers() {
   return {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Guest-Pin',
   };
 }
 
 async function require_auth(request: NextRequest): Promise<NextResponse | null> {
+  // Check for session token first
   const token = await getToken({ req: request });
-  if (!token) {
-    return NextResponse.json(
-      { error: 'Authentication required' },
-      { status: 401 }
-    );
+  if (token) {
+    return null;
   }
-  return null;
+
+  // Check for X-Guest-Pin header (for CLI access)
+  const pin_header = request.headers.get('X-Guest-Pin');
+  if (pin_header) {
+    const valid_pins = (process.env.GUEST_PINS || process.env.GUEST_PIN || '').split(',').map(p => p.trim()).filter(Boolean);
+    if (valid_pins.includes(pin_header)) {
+      return null;
+    }
+  }
+
+  return NextResponse.json(
+    { error: 'Authentication required' },
+    { status: 401 }
+  );
 }
 
 // Handle CORS preflight
