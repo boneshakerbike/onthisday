@@ -133,7 +133,9 @@ export default function SuggestionsPage() {
     completed: suggestions.filter(s => s.status === 'done' || s.status === 'rejected'),
   };
 
-  const group_config: { key: GroupKey; title: string; color: string; emptyText: string }[] = [
+  type ColorKey = 'yellow' | 'blue' | 'gray';
+
+  const group_config: { key: GroupKey; title: string; color: ColorKey; emptyText: string }[] = [
     { key: 'pending', title: 'Pending', color: 'yellow', emptyText: 'No pending suggestions' },
     { key: 'considering', title: 'Considering', color: 'blue', emptyText: 'Nothing under consideration' },
     { key: 'completed', title: 'Done / Rejected', color: 'gray', emptyText: 'No completed items' },
