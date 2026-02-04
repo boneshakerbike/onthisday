@@ -18,6 +18,15 @@ import {
   Suggestion
 } from '@/lib/db';
 
+// CORS headers for cross-origin requests (localhost dev)
+function cors_headers() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+}
+
 async function require_auth(request: NextRequest): Promise<NextResponse | null> {
   const token = await getToken({ req: request });
   if (!token) {
@@ -27,6 +36,11 @@ async function require_auth(request: NextRequest): Promise<NextResponse | null> 
     );
   }
   return null;
+}
+
+// Handle CORS preflight
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: cors_headers() });
 }
 
 export async function GET(request: NextRequest) {
@@ -40,12 +54,12 @@ export async function GET(request: NextRequest) {
       success: true,
       suggestions,
       count: suggestions.length
-    });
+    }, { headers: cors_headers() });
   } catch (error) {
     console.error('GET suggestions error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch suggestions' },
-      { status: 500 }
+      { status: 500, headers: cors_headers() }
     );
   }
 }
