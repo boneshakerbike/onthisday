@@ -117,7 +117,7 @@ ${formatted_posts}`;
     const client = new Anthropic({ apiKey: api_key });
 
     const message = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-sonnet-4-latest',
       max_tokens: 1024,
       system: [
         {
