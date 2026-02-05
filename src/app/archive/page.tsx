@@ -66,8 +66,10 @@ export default function ArchivePage() {
   const [copy_status, set_copy_status] = useState<string | null>(null);
   const [deleting, set_deleting] = useState<string | null>(null);
   const [sort_order, set_sort_order] = useState<SortOrder>('date_asc');
+  const [is_localhost, set_is_localhost] = useState(false);
 
   useEffect(() => {
+    set_is_localhost(window.location.hostname === 'localhost');
     fetch_stories();
   }, []);
 
@@ -183,7 +185,7 @@ export default function ArchivePage() {
         <div className="archive-container">
           {/* Navigation for logged-in users */}
           {is_authenticated && (
-            <NavTabs theme="light" />
+            <NavTabs theme="light" is_localhost={is_localhost} />
           )}
           {/* Copy status toast */}
           {copy_status && (
