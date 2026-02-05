@@ -297,18 +297,18 @@ export default function SuggestionsPage() {
           </div>
         ) : (
           <form onSubmit={handle_submit} className="mb-8">
-            <div className="flex gap-3">
-              <input
-                type="text"
+            <div className="flex flex-col gap-3">
+              <textarea
                 value={new_content}
                 onChange={(e) => set_new_content(e.target.value)}
                 placeholder="Add a new suggestion or idea..."
-                className="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400/50"
+                rows={3}
+                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400/50 resize-y min-h-[80px]"
               />
               <button
                 type="submit"
                 disabled={!new_content.trim() || submitting}
-                className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-medium transition-all"
+                className="self-end px-6 py-3 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-medium transition-all"
               >
                 {submitting ? 'Adding...' : 'Add'}
               </button>
