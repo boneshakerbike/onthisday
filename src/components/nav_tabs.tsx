@@ -206,6 +206,13 @@ export default function NavTabs({ is_localhost = false, theme = 'dark' }: NavTab
         >
           Knowledge Diff
         </Link>
+        <Link
+          href="/tools/prompt-library"
+          onClick={() => set_tools_open(false)}
+          className={`block px-4 py-2 text-sm transition-all ${is_light ? 'text-gray-600 hover:bg-[#c4704b]/10 hover:text-[#c4704b]' : 'text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400'}`}
+        >
+          Prompt Library
+        </Link>
         <div className={`border-t my-1 ${is_light ? 'border-[#e5e0d8]' : 'border-white/10'}`}></div>
         <Link
           href="/tools/admin"

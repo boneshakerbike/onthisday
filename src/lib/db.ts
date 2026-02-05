@@ -836,3 +836,279 @@ export async function delete_suggestion(id: string): Promise<boolean> {
 
   return result.rowsAffected > 0;
 }
+
+// ============================================================================
+// Prompts (Prompt Library)
+// ============================================================================
+
+export interface Prompt {
+  id: string;
+  name: string;
+  current_content: string;
+  version_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PromptVersion {
+  id: string;
+  prompt_id: string;
+  version_number: number;
+  content: string;
+  note: string | null;
+  created_at: string;
+}
+
+/**
+ * Initialize prompts tables
+ */
+async function init_prompts_schema(): Promise<void> {
+  const db = get_client();
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS prompts (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      current_content TEXT NOT NULL,
+      version_count INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS prompt_versions (
+      id TEXT PRIMARY KEY,
+      prompt_id TEXT NOT NULL,
+      version_number INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      note TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS idx_prompt_versions_prompt_id
+    ON prompt_versions(prompt_id, version_number DESC)
+  `);
+}
+
+let prompts_schema_initialized = false;
+async function ensure_prompts_schema(): Promise<void> {
+  if (!prompts_schema_initialized) {
+    await init_prompts_schema();
+    prompts_schema_initialized = true;
+  }
+}
+
+/**
+ * Generate a short unique ID
+ */
+function generate_id(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let id = '';
+  for (let i = 0; i < 8; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return id;
+}
+
+/**
+ * Create a new prompt with its first version
+ */
+export async function create_prompt(name: string, content: string): Promise<string> {
+  await ensure_prompts_schema();
+  const db = get_client();
+
+  const prompt_id = generate_id();
+  const version_id = generate_id();
+
+  await db.execute({
+    sql: `INSERT INTO prompts (id, name, current_content, version_count) VALUES (?, ?, ?, 1)`,
+    args: [prompt_id, name, content]
+  });
+
+  await db.execute({
+    sql: `INSERT INTO prompt_versions (id, prompt_id, version_number, content, note) VALUES (?, ?, 1, ?, 'Initial version')`,
+    args: [version_id, prompt_id, content]
+  });
+
+  return prompt_id;
+}
+
+/**
+ * Get all prompts (metadata only, no version history)
+ */
+export async function get_all_prompts(): Promise<Prompt[]> {
+  await ensure_prompts_schema();
+  const db = get_client();
+
+  const result = await db.execute('SELECT * FROM prompts ORDER BY updated_at DESC');
+
+  return result.rows.map(row => ({
+    id: row.id as string,
+    name: row.name as string,
+    current_content: row.current_content as string,
+    version_count: row.version_count as number,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string
+  }));
+}
+
+/**
+ * Get a single prompt by ID
+ */
+export async function get_prompt(id: string): Promise<Prompt | null> {
+  await ensure_prompts_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'SELECT * FROM prompts WHERE id = ?',
+    args: [id]
+  });
+
+  if (result.rows.length === 0) return null;
+
+  const row = result.rows[0];
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    current_content: row.current_content as string,
+    version_count: row.version_count as number,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string
+  };
+}
+
+/**
+ * Save a new version of a prompt
+ */
+export async function save_prompt_version(
+  prompt_id: string,
+  content: string,
+  note?: string
+): Promise<number> {
+  await ensure_prompts_schema();
+  const db = get_client();
+
+  // Get current version count
+  const prompt = await db.execute({
+    sql: 'SELECT version_count FROM prompts WHERE id = ?',
+    args: [prompt_id]
+  });
+
+  if (prompt.rows.length === 0) {
+    throw new Error('Prompt not found');
+  }
+
+  const new_version = (prompt.rows[0].version_count as number) + 1;
+  const version_id = generate_id();
+
+  // Insert new version
+  await db.execute({
+    sql: `INSERT INTO prompt_versions (id, prompt_id, version_number, content, note) VALUES (?, ?, ?, ?, ?)`,
+    args: [version_id, prompt_id, new_version, content, note || null]
+  });
+
+  // Update prompt
+  await db.execute({
+    sql: `UPDATE prompts SET current_content = ?, version_count = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    args: [content, new_version, prompt_id]
+  });
+
+  return new_version;
+}
+
+/**
+ * Get all versions of a prompt
+ */
+export async function get_prompt_versions(prompt_id: string): Promise<PromptVersion[]> {
+  await ensure_prompts_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'SELECT * FROM prompt_versions WHERE prompt_id = ? ORDER BY version_number DESC',
+    args: [prompt_id]
+  });
+
+  return result.rows.map(row => ({
+    id: row.id as string,
+    prompt_id: row.prompt_id as string,
+    version_number: row.version_number as number,
+    content: row.content as string,
+    note: (row.note as string) || null,
+    created_at: row.created_at as string
+  }));
+}
+
+/**
+ * Rename a prompt
+ */
+export async function rename_prompt(id: string, name: string): Promise<boolean> {
+  await ensure_prompts_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'UPDATE prompts SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+    args: [name, id]
+  });
+
+  return result.rowsAffected > 0;
+}
+
+/**
+ * Delete a prompt and all its versions
+ */
+export async function delete_prompt(id: string): Promise<boolean> {
+  await ensure_prompts_schema();
+  const db = get_client();
+
+  await db.execute({
+    sql: 'DELETE FROM prompt_versions WHERE prompt_id = ?',
+    args: [id]
+  });
+
+  const result = await db.execute({
+    sql: 'DELETE FROM prompts WHERE id = ?',
+    args: [id]
+  });
+
+  return result.rowsAffected > 0;
+}
+
+/**
+ * Trim old versions, keeping only the most recent N
+ * Returns number of versions deleted
+ */
+export async function trim_prompt_versions(prompt_id: string, keep_count: number): Promise<number> {
+  await ensure_prompts_schema();
+  const db = get_client();
+
+  // Get versions to delete (all except the latest keep_count)
+  const to_delete = await db.execute({
+    sql: `SELECT id FROM prompt_versions WHERE prompt_id = ? ORDER BY version_number DESC LIMIT -1 OFFSET ?`,
+    args: [prompt_id, keep_count]
+  });
+
+  if (to_delete.rows.length === 0) return 0;
+
+  for (const row of to_delete.rows) {
+    await db.execute({
+      sql: 'DELETE FROM prompt_versions WHERE id = ?',
+      args: [row.id as string]
+    });
+  }
+
+  // Update version_count on the prompt
+  const remaining = await db.execute({
+    sql: 'SELECT COUNT(*) as count FROM prompt_versions WHERE prompt_id = ?',
+    args: [prompt_id]
+  });
+
+  await db.execute({
+    sql: 'UPDATE prompts SET version_count = ? WHERE id = ?',
+    args: [remaining.rows[0].count as number, prompt_id]
+  });
+
+  return to_delete.rows.length;
+}
