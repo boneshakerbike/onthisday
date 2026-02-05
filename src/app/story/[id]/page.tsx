@@ -87,7 +87,11 @@ export default async function StoryPage({ params }: PageProps) {
   const title = title_match ? title_match[1] : `Reflections on ${story.date_display}`;
 
   // Remove the h2 from content since we're displaying it separately
-  const body_content = story.content.replace(/<h2[^>]*>[^<]+<\/h2>/i, '').trim();
+  // Also make all links open in new tabs
+  const body_content = story.content
+    .replace(/<h2[^>]*>[^<]+<\/h2>/i, '')
+    .replace(/<a /g, '<a target="_blank" rel="noopener noreferrer" ')
+    .trim();
 
   const created_date = new Date(story.created_at).toLocaleDateString('en-US', {
     year: 'numeric',
