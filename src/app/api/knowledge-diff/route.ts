@@ -1,7 +1,7 @@
 /**
  * API route: POST /api/knowledge-diff
  * Compares two knowledge documents and identifies gaps
- * Uses Sonnet for analysis, Haiku for merge output
+ * Uses Sonnet for analysis and merge (Opus optional for merge)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -42,10 +42,10 @@ IMPORTANT DISTINCTIONS:
 
 Analyze both documents carefully. For each piece of information in OLD, verify it exists (or was intentionally updated/completed) in NEW.
 
-If you find NO losses, respond with exactly:
+If you find NO losses, your ENTIRE response must be exactly this single line:
 NO_GAPS_FOUND
 
-If you find gaps, respond with:
+If you find gaps, your response must START with:
 GAPS_FOUND
 Then list each gap in this format:
 ---
@@ -72,8 +72,9 @@ ${new_doc}`;
       ? analysis.content[0].text.trim()
       : '';
 
-    // Check if no gaps found
-    if (analysis_text.startsWith('NO_GAPS_FOUND')) {
+    // Check if no gaps found - look for the keyword anywhere since LLMs sometimes add preamble
+    const no_gaps = analysis_text.includes('NO_GAPS_FOUND') && !analysis_text.includes('GAPS_FOUND\n');
+    if (no_gaps) {
       return NextResponse.json({
         success: true,
         complete: true,
@@ -87,8 +88,9 @@ ${new_doc}`;
       });
     }
 
-    // Step 2: Gaps found - use Haiku (or Opus) to produce merged document
-    const merge_model = use_opus ? 'claude-opus-4-5-20251101' : 'claude-3-5-haiku-20241022';
+    // Step 2: Gaps found - use Sonnet (or Opus) to produce merged document
+    // Note: Haiku model name was returning 404, using Sonnet as reliable fallback
+    const merge_model = use_opus ? 'claude-opus-4-5-20251101' : 'claude-sonnet-4-20250514';
 
     const merge_prompt = `You are a Document Merger. Your job is to take a NEW document and insert missing content from an analysis.
 

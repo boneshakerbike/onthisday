@@ -74,7 +74,6 @@ export default function KnowledgeDiffPage() {
 
   function calculate_cost(usage: UsageInfo): string {
     // Sonnet: $3/M in, $15/M out
-    // Haiku: $0.80/M in, $4/M out
     // Opus: $15/M in, $75/M out
     const sonnet_cost = (usage.analysis_input * 3 + usage.analysis_output * 15) / 1_000_000;
 
@@ -83,7 +82,8 @@ export default function KnowledgeDiffPage() {
       if (use_opus) {
         merge_cost = (usage.merge_input * 15 + usage.merge_output * 75) / 1_000_000;
       } else {
-        merge_cost = (usage.merge_input * 0.8 + usage.merge_output * 4) / 1_000_000;
+        // Using Sonnet for merge (Haiku was returning 404)
+        merge_cost = (usage.merge_input * 3 + usage.merge_output * 15) / 1_000_000;
       }
     }
 
@@ -214,7 +214,7 @@ export default function KnowledgeDiffPage() {
               onChange={(e) => set_use_opus(e.target.checked)}
               style={{ width: '16px', height: '16px' }}
             />
-            Use Opus for merge (higher quality, higher cost)
+            Use Opus 4.5 for merge (highest quality, ~5x cost)
           </label>
         </div>
 
