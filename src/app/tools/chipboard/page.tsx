@@ -1,5 +1,5 @@
 /**
- * Suggestions page - Track feature ideas and improvements
+ * Chipboard - Bugs, ideas, and everything in between
  * Organized by status groups: Pending, Considering, Done/Rejected
  */
 
@@ -19,7 +19,7 @@ interface Suggestion {
 
 type GroupKey = 'pending' | 'considering' | 'completed';
 
-export default function SuggestionsPage() {
+export default function ChipboardPage() {
   const [suggestions, set_suggestions] = useState<Suggestion[]>([]);
   const [new_content, set_new_content] = useState('');
   const [loading, set_loading] = useState(true);
@@ -136,7 +136,7 @@ export default function SuggestionsPage() {
   type ColorKey = 'yellow' | 'blue' | 'gray';
 
   const group_config: { key: GroupKey; title: string; color: ColorKey; emptyText: string }[] = [
-    { key: 'pending', title: 'Pending', color: 'yellow', emptyText: 'No pending suggestions' },
+    { key: 'pending', title: 'Pending', color: 'yellow', emptyText: 'No pending items' },
     { key: 'considering', title: 'Considering', color: 'blue', emptyText: 'Nothing under consideration' },
     { key: 'completed', title: 'Done / Rejected', color: 'gray', emptyText: 'No completed items' },
   ];
@@ -273,10 +273,10 @@ export default function SuggestionsPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-cyan-400 mb-2">
-            Suggestions
+            Chipboard
           </h1>
           <p className="text-gray-400 text-sm">
-            Capture feature ideas anytime. Claude checks for new items at session start.
+            Bugs, ideas, and everything in between. Chip checks for new items at session start.
           </p>
         </div>
 
@@ -284,14 +284,14 @@ export default function SuggestionsPage() {
         {is_localhost ? (
           <div className="mb-8 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
             <p className="text-yellow-400 text-sm">
-              Suggestions are stored in the production database.{' '}
+              Chipboard items are stored in the production database.{' '}
               <a
-                href="https://8i11.vercel.app/tools/suggestions"
+                href="https://8i11.vercel.app/tools/chipboard"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline hover:text-yellow-300"
               >
-                Add suggestions on the live site →
+                Add items on the live site →
               </a>
             </p>
           </div>
@@ -301,7 +301,7 @@ export default function SuggestionsPage() {
               <textarea
                 value={new_content}
                 onChange={(e) => set_new_content(e.target.value)}
-                placeholder="Add a new suggestion or idea..."
+                placeholder="What's on your mind? Bugs, ideas, anything..."
                 rows={3}
                 className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400/50 resize-y min-h-[80px]"
               />
@@ -321,7 +321,7 @@ export default function SuggestionsPage() {
           <div className="text-center text-gray-500 py-12">Loading...</div>
         ) : suggestions.length === 0 ? (
           <div className="text-center text-gray-500 py-12 border border-white/10 rounded-lg">
-            No suggestions yet. Add one above!
+            Nothing on the board yet. Add something above!
           </div>
         ) : (
           /* Grouped sections */
@@ -384,12 +384,12 @@ export default function SuggestionsPage() {
 
         {/* API info for Claude */}
         <div className="mt-12 p-4 bg-white/5 border border-white/10 rounded-lg">
-          <h3 className="text-sm font-medium text-gray-400 mb-2">For Claude Code</h3>
+          <h3 className="text-sm font-medium text-gray-400 mb-2">For Chip (Claude Code)</h3>
           <code className="text-xs text-cyan-400">
             GET /api/suggestions?status=pending
           </code>
           <p className="text-xs text-gray-500 mt-1">
-            Check this endpoint at session start for new ideas to discuss.
+            Chip checks this endpoint at session start for new items to discuss.
           </p>
         </div>
       </div>

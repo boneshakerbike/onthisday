@@ -193,11 +193,11 @@ export default function NavTabs({ is_localhost = false, theme = 'dark' }: NavTab
           Markdown Converter
         </Link>
         <Link
-          href="/tools/suggestions"
+          href="/tools/chipboard"
           onClick={() => set_tools_open(false)}
           className={`block px-4 py-2 text-sm transition-all ${is_light ? 'text-gray-600 hover:bg-[#c4704b]/10 hover:text-[#c4704b]' : 'text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400'}`}
         >
-          Suggestions
+          Chipboard
         </Link>
         <Link
           href="/tools/knowledge-diff"
