@@ -845,6 +845,7 @@ export interface Prompt {
   id: string;
   name: string;
   current_content: string;
+  notes: string;
   version_count: number;
   created_at: string;
   updated_at: string;
@@ -891,6 +892,13 @@ async function init_prompts_schema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_prompt_versions_prompt_id
     ON prompt_versions(prompt_id, version_number DESC)
   `);
+
+  // Migration: add notes column to prompts
+  try {
+    await db.execute(`ALTER TABLE prompts ADD COLUMN notes TEXT NOT NULL DEFAULT ''`);
+  } catch {
+    // Column already exists
+  }
 }
 
 let prompts_schema_initialized = false;
@@ -943,6 +951,7 @@ export async function get_all_prompts(): Promise<Prompt[]> {
     id: row.id as string,
     name: row.name as string,
     current_content: row.current_content as string,
+    notes: (row.notes as string) || '',
     version_count: row.version_count as number,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string
@@ -968,10 +977,25 @@ export async function get_prompt(id: string): Promise<Prompt | null> {
     id: row.id as string,
     name: row.name as string,
     current_content: row.current_content as string,
+    notes: (row.notes as string) || '',
     version_count: row.version_count as number,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string
   };
+}
+
+/**
+ * Update prompt notes
+ */
+export async function update_prompt_notes(id: string, notes: string): Promise<boolean> {
+  await ensure_prompts_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'UPDATE prompts SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+    args: [notes, id]
+  });
+  return result.rowsAffected > 0;
 }
 
 /**

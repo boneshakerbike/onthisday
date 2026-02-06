@@ -12,7 +12,8 @@ import { getToken } from 'next-auth/jwt';
 import {
   get_all_prompts, get_prompt, create_prompt,
   save_prompt_version, get_prompt_versions,
-  rename_prompt, delete_prompt, trim_prompt_versions
+  rename_prompt, delete_prompt, trim_prompt_versions,
+  update_prompt_notes
 } from '@/lib/db';
 
 function cors_headers() {
@@ -123,6 +124,16 @@ export async function PATCH(request: NextRequest) {
       const keep_count = body.keep_count || 5;
       const deleted = await trim_prompt_versions(id, keep_count);
       return NextResponse.json({ success: true, deleted });
+    }
+
+    if (action === 'notes') {
+      const { notes } = body;
+      if (typeof notes !== 'string') {
+        return NextResponse.json({ error: 'Notes must be a string' }, { status: 400 });
+      }
+      const updated = await update_prompt_notes(id, notes);
+      if (!updated) return NextResponse.json({ error: 'Prompt not found' }, { status: 404 });
+      return NextResponse.json({ success: true });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

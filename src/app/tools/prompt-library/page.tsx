@@ -12,6 +12,7 @@ interface Prompt {
   id: string;
   name: string;
   current_content: string;
+  notes: string;
   version_count: number;
   created_at: string;
   updated_at: string;
@@ -44,10 +45,14 @@ export default function PromptLibraryPage() {
   const [active_prompt, set_active_prompt] = useState<Prompt | null>(null);
   const [versions, set_versions] = useState<PromptVersion[]>([]);
   const [editor_content, set_editor_content] = useState('');
-  const [save_note, set_save_note] = useState('');
   const [saving, set_saving] = useState(false);
   const [show_history, set_show_history] = useState(false);
   const [viewing_version, set_viewing_version] = useState<PromptVersion | null>(null);
+
+  // Notes state
+  const [prompt_notes, set_prompt_notes] = useState('');
+  const [notes_saved, set_notes_saved] = useState(true);
+  const [saving_notes, set_saving_notes] = useState(false);
 
   // Review state
   const [review_result, set_review_result] = useState<ReviewResult | null>(null);
@@ -95,12 +100,13 @@ export default function PromptLibraryPage() {
         set_active_prompt(data.prompt);
         set_versions(data.versions);
         set_editor_content(data.prompt.current_content);
+        set_prompt_notes(data.prompt.notes || '');
+        set_notes_saved(true);
         set_view('editor');
         set_review_result(null);
         set_show_history(false);
         set_viewing_version(null);
         set_trim_dismissed(false);
-        set_save_note('');
         set_review_issue('');
       }
     } catch (error) {
@@ -140,13 +146,11 @@ export default function PromptLibraryPage() {
         body: JSON.stringify({
           id: active_prompt.id,
           action: 'save',
-          content: editor_content,
-          note: save_note.trim() || undefined
+          content: editor_content
         })
       });
       const data = await res.json();
       if (data.success) {
-        set_save_note('');
         // Refresh prompt and versions
         await open_prompt(active_prompt.id);
         await fetch_prompts();
@@ -241,16 +245,37 @@ export default function PromptLibraryPage() {
     }
   }
 
+  async function handle_save_notes() {
+    if (!active_prompt || saving_notes || notes_saved) return;
+
+    set_saving_notes(true);
+    try {
+      const res = await fetch(`/api/prompts`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: active_prompt.id, action: 'notes', notes: prompt_notes })
+      });
+      const data = await res.json();
+      if (data.success) {
+        set_notes_saved(true);
+        set_active_prompt({ ...active_prompt, notes: prompt_notes });
+      }
+    } catch (error) {
+      console.error('Failed to save notes:', error);
+    } finally {
+      set_saving_notes(false);
+    }
+  }
+
   function handle_restore(version: PromptVersion) {
     set_editor_content(version.content);
     set_viewing_version(null);
-    set_save_note(`Restored from v${version.version_number}`);
   }
 
   const has_unsaved = active_prompt && editor_content !== active_prompt.current_content;
 
   function handle_back() {
-    if (has_unsaved && !confirm('You have unsaved changes. Discard them?')) return;
+    if ((has_unsaved || !notes_saved) && !confirm('You have unsaved changes. Discard them?')) return;
     set_view('list');
     set_active_prompt(null);
     set_review_result(null);
@@ -441,18 +466,38 @@ export default function PromptLibraryPage() {
           </div>
         )}
 
+        {/* Notes */}
+        {!viewing_version && (
+          <div className="mb-4 p-3 bg-white/[0.03] border border-white/10 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-medium text-gray-400">Notes</label>
+              <div className="flex items-center gap-2">
+                {!notes_saved && (
+                  <span className="text-xs text-amber-400">Unsaved</span>
+                )}
+                <button
+                  onClick={handle_save_notes}
+                  disabled={notes_saved || saving_notes}
+                  className="px-2 py-0.5 text-xs bg-white/10 text-gray-400 hover:text-gray-200 disabled:opacity-30 disabled:cursor-not-allowed rounded transition-all"
+                >
+                  {saving_notes ? 'Saving...' : 'Save notes'}
+                </button>
+              </div>
+            </div>
+            <textarea
+              value={prompt_notes}
+              onChange={(e) => { set_prompt_notes(e.target.value); set_notes_saved(false); }}
+              onBlur={handle_save_notes}
+              placeholder="Add notes about this prompt - context, usage tips, what it's for..."
+              rows={3}
+              className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 resize-y focus:outline-none focus:border-cyan-400/30"
+            />
+          </div>
+        )}
+
         {/* Action bar */}
         {!viewing_version && (
           <div className="flex flex-col gap-3 mb-6">
-            <div className="flex items-center gap-2">
-              <input
-                value={save_note}
-                onChange={(e) => set_save_note(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handle_save(); }}
-                placeholder="Save note (optional)"
-                className="flex-1 bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400/50"
-              />
-            </div>
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={handle_save}
@@ -595,7 +640,6 @@ export default function PromptLibraryPage() {
                   <button
                     onClick={() => {
                       set_editor_content(review_result.improved_prompt);
-                      set_save_note('Applied Sonnet review suggestions');
                     }}
                     className="px-3 py-1 text-xs bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 rounded transition-all"
                   >
