@@ -66,7 +66,7 @@ export default function PromptLibraryPage() {
   const [copied, set_copied] = useState(false);
 
   // Review issue context
-  const [review_issue, set_review_issue] = useState('');
+  const [review_issue, set_review_issue] = useState('no emojis');
 
   useEffect(() => {
     set_is_localhost(window.location.hostname === 'localhost');
@@ -476,7 +476,7 @@ export default function PromptLibraryPage() {
                 <input
                   value={review_issue}
                   onChange={(e) => set_review_issue(e.target.value)}
-                  placeholder="What's not working? (optional)"
+                  placeholder="e.g. too verbose, tone is wrong"
                   className="w-48 sm:w-64 bg-purple-500/10 border border-purple-500/20 rounded px-3 py-2 text-sm text-purple-200 placeholder-purple-400/50 focus:outline-none focus:border-purple-400/50"
                 />
                 <button
