@@ -207,6 +207,24 @@ export default function KnowledgeDiffPage() {
             {loading ? 'Comparing...' : 'Compare'}
           </button>
 
+          <button
+            onClick={() => { set_old_doc(''); set_new_doc(''); set_result(null); set_error(''); }}
+            disabled={loading || (!old_doc && !new_doc && !result)}
+            style={{
+              padding: '12px 24px',
+              background: '#333',
+              color: '#aaa',
+              border: '1px solid #444',
+              borderRadius: '8px',
+              fontSize: '15px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              opacity: (!old_doc && !new_doc && !result) ? 0.3 : 1
+            }}
+          >
+            Clear
+          </button>
+
           <label style={{
             display: 'flex',
             alignItems: 'center',
