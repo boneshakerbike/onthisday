@@ -19,6 +19,7 @@ interface DiffResult {
   success: boolean;
   complete: boolean;
   message: string;
+  analysis_summary?: string;
   gaps_found?: string;
   merged_document?: string;
   usage: UsageInfo;
@@ -285,6 +286,24 @@ export default function KnowledgeDiffPage() {
                 </div>
               </div>
             </div>
+
+            {/* Analysis summary when complete (no gaps) */}
+            {result.complete && result.analysis_summary && (
+              <div style={{ padding: '20px' }}>
+                <pre style={{
+                  padding: '12px',
+                  background: '#1a1a1a',
+                  border: '1px solid #333',
+                  borderRadius: '8px',
+                  color: '#aaa',
+                  fontSize: '12px',
+                  whiteSpace: 'pre-wrap',
+                  overflow: 'auto'
+                }}>
+                  {result.analysis_summary}
+                </pre>
+              </div>
+            )}
 
             {/* Merged Document */}
             {result.merged_document && (

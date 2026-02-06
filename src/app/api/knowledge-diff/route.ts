@@ -30,29 +30,56 @@ export async function POST(request: NextRequest) {
     const client = new Anthropic({ apiKey: api_key });
 
     // Step 1: Use Sonnet to analyze for gaps
-    const analysis_prompt = `You are a Data Loss Auditor. Your ONLY job is finding information present in the OLD document but missing from the NEW document.
+    const analysis_prompt = `You are a meticulous Data Loss Auditor. Your job is finding information present in the OLD document but missing or inadequately represented in the NEW document.
 
-You are not evaluating quality. You are not suggesting improvements. You are hunting for deletions and losses.
+## METHOD (follow these steps exactly)
 
-IMPORTANT DISTINCTIONS:
-- A VALUE CHANGE is NOT a loss (e.g., "PHP 8.2.28" → "PHP 8.2.30" is an update, not a loss)
-- A COMPLETED TASK is NOT a loss (e.g., "[ ] Do X" → "[x] Do X" is progress, not a loss)
-- A RESOLVED ITEM moving sections is NOT a loss
-- ACTUAL LOSS: Information, facts, decisions, or details that exist in OLD but have no equivalent in NEW
+**Step 1: Inventory.** Go through the OLD document section by section. For each section, list every distinct fact, decision, configuration detail, URL, instruction, or piece of knowledge.
 
-Analyze both documents carefully. For each piece of information in OLD, verify it exists (or was intentionally updated/completed) in NEW.
+**Step 2: Cross-reference.** For each item from Step 1, verify it exists in the NEW document. Mark each as:
+- PRESENT: Exists in NEW (same or updated form)
+- REPLACED: Content was replaced by something more specific or better (note what replaced it)
+- MOVED: Content moved to a different section
+- LOST: Content is missing with no equivalent
 
-If you find NO losses, your ENTIRE response must be exactly this single line:
+**Step 3: Report.** Based on your cross-reference, produce your output.
+
+## WHAT COUNTS AS A LOSS
+
+- A fact, URL, decision, or instruction in OLD with no equivalent in NEW = LOSS
+- A specific item replaced by a vague generalization = LOSS (specificity lost)
+- A configuration detail, command, or path that was dropped = LOSS
+
+## WHAT IS NOT A LOSS
+
+- A VALUE CHANGE (e.g., "PHP 8.2.28" → "PHP 8.2.30") = update, not loss
+- A COMPLETED TASK ("[ ] Do X" → "[x] Do X" or removed after completion) = not loss
+- Content REORGANIZED into different sections = not loss (verify it's actually there)
+- Content REPLACED by more specific/detailed items = not loss (note the replacement)
+
+## OUTPUT FORMAT
+
+If you find NO losses after thorough cross-referencing:
 NO_GAPS_FOUND
+Sections verified: [number]
+Items checked: [approximate count]
+Summary: [1-2 sentence summary of what was verified]
 
-If you find gaps, your response must START with:
+If you find ANY losses (even minor ones):
 GAPS_FOUND
-Then list each gap in this format:
+
+Then list each gap:
 ---
-SECTION: [which section it belongs in]
+SEVERITY: [MAJOR or MINOR]
+SECTION: [which section in OLD it belongs to]
 CONTENT: [the exact content that was lost]
-CONTEXT: [brief note on why this seems like a loss vs intentional removal]
+CONTEXT: [why this is a loss, not an intentional change]
 ---
+
+MAJOR = meaningful knowledge, decisions, or technical details lost
+MINOR = small details, minor wording, or edge-case information
+
+Err on the side of flagging. It is better to report a MINOR gap that turns out to be intentional than to miss a real loss.
 
 OLD DOCUMENT:
 ${old_doc}
@@ -72,13 +99,18 @@ ${new_doc}`;
       ? analysis.content[0].text.trim()
       : '';
 
-    // Check if no gaps found - look for the keyword anywhere since LLMs sometimes add preamble
-    const no_gaps = analysis_text.includes('NO_GAPS_FOUND') && !analysis_text.includes('GAPS_FOUND\n');
+    // Check if no gaps found
+    // GAPS_FOUND takes priority - if both keywords appear, treat as gaps found
+    const has_gaps_found = analysis_text.includes('GAPS_FOUND');
+    const has_no_gaps = analysis_text.includes('NO_GAPS_FOUND');
+    const no_gaps = has_no_gaps && !has_gaps_found;
+
     if (no_gaps) {
       return NextResponse.json({
         success: true,
         complete: true,
         message: 'New document is complete. No knowledge loss detected.',
+        analysis_summary: analysis_text,
         usage: {
           analysis_input: analysis.usage.input_tokens,
           analysis_output: analysis.usage.output_tokens,
