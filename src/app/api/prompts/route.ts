@@ -78,11 +78,9 @@ export async function POST(request: NextRequest) {
     if (!name || typeof name !== 'string' || !name.trim()) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
-    if (!content || typeof content !== 'string') {
-      return NextResponse.json({ error: 'Content is required' }, { status: 400 });
-    }
+    const prompt_content = (typeof content === 'string') ? content : '';
 
-    const id = await create_prompt(name.trim(), content);
+    const id = await create_prompt(name.trim(), prompt_content);
     return NextResponse.json({ success: true, id });
   } catch (error) {
     console.error('POST prompts error:', error);
