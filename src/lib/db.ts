@@ -914,23 +914,17 @@ function generate_id(): string {
 }
 
 /**
- * Create a new prompt with its first version
+ * Create a new prompt (no version until first save)
  */
 export async function create_prompt(name: string, content: string): Promise<string> {
   await ensure_prompts_schema();
   const db = get_client();
 
   const prompt_id = generate_id();
-  const version_id = generate_id();
 
   await db.execute({
-    sql: `INSERT INTO prompts (id, name, current_content, version_count) VALUES (?, ?, ?, 1)`,
+    sql: `INSERT INTO prompts (id, name, current_content, version_count) VALUES (?, ?, ?, 0)`,
     args: [prompt_id, name, content]
-  });
-
-  await db.execute({
-    sql: `INSERT INTO prompt_versions (id, prompt_id, version_number, content, note) VALUES (?, ?, 1, ?, 'Initial version')`,
-    args: [version_id, prompt_id, content]
   });
 
   return prompt_id;
