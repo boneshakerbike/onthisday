@@ -65,6 +65,9 @@ export default function PromptLibraryPage() {
   const [rename_value, set_rename_value] = useState('');
   const [copied, set_copied] = useState(false);
 
+  // Review issue context
+  const [review_issue, set_review_issue] = useState('');
+
   useEffect(() => {
     set_is_localhost(window.location.hostname === 'localhost');
     fetch_prompts();
@@ -98,6 +101,7 @@ export default function PromptLibraryPage() {
         set_viewing_version(null);
         set_trim_dismissed(false);
         set_save_note('');
+        set_review_issue('');
       }
     } catch (error) {
       console.error('Failed to open prompt:', error);
@@ -199,7 +203,7 @@ export default function PromptLibraryPage() {
       const res = await fetch(`/api/prompts/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: editor_content })
+        body: JSON.stringify({ content: editor_content, issue: review_issue.trim() || undefined })
       });
       const data = await res.json();
       if (data.success) {
@@ -468,13 +472,21 @@ export default function PromptLibraryPage() {
               >
                 {copied ? 'Copied!' : 'Copy'}
               </button>
-              <button
-                onClick={handle_review}
-                disabled={reviewing || !editor_content.trim()}
-                className="px-4 py-2 text-sm bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-all border border-purple-500/30"
-              >
-                {reviewing ? 'Reviewing...' : 'Review with Sonnet ~3\u00a2'}
-              </button>
+              <div className="flex items-center gap-2">
+                <input
+                  value={review_issue}
+                  onChange={(e) => set_review_issue(e.target.value)}
+                  placeholder="What's not working? (optional)"
+                  className="w-48 sm:w-64 bg-purple-500/10 border border-purple-500/20 rounded px-3 py-2 text-sm text-purple-200 placeholder-purple-400/50 focus:outline-none focus:border-purple-400/50"
+                />
+                <button
+                  onClick={handle_review}
+                  disabled={reviewing || !editor_content.trim()}
+                  className="px-4 py-2 text-sm bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-all border border-purple-500/30 whitespace-nowrap"
+                >
+                  {reviewing ? 'Reviewing...' : 'Review ~3\u00a2'}
+                </button>
+              </div>
               <button
                 onClick={() => set_show_history(!show_history)}
                 className={`px-4 py-2 text-sm rounded transition-all border ${show_history ? 'bg-white/10 border-cyan-400/30 text-cyan-400' : 'bg-white/5 border-white/10 text-gray-400 hover:text-gray-200'}`}

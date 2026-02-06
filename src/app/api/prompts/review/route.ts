@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { content } = await request.json();
+    const { content, issue } = await request.json();
 
     if (!content || typeof content !== 'string' || !content.trim()) {
       return NextResponse.json({ error: 'Prompt content is required' }, { status: 400 });
@@ -49,12 +49,14 @@ export async function POST(request: NextRequest) {
           role: 'user',
           content: `You are a Prompt Engineering Advisor. Analyze this prompt and suggest concrete improvements.
 
-CRITICAL RULES:
-- **Preserve the author's input workflow.** Many prompts are designed so the user provides content AFTER the prompt (either the AI asks for it, or the user appends it with a separator like a colon). Do NOT restructure the prompt to embed input placeholders like "[paste here]" in the middle. If the prompt expects separate input, keep it that way.
-- **Preserve the author's interaction style.** If the prompt uses questions to guide the AI ("What were the main topics?"), do not convert them to fill-in templates. Questions are a valid prompting technique.
-- **Focus on making the existing approach better**, not replacing it with a different approach.
+First, identify the prompt's **interaction pattern**:
+- How does it expect to receive input? (content appended at end, AI asks for it, self-contained, etc.)
+- Does it use questions as a guiding technique, or are they fill-in fields?
+- Is it designed for a chat interface, a template, or something else?
 
-Focus on:
+State your assessment of the interaction pattern briefly before diving into suggestions.
+${issue ? `\nThe author has flagged this specific concern:\n> ${issue}\n\nPrioritize suggestions that address this concern.\n` : ''}
+Then analyze for:
 1. **Clarity** - Is the intent unambiguous? Are instructions precise?
 2. **Specificity** - Are constraints and requirements explicit?
 3. **Structure** - Would reformatting improve readability?
@@ -64,12 +66,10 @@ Focus on:
 Provide 3-5 specific, actionable suggestions. For each:
 - Quote the relevant section
 - Explain why it matters
-- Show the suggested rewrite of THAT SECTION (not a restructured version)
+- Show the suggested rewrite
 
 Then provide the complete improved prompt under this exact heading:
 ## IMPROVED PROMPT
-
-The improved prompt must preserve the original's structure, input flow, and interaction style. Only refine wording, add missing constraints, or improve clarity.
 
 PROMPT TO REVIEW:
 ${content}`
