@@ -47,28 +47,9 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'user',
-          content: `You are a Prompt Engineering Advisor. Analyze this prompt and suggest concrete improvements.
+          content: `How would you improve the effectiveness of this prompt?${issue ? `\n\nThe author's concern: ${issue}` : ''}
 
-First, identify the prompt's **interaction pattern**:
-- How does it expect to receive input? (content appended at end, AI asks for it, self-contained, etc.)
-- Does it use questions as a guiding technique, or are they fill-in fields?
-- Is it designed for a chat interface, a template, or something else?
-
-State your assessment of the interaction pattern briefly before diving into suggestions.
-${issue ? `\nThe author has flagged this specific concern:\n> ${issue}\n\nPrioritize suggestions that address this concern.\n` : ''}
-Then analyze for:
-1. **Clarity** - Is the intent unambiguous? Are instructions precise?
-2. **Specificity** - Are constraints and requirements explicit?
-3. **Structure** - Would reformatting improve readability?
-4. **Edge cases** - What might the LLM misinterpret or skip?
-5. **Effectiveness** - Would different phrasing get better results?
-
-Provide 3-5 specific, actionable suggestions. For each:
-- Quote the relevant section
-- Explain why it matters
-- Show the suggested rewrite
-
-Then provide the complete improved prompt under this exact heading:
+Then provide the complete improved version under this exact heading:
 ## IMPROVED PROMPT
 
 PROMPT TO REVIEW:
