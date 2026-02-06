@@ -13,7 +13,7 @@ import {
   get_all_prompts, get_prompt, create_prompt,
   save_prompt_version, get_prompt_versions,
   rename_prompt, delete_prompt, trim_prompt_versions,
-  update_prompt_notes
+  update_prompt_notes, update_prompt_tags, get_all_prompt_tags
 } from '@/lib/db';
 
 function cors_headers() {
@@ -51,6 +51,11 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+
+    if (searchParams.get('tags') === 'all') {
+      const all_tags = await get_all_prompt_tags();
+      return NextResponse.json({ success: true, tags: all_tags }, { headers: cors_headers() });
+    }
 
     if (id) {
       const prompt = await get_prompt(id);
@@ -134,6 +139,17 @@ export async function PATCH(request: NextRequest) {
       const updated = await update_prompt_notes(id, notes);
       if (!updated) return NextResponse.json({ error: 'Prompt not found' }, { status: 404 });
       return NextResponse.json({ success: true });
+    }
+
+    if (action === 'tags') {
+      const { tags } = body;
+      if (!Array.isArray(tags) || !tags.every((t: unknown) => typeof t === 'string')) {
+        return NextResponse.json({ error: 'Tags must be an array of strings' }, { status: 400 });
+      }
+      const normalized = [...new Set(tags.map((t: string) => t.trim().toLowerCase()).filter(Boolean))];
+      const updated = await update_prompt_tags(id, normalized);
+      if (!updated) return NextResponse.json({ error: 'Prompt not found' }, { status: 404 });
+      return NextResponse.json({ success: true, tags: normalized });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

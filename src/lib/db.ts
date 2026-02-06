@@ -846,6 +846,7 @@ export interface Prompt {
   name: string;
   current_content: string;
   notes: string;
+  tags: string[];
   version_count: number;
   created_at: string;
   updated_at: string;
@@ -896,6 +897,13 @@ async function init_prompts_schema(): Promise<void> {
   // Migration: add notes column to prompts
   try {
     await db.execute(`ALTER TABLE prompts ADD COLUMN notes TEXT NOT NULL DEFAULT ''`);
+  } catch {
+    // Column already exists
+  }
+
+  // Migration: add tags column to prompts
+  try {
+    await db.execute(`ALTER TABLE prompts ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'`);
   } catch {
     // Column already exists
   }
@@ -952,6 +960,7 @@ export async function get_all_prompts(): Promise<Prompt[]> {
     name: row.name as string,
     current_content: row.current_content as string,
     notes: (row.notes as string) || '',
+    tags: JSON.parse((row.tags as string) || '[]') as string[],
     version_count: row.version_count as number,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string
@@ -978,6 +987,7 @@ export async function get_prompt(id: string): Promise<Prompt | null> {
     name: row.name as string,
     current_content: row.current_content as string,
     notes: (row.notes as string) || '',
+    tags: JSON.parse((row.tags as string) || '[]') as string[],
     version_count: row.version_count as number,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string
@@ -996,6 +1006,40 @@ export async function update_prompt_notes(id: string, notes: string): Promise<bo
     args: [notes, id]
   });
   return result.rowsAffected > 0;
+}
+
+/**
+ * Update prompt tags
+ */
+export async function update_prompt_tags(id: string, tags: string[]): Promise<boolean> {
+  await ensure_prompts_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'UPDATE prompts SET tags = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+    args: [JSON.stringify(tags), id]
+  });
+  return result.rowsAffected > 0;
+}
+
+/**
+ * Get all unique tags across all prompts (for autocomplete)
+ */
+export async function get_all_prompt_tags(): Promise<string[]> {
+  await ensure_prompts_schema();
+  const db = get_client();
+
+  const result = await db.execute('SELECT tags FROM prompts');
+  const tag_set = new Set<string>();
+
+  for (const row of result.rows) {
+    const tags: string[] = JSON.parse((row.tags as string) || '[]');
+    for (const tag of tags) {
+      tag_set.add(tag);
+    }
+  }
+
+  return Array.from(tag_set).sort();
 }
 
 /**

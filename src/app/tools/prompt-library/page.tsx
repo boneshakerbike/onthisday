@@ -13,6 +13,7 @@ interface Prompt {
   name: string;
   current_content: string;
   notes: string;
+  tags: string[];
   version_count: number;
   created_at: string;
   updated_at: string;
@@ -73,9 +74,19 @@ export default function PromptLibraryPage() {
   // Review issue context
   const [review_issue, set_review_issue] = useState('no emojis');
 
+  // Tags state
+  const [tag_input, set_tag_input] = useState('');
+  const [all_tags, set_all_tags] = useState<string[]>([]);
+  const [tag_suggestions, set_tag_suggestions] = useState<string[]>([]);
+  const [show_tag_suggestions, set_show_tag_suggestions] = useState(false);
+
+  // Filter state
+  const [active_tag_filter, set_active_tag_filter] = useState<string | null>(null);
+
   useEffect(() => {
     set_is_localhost(window.location.hostname === 'localhost');
     fetch_prompts();
+    fetch_all_tags();
   }, []);
 
   async function fetch_prompts() {
@@ -89,6 +100,18 @@ export default function PromptLibraryPage() {
       console.error('Failed to fetch prompts:', error);
     } finally {
       set_loading(false);
+    }
+  }
+
+  async function fetch_all_tags() {
+    try {
+      const res = await fetch('/api/prompts?tags=all');
+      const data = await res.json();
+      if (data.success) {
+        set_all_tags(data.tags);
+      }
+    } catch (error) {
+      console.error('Failed to fetch tags:', error);
     }
   }
 
@@ -108,6 +131,8 @@ export default function PromptLibraryPage() {
         set_viewing_version(null);
         set_trim_dismissed(false);
         set_review_issue('');
+        set_tag_input('');
+        set_show_tag_suggestions(false);
       }
     } catch (error) {
       console.error('Failed to open prompt:', error);
@@ -267,6 +292,69 @@ export default function PromptLibraryPage() {
     }
   }
 
+  async function handle_add_tag(tag: string) {
+    if (!active_prompt) return;
+    const normalized = tag.trim().toLowerCase();
+    if (!normalized || active_prompt.tags.includes(normalized)) {
+      set_tag_input('');
+      return;
+    }
+
+    const new_tags = [...active_prompt.tags, normalized];
+    try {
+      const res = await fetch('/api/prompts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: active_prompt.id, action: 'tags', tags: new_tags })
+      });
+      const data = await res.json();
+      if (data.success) {
+        set_active_prompt({ ...active_prompt, tags: data.tags });
+        set_tag_input('');
+        set_show_tag_suggestions(false);
+        fetch_all_tags();
+        fetch_prompts();
+      }
+    } catch (error) {
+      console.error('Failed to add tag:', error);
+    }
+  }
+
+  async function handle_remove_tag(tag: string) {
+    if (!active_prompt) return;
+
+    const new_tags = active_prompt.tags.filter(t => t !== tag);
+    try {
+      const res = await fetch('/api/prompts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: active_prompt.id, action: 'tags', tags: new_tags })
+      });
+      const data = await res.json();
+      if (data.success) {
+        set_active_prompt({ ...active_prompt, tags: data.tags });
+        fetch_all_tags();
+        fetch_prompts();
+      }
+    } catch (error) {
+      console.error('Failed to remove tag:', error);
+    }
+  }
+
+  function handle_tag_input_change(value: string) {
+    set_tag_input(value);
+    if (value.trim()) {
+      const filtered = all_tags.filter(
+        t => t.includes(value.trim().toLowerCase()) &&
+             !(active_prompt?.tags || []).includes(t)
+      );
+      set_tag_suggestions(filtered);
+      set_show_tag_suggestions(filtered.length > 0);
+    } else {
+      set_show_tag_suggestions(false);
+    }
+  }
+
   function handle_restore(version: PromptVersion) {
     set_editor_content(version.content);
     set_viewing_version(null);
@@ -308,6 +396,11 @@ export default function PromptLibraryPage() {
 
   // ── List View ──────────────────────────────────────────────
 
+  const filtered_prompts = prompts.filter(p => {
+    if (!active_tag_filter) return true;
+    return p.tags.includes(active_tag_filter);
+  });
+
   function render_list() {
     return (
       <>
@@ -344,15 +437,46 @@ export default function PromptLibraryPage() {
           </div>
         )}
 
+        {/* Tag filter */}
+        {!loading && all_tags.length > 0 && (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {active_tag_filter && (
+              <button
+                onClick={() => set_active_tag_filter(null)}
+                className="px-2.5 py-1 text-xs rounded-full bg-white/10 text-gray-400 hover:text-white transition-all"
+              >
+                All
+              </button>
+            )}
+            {all_tags.map(tag => (
+              <button
+                key={tag}
+                onClick={() => set_active_tag_filter(active_tag_filter === tag ? null : tag)}
+                className={`px-2.5 py-1 text-xs rounded-full transition-all ${
+                  active_tag_filter === tag
+                    ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-400/50'
+                    : 'bg-white/5 text-gray-400 border border-white/10 hover:border-cyan-400/30 hover:text-gray-200'
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center text-gray-500 py-12">Loading...</div>
         ) : prompts.length === 0 ? (
           <div className="text-center text-gray-500 py-12 border border-white/10 rounded-lg">
             No prompts yet. Create one to get started.
           </div>
+        ) : filtered_prompts.length === 0 ? (
+          <div className="text-center text-gray-500 py-12 border border-white/10 rounded-lg">
+            No prompts with tag &ldquo;{active_tag_filter}&rdquo;.
+          </div>
         ) : (
           <div className="space-y-3">
-            {prompts.map(p => (
+            {filtered_prompts.map(p => (
               <button
                 key={p.id}
                 onClick={() => open_prompt(p.id)}
@@ -370,6 +494,18 @@ export default function PromptLibraryPage() {
                       <span>v{p.version_count}</span>
                       <span>Updated {relative_time(p.updated_at)}</span>
                     </div>
+                    {p.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {p.tags.map(tag => (
+                          <span
+                            key={tag}
+                            className="px-2 py-0.5 text-[10px] rounded-full bg-cyan-500/10 text-cyan-400/70 border border-cyan-500/20"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <span className="text-gray-500 group-hover:text-cyan-400 transition-all text-sm">Open &rarr;</span>
                 </div>
@@ -492,6 +628,67 @@ export default function PromptLibraryPage() {
               rows={3}
               className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 resize-y focus:outline-none focus:border-cyan-400/30"
             />
+          </div>
+        )}
+
+        {/* Tags */}
+        {!viewing_version && (
+          <div className="mb-4 p-3 bg-white/[0.03] border border-white/10 rounded-lg">
+            <label className="block text-xs font-medium text-gray-400 mb-2">Tags</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {(active_prompt.tags || []).map(tag => (
+                <span
+                  key={tag}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/25"
+                >
+                  {tag}
+                  <button
+                    onClick={() => handle_remove_tag(tag)}
+                    className="text-cyan-400/50 hover:text-red-400 transition-all ml-0.5"
+                    title="Remove tag"
+                  >
+                    &times;
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="relative">
+              <input
+                value={tag_input}
+                onChange={(e) => handle_tag_input_change(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && tag_input.trim()) {
+                    e.preventDefault();
+                    handle_add_tag(tag_input);
+                  }
+                  if (e.key === 'Escape') {
+                    set_show_tag_suggestions(false);
+                  }
+                }}
+                onBlur={() => {
+                  setTimeout(() => {
+                    if (tag_input.trim()) handle_add_tag(tag_input);
+                    set_show_tag_suggestions(false);
+                  }, 200);
+                }}
+                placeholder="Add a tag..."
+                className="w-full bg-white/5 border border-white/10 rounded px-3 py-1.5 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-cyan-400/30"
+              />
+              {show_tag_suggestions && tag_suggestions.length > 0 && (
+                <div className="absolute z-10 top-full mt-1 w-full bg-[#1a1a2e] border border-white/20 rounded-lg shadow-lg max-h-[150px] overflow-y-auto">
+                  {tag_suggestions.map(tag => (
+                    <button
+                      key={tag}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handle_add_tag(tag)}
+                      className="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-cyan-500/10 hover:text-cyan-400 transition-all"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
