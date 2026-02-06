@@ -63,6 +63,7 @@ export default function PromptLibraryPage() {
   // Rename state
   const [renaming, set_renaming] = useState(false);
   const [rename_value, set_rename_value] = useState('');
+  const [copied, set_copied] = useState(false);
 
   useEffect(() => {
     set_is_localhost(window.location.hostname === 'localhost');
@@ -379,10 +380,13 @@ export default function PromptLibraryPage() {
             ) : (
               <button
                 onClick={() => { set_renaming(true); set_rename_value(active_prompt.name); }}
-                className="text-lg font-medium text-gray-200 hover:text-cyan-400 transition-all truncate block"
+                className="text-lg font-medium text-gray-200 hover:text-cyan-400 transition-all truncate flex items-center gap-2"
                 title="Click to rename"
               >
                 {active_prompt.name}
+                <svg className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
               </button>
             )}
           </div>
@@ -452,6 +456,17 @@ export default function PromptLibraryPage() {
                 className="px-4 py-2 text-sm bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed rounded transition-all"
               >
                 {saving ? 'Saving...' : 'Save'}
+              </button>
+              <button
+                onClick={async () => {
+                  await navigator.clipboard.writeText(editor_content);
+                  set_copied(true);
+                  setTimeout(() => set_copied(false), 2000);
+                }}
+                disabled={!editor_content.trim()}
+                className="px-4 py-2 text-sm bg-white/10 text-gray-300 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-all"
+              >
+                {copied ? 'Copied!' : 'Copy'}
               </button>
               <button
                 onClick={handle_review}
