@@ -531,7 +531,7 @@ export default function PromptLibraryPage() {
           <div className="mb-6">
             <h3 className="text-sm font-medium text-gray-400 mb-3">Version History</h3>
             <div className="space-y-2 max-h-[300px] overflow-y-auto">
-              {versions.map(v => (
+              {versions.filter(v => v.content.trim() !== '').map(v => (
                 <div
                   key={v.id}
                   className="flex items-center justify-between p-3 bg-white/5 border border-white/10 rounded-lg"
