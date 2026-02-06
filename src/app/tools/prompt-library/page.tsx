@@ -309,9 +309,13 @@ export default function PromptLibraryPage() {
       });
       const data = await res.json();
       if (data.success) {
-        set_active_prompt({ ...active_prompt, tags: data.tags });
+        const updated_prompt = { ...active_prompt, tags: data.tags };
+        set_active_prompt(updated_prompt);
         set_tag_input('');
-        set_show_tag_suggestions(false);
+        // Re-show remaining available tags
+        const remaining = all_tags.filter(t => !data.tags.includes(t));
+        set_tag_suggestions(remaining);
+        set_show_tag_suggestions(remaining.length > 0);
         fetch_all_tags();
         fetch_prompts();
       }
@@ -341,18 +345,21 @@ export default function PromptLibraryPage() {
     }
   }
 
+  function show_available_tags() {
+    const available = all_tags.filter(t => !(active_prompt?.tags || []).includes(t));
+    set_tag_suggestions(available);
+    set_show_tag_suggestions(available.length > 0);
+  }
+
   function handle_tag_input_change(value: string) {
     set_tag_input(value);
-    if (value.trim()) {
-      const filtered = all_tags.filter(
-        t => t.includes(value.trim().toLowerCase()) &&
-             !(active_prompt?.tags || []).includes(t)
-      );
-      set_tag_suggestions(filtered);
-      set_show_tag_suggestions(filtered.length > 0);
-    } else {
-      set_show_tag_suggestions(false);
-    }
+    const query = value.trim().toLowerCase();
+    const filtered = all_tags.filter(
+      t => (!query || t.includes(query)) &&
+           !(active_prompt?.tags || []).includes(t)
+    );
+    set_tag_suggestions(filtered);
+    set_show_tag_suggestions(filtered.length > 0);
   }
 
   function handle_restore(version: PromptVersion) {
@@ -656,6 +663,7 @@ export default function PromptLibraryPage() {
               <input
                 value={tag_input}
                 onChange={(e) => handle_tag_input_change(e.target.value)}
+                onFocus={show_available_tags}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && tag_input.trim()) {
                     e.preventDefault();
