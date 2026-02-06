@@ -64,10 +64,6 @@ export default function PromptLibraryPage() {
   const [renaming, set_renaming] = useState(false);
   const [rename_value, set_rename_value] = useState('');
 
-  const base_url = typeof window !== 'undefined' && window.location.hostname === 'localhost'
-    ? 'https://8i11.vercel.app'
-    : '';
-
   useEffect(() => {
     set_is_localhost(window.location.hostname === 'localhost');
     fetch_prompts();
@@ -75,7 +71,7 @@ export default function PromptLibraryPage() {
 
   async function fetch_prompts() {
     try {
-      const res = await fetch(`${base_url}/api/prompts`);
+      const res = await fetch(`/api/prompts`);
       const data = await res.json();
       if (data.success) {
         set_prompts(data.prompts);
@@ -89,7 +85,7 @@ export default function PromptLibraryPage() {
 
   async function open_prompt(id: string) {
     try {
-      const res = await fetch(`${base_url}/api/prompts?id=${id}`);
+      const res = await fetch(`/api/prompts?id=${id}`);
       const data = await res.json();
       if (data.success) {
         set_active_prompt(data.prompt);
@@ -111,7 +107,7 @@ export default function PromptLibraryPage() {
     if (!new_name.trim()) return;
 
     try {
-      const res = await fetch(`${base_url}/api/prompts`, {
+      const res = await fetch(`/api/prompts`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: new_name.trim(), content: '' })
@@ -133,7 +129,7 @@ export default function PromptLibraryPage() {
 
     set_saving(true);
     try {
-      const res = await fetch(`${base_url}/api/prompts`, {
+      const res = await fetch(`/api/prompts`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -161,7 +157,7 @@ export default function PromptLibraryPage() {
     if (!active_prompt || !rename_value.trim()) return;
 
     try {
-      const res = await fetch(`${base_url}/api/prompts`, {
+      const res = await fetch(`/api/prompts`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: active_prompt.id, action: 'rename', name: rename_value.trim() })
@@ -181,7 +177,7 @@ export default function PromptLibraryPage() {
     if (!active_prompt || !confirm('Delete this prompt and all its versions?')) return;
 
     try {
-      const res = await fetch(`${base_url}/api/prompts?id=${active_prompt.id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/prompts?id=${active_prompt.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
         set_view('list');
@@ -199,7 +195,7 @@ export default function PromptLibraryPage() {
     set_reviewing(true);
     set_review_result(null);
     try {
-      const res = await fetch(`${base_url}/api/prompts/review`, {
+      const res = await fetch(`/api/prompts/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: editor_content })
@@ -225,7 +221,7 @@ export default function PromptLibraryPage() {
     if (!active_prompt) return;
 
     try {
-      const res = await fetch(`${base_url}/api/prompts`, {
+      const res = await fetch(`/api/prompts`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: active_prompt.id, action: 'trim', keep_count: 5 })
