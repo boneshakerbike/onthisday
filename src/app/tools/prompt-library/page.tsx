@@ -329,15 +329,15 @@ export default function PromptLibraryPage() {
         {creating && (
           <div className="mb-6 p-4 bg-white/5 border border-cyan-400/30 rounded-lg">
             <label className="block text-sm text-gray-400 mb-2">Prompt name</label>
+            <input
+              autoFocus
+              value={new_name}
+              onChange={(e) => set_new_name(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') handle_create(); if (e.key === 'Escape') set_creating(false); }}
+              placeholder="e.g., Story Generation System Prompt"
+              className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400/50 mb-2"
+            />
             <div className="flex gap-2">
-              <input
-                autoFocus
-                value={new_name}
-                onChange={(e) => set_new_name(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handle_create(); if (e.key === 'Escape') set_creating(false); }}
-                placeholder="e.g., Story Generation System Prompt"
-                className="flex-1 bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400/50"
-              />
               <button onClick={handle_create} className="px-4 py-2 text-sm bg-cyan-500 hover:bg-cyan-600 rounded transition-all">Create</button>
               <button onClick={() => { set_creating(false); set_new_name(''); }} className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 rounded transition-all">Cancel</button>
             </div>

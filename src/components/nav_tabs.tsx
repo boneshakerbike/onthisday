@@ -91,7 +91,7 @@ export default function NavTabs({ is_localhost = false, theme = 'dark' }: NavTab
     <header className={`mb-6 border-b ${is_light ? 'border-[#e5e0d8]' : 'border-white/10'}`}>
       <div className="flex items-center justify-between">
         {/* Left: Navigation tabs - scrollable on mobile */}
-        <nav className="flex items-center overflow-x-auto">
+        <nav className="flex items-center overflow-x-auto scrollbar-hide">
           {/* Dev Home - only on localhost */}
           {is_localhost && (
             <a

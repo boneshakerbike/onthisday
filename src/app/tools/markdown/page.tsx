@@ -336,9 +336,9 @@ export default function MarkdownConverterPage() {
             <div
               ref={rich_editor_ref}
               contentEditable
-              className="p-4 min-h-[400px] focus:outline-none prose prose-invert prose-sm max-w-none bg-white/5"
+              className="p-4 min-h-[400px] focus:outline-none prose prose-invert prose-sm max-w-none bg-white/5 overflow-x-auto break-words"
               onInput={handle_rich_text_change}
-              style={{ minHeight: '400px' }}
+              style={{ minHeight: '400px', overflowWrap: 'break-word', wordBreak: 'break-word' }}
             />
           </div>
 
