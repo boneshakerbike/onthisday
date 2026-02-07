@@ -73,6 +73,9 @@ export default function OnThisDay() {
   // AI copy state
   const [ai_copying, set_ai_copying] = useState(false);
 
+  // Copy preview (rendered HTML shown in place of post cards)
+  const [copy_preview, set_copy_preview] = useState<string | null>(null);
+
   const fetch_posts = useCallback(async (month?: number, day?: number) => {
     set_loading(true);
     set_generated_story(null);
@@ -80,6 +83,7 @@ export default function OnThisDay() {
     set_existing_story(null);
     set_generate_error(null);
     set_token_usage(null);
+    set_copy_preview(null);
     try {
       const params = month && day ? `?date=${month}-${day}` : '';
       const res = await fetch(`/api/posts${params}`);
@@ -195,6 +199,7 @@ export default function OnThisDay() {
         set_copy_status('Copy failed');
       }
     }
+    set_copy_preview(html);
     setTimeout(() => set_copy_status(''), 3000);
   };
 
@@ -248,6 +253,7 @@ export default function OnThisDay() {
         await navigator.clipboard.writeText(text);
         set_copy_status('Copied with AI intro!');
       }
+      set_copy_preview(html);
 
     } catch (error) {
       console.error('AI copy error:', error);
@@ -752,8 +758,23 @@ export default function OnThisDay() {
               </div>
             )}
 
-            {/* Post cards */}
-            {posts.map((post) => (
+            {/* Copy preview or Post cards */}
+            {copy_preview ? (
+              <div className="mb-4">
+                <div className="flex justify-end mb-2">
+                  <button
+                    onClick={() => set_copy_preview(null)}
+                    className="text-gray-500 hover:text-cyan-400 text-sm"
+                  >
+                    ← Show posts
+                  </button>
+                </div>
+                <div
+                  className="bg-white/5 rounded-xl p-6 border border-cyan-400/30 prose prose-invert prose-sm max-w-none [&_a]:text-cyan-400 [&_a]:no-underline [&_a:hover]:underline"
+                  dangerouslySetInnerHTML={{ __html: copy_preview }}
+                />
+              </div>
+            ) : posts.map((post) => (
               <div
                 key={post.post_id}
                 className="bg-white/5 rounded-xl p-5 mb-4 border border-white/10 hover:translate-x-1 hover:border-cyan-400 transition-all"
@@ -781,6 +802,7 @@ export default function OnThisDay() {
             ))}
           </>
         )}
+
 
         {/* Upload section */}
         <div className="mt-10 pt-5 border-t border-white/10">
