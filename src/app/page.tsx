@@ -159,8 +159,11 @@ export default function OnThisDay() {
 
   // Clipboard helper with fallback for mobile browsers
   const copy_to_clipboard = async (text: string, html?: string): Promise<boolean> => {
-    // Try rich HTML copy first if HTML provided
-    if (html) {
+    const is_touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+    // Try rich HTML copy on non-touch devices only
+    // ClipboardItem silently fails on mobile (resolves but doesn't write)
+    if (html && !is_touch) {
       try {
         const blob = new Blob([html], { type: 'text/html' });
         await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
@@ -178,15 +181,17 @@ export default function OnThisDay() {
       // Fall through to execCommand fallback
     }
 
-    // execCommand fallback for mobile browsers
+    // execCommand fallback
     try {
       const textarea = document.createElement('textarea');
       textarea.value = text;
+      textarea.setAttribute('readonly', '');
       textarea.style.position = 'fixed';
       textarea.style.opacity = '0';
       document.body.appendChild(textarea);
       textarea.focus();
       textarea.select();
+      textarea.setSelectionRange(0, text.length);
       const ok = document.execCommand('copy');
       document.body.removeChild(textarea);
       return ok;
