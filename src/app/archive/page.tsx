@@ -109,66 +109,35 @@ export default function ArchivePage() {
     return match ? match[1] : `Reflections on ${date_display}`;
   };
 
-  // Clipboard helper with fallback for mobile browsers
-  const copy_to_clipboard = async (text: string, html?: string): Promise<boolean> => {
-    const is_mobile = (navigator as unknown as { userAgentData?: { mobile: boolean } })
-      .userAgentData?.mobile ?? /Mobi|Android/i.test(navigator.userAgent);
-    if (html && !is_mobile) {
-      try {
-        const blob = new Blob([html], { type: 'text/html' });
-        await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
-        return true;
-      } catch { /* fall through */ }
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch { /* fall through */ }
-    try {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.setAttribute('readonly', '');
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
-      textarea.setSelectionRange(0, text.length);
-      const ok = document.execCommand('copy');
-      document.body.removeChild(textarea);
-      return ok;
-    } catch {
-      return false;
-    }
-  };
-
   const copy_story = async (story: Story, format: 'substack' | 'social' | 'markdown') => {
-    let ok = false;
-    if (format === 'substack') {
-      const temp = document.createElement('div');
-      temp.innerHTML = story.content;
-      ok = await copy_to_clipboard(temp.textContent || '', story.content);
-      set_copy_status(ok ? 'Copied for Substack!' : 'Copy failed');
-    } else if (format === 'social') {
-      const story_url = `${window.location.origin}/story/${story.id}`;
-      const text = `On This Day: ${story.date_display}\n\n${story.post_count} post${story.post_count !== 1 ? 's' : ''} from my journal.\n\n${story_url}`;
-      ok = await copy_to_clipboard(text);
-      set_copy_status(ok ? 'Copied for Social!' : 'Copy failed');
-    } else {
-      let md = story.content;
-      md = md.replace(/<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi, '[$2]($1)');
-      md = md.replace(/<h1[^>]*>([^<]+)<\/h1>/gi, '# $1\n\n');
-      md = md.replace(/<h2[^>]*>([^<]+)<\/h2>/gi, '## $1\n\n');
-      md = md.replace(/<h3[^>]*>([^<]+)<\/h3>/gi, '### $1\n\n');
-      md = md.replace(/<\/p>/gi, '\n\n');
-      md = md.replace(/<p[^>]*>/gi, '');
-      md = md.replace(/<[^>]+>/g, '');
-      md = md.replace(/\n{3,}/g, '\n\n').trim();
-      const temp = document.createElement('div');
-      temp.innerHTML = md;
-      md = temp.textContent || md;
-      ok = await copy_to_clipboard(md);
-      set_copy_status(ok ? 'Copied as Markdown!' : 'Copy failed');
+    try {
+      if (format === 'substack') {
+        const blob = new Blob([story.content], { type: 'text/html' });
+        await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
+        set_copy_status('Copied for Substack!');
+      } else if (format === 'social') {
+        const story_url = `${window.location.origin}/story/${story.id}`;
+        const text = `On This Day: ${story.date_display}\n\n${story.post_count} post${story.post_count !== 1 ? 's' : ''} from my journal.\n\n${story_url}`;
+        await navigator.clipboard.writeText(text);
+        set_copy_status('Copied for Social!');
+      } else {
+        let md = story.content;
+        md = md.replace(/<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi, '[$2]($1)');
+        md = md.replace(/<h1[^>]*>([^<]+)<\/h1>/gi, '# $1\n\n');
+        md = md.replace(/<h2[^>]*>([^<]+)<\/h2>/gi, '## $1\n\n');
+        md = md.replace(/<h3[^>]*>([^<]+)<\/h3>/gi, '### $1\n\n');
+        md = md.replace(/<\/p>/gi, '\n\n');
+        md = md.replace(/<p[^>]*>/gi, '');
+        md = md.replace(/<[^>]+>/g, '');
+        md = md.replace(/\n{3,}/g, '\n\n').trim();
+        const temp = document.createElement('div');
+        temp.innerHTML = md;
+        md = temp.textContent || md;
+        await navigator.clipboard.writeText(md);
+        set_copy_status('Copied as Markdown!');
+      }
+    } catch {
+      set_copy_status('Copy failed');
     }
     setTimeout(() => set_copy_status(null), 3000);
   };

@@ -157,51 +157,6 @@ export default function OnThisDay() {
     fetch_posts(d.getMonth() + 1, d.getDate());
   };
 
-  // Clipboard helper with fallback for mobile browsers
-  const copy_to_clipboard = async (text: string, html?: string): Promise<boolean> => {
-    // Detect mobile phones (not touchscreen laptops like Chromebooks)
-    const is_mobile = (navigator as unknown as { userAgentData?: { mobile: boolean } })
-      .userAgentData?.mobile ?? /Mobi|Android/i.test(navigator.userAgent);
-
-    // Try rich HTML copy on non-mobile devices only
-    // ClipboardItem silently resolves on mobile without actually writing
-    if (html && !is_mobile) {
-      try {
-        const blob = new Blob([html], { type: 'text/html' });
-        await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
-        return true;
-      } catch {
-        // Fall through to text copy
-      }
-    }
-
-    // Try modern text clipboard API
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      // Fall through to execCommand fallback
-    }
-
-    // execCommand fallback
-    try {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.setAttribute('readonly', '');
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
-      textarea.setSelectionRange(0, text.length);
-      const ok = document.execCommand('copy');
-      document.body.removeChild(textarea);
-      return ok;
-    } catch {
-      return false;
-    }
-  };
-
   const copy_for_substack = async (version: 'simple' | 'full') => {
     if (!posts.length || !date) return;
 
@@ -218,8 +173,6 @@ export default function OnThisDay() {
       : `I have ${posts.length} ${post_word} from ${earliest_year} on this date.`;
 
     let html = '<h2>On This Day</h2>\n';
-    html += `<p>${date.display} has shown up a few times over the years. ${year_range} Different places, different versions of me. Looking back at them feels like checking old trail conditions.</p>\n`;
-
     for (const post of posts) {
       if (version === 'simple') {
         html += `<p>${post.year}: <a href="${post.url}">${post.title}</a></p>\n`;
@@ -229,14 +182,19 @@ export default function OnThisDay() {
       }
     }
 
-    const intro = `On This Day\n\n${date.display} has shown up a few times over the years. ${year_range} Different places, different versions of me. Looking back at them feels like checking old trail conditions.\n\n`;
-    const post_lines = posts.map(p => {
-      if (version === 'simple') return `${p.year}: ${p.title} - ${p.url}`;
-      const blurb_part = p.blurb ? ` – ${p.blurb}` : '';
-      return `${p.year}: ${p.title}${blurb_part} - ${p.url}`;
-    }).join('\n');
-    const ok = await copy_to_clipboard(intro + post_lines, html);
-    set_copy_status(ok ? 'Copied!' : 'Copy failed');
+    try {
+      const blob = new Blob([html], { type: 'text/html' });
+      await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
+      set_copy_status('Copied!');
+    } catch {
+      try {
+        const text = posts.map(p => `${p.year}: ${p.title} - ${p.url}`).join('\n');
+        await navigator.clipboard.writeText(text);
+        set_copy_status('Copied as text');
+      } catch {
+        set_copy_status('Copy failed');
+      }
+    }
     setTimeout(() => set_copy_status(''), 3000);
   };
 
@@ -276,13 +234,20 @@ export default function OnThisDay() {
         html += `<p>${post.year}: <a href="${post.url}">${post.title}</a>${blurb_part}</p>\n`;
       }
 
-      // Copy to clipboard with mobile fallback
-      const text = posts.map(p => {
-        const blurb_part = p.blurb ? ` – ${p.blurb}` : '';
-        return `${p.year}: ${p.title}${blurb_part} - ${p.url}`;
-      }).join('\n');
-      const ok = await copy_to_clipboard(`${data.intro}\n\n${text}`, html);
-      set_copy_status(ok ? 'Copied with AI intro!' : 'Copy failed');
+      // Copy to clipboard (rich HTML with plain text fallback)
+      try {
+        const blob = new Blob([html], { type: 'text/html' });
+        await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
+        set_copy_status('Copied with AI intro!');
+      } catch {
+        const text = `On This Day\n\n${data.intro}\n\n` +
+          posts.map(p => {
+            const blurb_part = p.blurb ? ` – ${p.blurb}` : '';
+            return `${p.year}: ${p.title}${blurb_part} - ${p.url}`;
+          }).join('\n');
+        await navigator.clipboard.writeText(text);
+        set_copy_status('Copied with AI intro!');
+      }
 
     } catch (error) {
       console.error('AI copy error:', error);
@@ -339,57 +304,87 @@ export default function OnThisDay() {
   const copy_story = async () => {
     if (!generated_story) return;
 
-    const temp = document.createElement('div');
-    temp.innerHTML = generated_story;
-    const plain_text = temp.textContent || '';
-    const ok = await copy_to_clipboard(plain_text, generated_story);
-    set_story_copy_status(ok ? 'Copied for Substack!' : 'Copy failed');
+    try {
+      const blob = new Blob([generated_story], { type: 'text/html' });
+      await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
+      set_story_copy_status('Copied for Substack!');
+    } catch {
+      try {
+        const temp = document.createElement('div');
+        temp.innerHTML = generated_story;
+        await navigator.clipboard.writeText(temp.textContent || '');
+        set_story_copy_status('Copied as text');
+      } catch {
+        set_story_copy_status('Copy failed');
+      }
+    }
     setTimeout(() => set_story_copy_status(''), 3000);
   };
 
   const copy_story_social = async () => {
     if (!generated_story || !date || !story_id) return;
 
-    const years = posts.map(p => p.year).sort((a, b) => a - b);
-    const year_range = years.length > 1
-      ? `${years[0]}-${years[years.length - 1]}`
-      : `${years[0]}`;
+    try {
+      // Calculate year span
+      const years = posts.map(p => p.year).sort((a, b) => a - b);
+      const year_range = years.length > 1
+        ? `${years[0]}-${years[years.length - 1]}`
+        : `${years[0]}`;
 
-    const story_url = `${window.location.origin}/story/${story_id}`;
-    const text = `On This Day: ${date.display}\n\n${posts.length} post${posts.length !== 1 ? 's' : ''} from my journal, ${year_range}.\n\n${story_url}`;
+      // Build short social text (~280 chars max)
+      const story_url = `${window.location.origin}/story/${story_id}`;
+      const text = `On This Day: ${date.display}\n\n${posts.length} post${posts.length !== 1 ? 's' : ''} from my journal, ${year_range}.\n\n${story_url}`;
 
-    const ok = await copy_to_clipboard(text);
-    set_story_copy_status(ok ? 'Copied for Social!' : 'Copy failed');
+      await navigator.clipboard.writeText(text);
+      set_story_copy_status('Copied for Social!');
+    } catch {
+      set_story_copy_status('Copy failed');
+    }
     setTimeout(() => set_story_copy_status(''), 3000);
   };
 
   const copy_story_markdown = async () => {
     if (!generated_story) return;
 
-    let md = generated_story;
-    md = md.replace(/<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi, '[$2]($1)');
-    md = md.replace(/<h1[^>]*>([^<]+)<\/h1>/gi, '# $1\n\n');
-    md = md.replace(/<h2[^>]*>([^<]+)<\/h2>/gi, '## $1\n\n');
-    md = md.replace(/<h3[^>]*>([^<]+)<\/h3>/gi, '### $1\n\n');
-    md = md.replace(/<\/p>/gi, '\n\n');
-    md = md.replace(/<p[^>]*>/gi, '');
-    md = md.replace(/<[^>]+>/g, '');
-    md = md.replace(/\n{3,}/g, '\n\n').trim();
-    const temp = document.createElement('div');
-    temp.innerHTML = md;
-    md = temp.textContent || md;
+    try {
+      let md = generated_story;
+      // Convert links to markdown format
+      md = md.replace(/<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi, '[$2]($1)');
+      // Convert headers
+      md = md.replace(/<h1[^>]*>([^<]+)<\/h1>/gi, '# $1\n\n');
+      md = md.replace(/<h2[^>]*>([^<]+)<\/h2>/gi, '## $1\n\n');
+      md = md.replace(/<h3[^>]*>([^<]+)<\/h3>/gi, '### $1\n\n');
+      // Convert paragraphs
+      md = md.replace(/<\/p>/gi, '\n\n');
+      md = md.replace(/<p[^>]*>/gi, '');
+      // Remove any remaining HTML tags
+      md = md.replace(/<[^>]+>/g, '');
+      // Clean up whitespace
+      md = md.replace(/\n{3,}/g, '\n\n').trim();
+      // Decode HTML entities
+      const temp = document.createElement('div');
+      temp.innerHTML = md;
+      md = temp.textContent || md;
 
-    const ok = await copy_to_clipboard(md);
-    set_story_copy_status(ok ? 'Copied as Markdown!' : 'Copy failed');
+      await navigator.clipboard.writeText(md);
+      set_story_copy_status('Copied as Markdown!');
+    } catch {
+      set_story_copy_status('Copy failed');
+    }
     setTimeout(() => set_story_copy_status(''), 3000);
   };
 
   const copy_story_link = async () => {
     if (!story_id) return;
 
-    const link = `${window.location.origin}/story/${story_id}`;
-    const ok = await copy_to_clipboard(link);
-    set_story_copy_status(ok ? 'Link copied!' : 'Copy failed');
+    try {
+      const base_url = window.location.origin;
+      const link = `${base_url}/story/${story_id}`;
+      await navigator.clipboard.writeText(link);
+      set_story_copy_status('Link copied!');
+    } catch {
+      set_story_copy_status('Copy failed');
+    }
     setTimeout(() => set_story_copy_status(''), 3000);
   };
 
