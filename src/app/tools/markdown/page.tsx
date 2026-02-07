@@ -274,7 +274,7 @@ export default function MarkdownConverterPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Rich Text Editor */}
-          <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
+          <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden min-w-0">
             <div className="bg-white/5 px-4 py-2 border-b border-white/10">
               <h3 className="font-medium text-gray-300">Rich Text Editor</h3>
             </div>
@@ -336,14 +336,14 @@ export default function MarkdownConverterPage() {
             <div
               ref={rich_editor_ref}
               contentEditable
-              className="p-4 min-h-[400px] focus:outline-none prose prose-invert prose-sm max-w-none bg-white/5 overflow-x-auto break-words"
+              className="p-4 min-h-[400px] focus:outline-none prose prose-invert prose-sm max-w-none bg-white/5 overflow-x-auto break-words [&_img]:max-w-full [&_img]:h-auto"
               onInput={handle_rich_text_change}
               style={{ minHeight: '400px', overflowWrap: 'break-word', wordBreak: 'break-word' }}
             />
           </div>
 
           {/* Markdown Output */}
-          <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
+          <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden min-w-0">
             <div className="bg-white/5 px-4 py-2 border-b border-white/10 flex justify-between items-center">
               <h3 className="font-medium text-gray-300">Markdown</h3>
               <div className="flex gap-2">
