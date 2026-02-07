@@ -157,6 +157,44 @@ export default function OnThisDay() {
     fetch_posts(d.getMonth() + 1, d.getDate());
   };
 
+  // Clipboard helper with fallback for mobile browsers
+  const copy_to_clipboard = async (text: string, html?: string): Promise<boolean> => {
+    // Try rich HTML copy first if HTML provided
+    if (html) {
+      try {
+        const blob = new Blob([html], { type: 'text/html' });
+        await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
+        return true;
+      } catch {
+        // Fall through to text copy
+      }
+    }
+
+    // Try modern text clipboard API
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Fall through to execCommand fallback
+    }
+
+    // execCommand fallback for mobile browsers
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return ok;
+    } catch {
+      return false;
+    }
+  };
+
   const copy_for_substack = async (version: 'simple' | 'full') => {
     if (!posts.length || !date) return;
 
@@ -184,19 +222,9 @@ export default function OnThisDay() {
       }
     }
 
-    try {
-      const blob = new Blob([html], { type: 'text/html' });
-      await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
-      set_copy_status('Copied!');
-    } catch {
-      try {
-        const text = posts.map(p => `${p.year}: ${p.title} - ${p.url}`).join('\n');
-        await navigator.clipboard.writeText(text);
-        set_copy_status('Copied as text');
-      } catch {
-        set_copy_status('Copy failed');
-      }
-    }
+    const text = posts.map(p => `${p.year}: ${p.title} - ${p.url}`).join('\n');
+    const ok = await copy_to_clipboard(text, html);
+    set_copy_status(ok ? 'Copied!' : 'Copy failed');
     setTimeout(() => set_copy_status(''), 3000);
   };
 
@@ -236,10 +264,13 @@ export default function OnThisDay() {
         html += `<p>${post.year}: <a href="${post.url}">${post.title}</a>${blurb_part}</p>\n`;
       }
 
-      // Copy to clipboard
-      const blob = new Blob([html], { type: 'text/html' });
-      await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
-      set_copy_status('Copied with AI intro!');
+      // Copy to clipboard with mobile fallback
+      const text = posts.map(p => {
+        const blurb_part = p.blurb ? ` – ${p.blurb}` : '';
+        return `${p.year}: ${p.title}${blurb_part} - ${p.url}`;
+      }).join('\n');
+      const ok = await copy_to_clipboard(`${data.intro}\n\n${text}`, html);
+      set_copy_status(ok ? 'Copied with AI intro!' : 'Copy failed');
 
     } catch (error) {
       console.error('AI copy error:', error);
@@ -296,87 +327,57 @@ export default function OnThisDay() {
   const copy_story = async () => {
     if (!generated_story) return;
 
-    try {
-      const blob = new Blob([generated_story], { type: 'text/html' });
-      await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
-      set_story_copy_status('Copied for Substack!');
-    } catch {
-      try {
-        const temp = document.createElement('div');
-        temp.innerHTML = generated_story;
-        await navigator.clipboard.writeText(temp.textContent || '');
-        set_story_copy_status('Copied as text');
-      } catch {
-        set_story_copy_status('Copy failed');
-      }
-    }
+    const temp = document.createElement('div');
+    temp.innerHTML = generated_story;
+    const plain_text = temp.textContent || '';
+    const ok = await copy_to_clipboard(plain_text, generated_story);
+    set_story_copy_status(ok ? 'Copied for Substack!' : 'Copy failed');
     setTimeout(() => set_story_copy_status(''), 3000);
   };
 
   const copy_story_social = async () => {
     if (!generated_story || !date || !story_id) return;
 
-    try {
-      // Calculate year span
-      const years = posts.map(p => p.year).sort((a, b) => a - b);
-      const year_range = years.length > 1
-        ? `${years[0]}-${years[years.length - 1]}`
-        : `${years[0]}`;
+    const years = posts.map(p => p.year).sort((a, b) => a - b);
+    const year_range = years.length > 1
+      ? `${years[0]}-${years[years.length - 1]}`
+      : `${years[0]}`;
 
-      // Build short social text (~280 chars max)
-      const story_url = `${window.location.origin}/story/${story_id}`;
-      const text = `On This Day: ${date.display}\n\n${posts.length} post${posts.length !== 1 ? 's' : ''} from my journal, ${year_range}.\n\n${story_url}`;
+    const story_url = `${window.location.origin}/story/${story_id}`;
+    const text = `On This Day: ${date.display}\n\n${posts.length} post${posts.length !== 1 ? 's' : ''} from my journal, ${year_range}.\n\n${story_url}`;
 
-      await navigator.clipboard.writeText(text);
-      set_story_copy_status('Copied for Social!');
-    } catch {
-      set_story_copy_status('Copy failed');
-    }
+    const ok = await copy_to_clipboard(text);
+    set_story_copy_status(ok ? 'Copied for Social!' : 'Copy failed');
     setTimeout(() => set_story_copy_status(''), 3000);
   };
 
   const copy_story_markdown = async () => {
     if (!generated_story) return;
 
-    try {
-      let md = generated_story;
-      // Convert links to markdown format
-      md = md.replace(/<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi, '[$2]($1)');
-      // Convert headers
-      md = md.replace(/<h1[^>]*>([^<]+)<\/h1>/gi, '# $1\n\n');
-      md = md.replace(/<h2[^>]*>([^<]+)<\/h2>/gi, '## $1\n\n');
-      md = md.replace(/<h3[^>]*>([^<]+)<\/h3>/gi, '### $1\n\n');
-      // Convert paragraphs
-      md = md.replace(/<\/p>/gi, '\n\n');
-      md = md.replace(/<p[^>]*>/gi, '');
-      // Remove any remaining HTML tags
-      md = md.replace(/<[^>]+>/g, '');
-      // Clean up whitespace
-      md = md.replace(/\n{3,}/g, '\n\n').trim();
-      // Decode HTML entities
-      const temp = document.createElement('div');
-      temp.innerHTML = md;
-      md = temp.textContent || md;
+    let md = generated_story;
+    md = md.replace(/<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi, '[$2]($1)');
+    md = md.replace(/<h1[^>]*>([^<]+)<\/h1>/gi, '# $1\n\n');
+    md = md.replace(/<h2[^>]*>([^<]+)<\/h2>/gi, '## $1\n\n');
+    md = md.replace(/<h3[^>]*>([^<]+)<\/h3>/gi, '### $1\n\n');
+    md = md.replace(/<\/p>/gi, '\n\n');
+    md = md.replace(/<p[^>]*>/gi, '');
+    md = md.replace(/<[^>]+>/g, '');
+    md = md.replace(/\n{3,}/g, '\n\n').trim();
+    const temp = document.createElement('div');
+    temp.innerHTML = md;
+    md = temp.textContent || md;
 
-      await navigator.clipboard.writeText(md);
-      set_story_copy_status('Copied as Markdown!');
-    } catch {
-      set_story_copy_status('Copy failed');
-    }
+    const ok = await copy_to_clipboard(md);
+    set_story_copy_status(ok ? 'Copied as Markdown!' : 'Copy failed');
     setTimeout(() => set_story_copy_status(''), 3000);
   };
 
   const copy_story_link = async () => {
     if (!story_id) return;
 
-    try {
-      const base_url = window.location.origin;
-      const link = `${base_url}/story/${story_id}`;
-      await navigator.clipboard.writeText(link);
-      set_story_copy_status('Link copied!');
-    } catch {
-      set_story_copy_status('Copy failed');
-    }
+    const link = `${window.location.origin}/story/${story_id}`;
+    const ok = await copy_to_clipboard(link);
+    set_story_copy_status(ok ? 'Link copied!' : 'Copy failed');
     setTimeout(() => set_story_copy_status(''), 3000);
   };
 
