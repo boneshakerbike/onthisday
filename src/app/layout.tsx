@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | 8i11',
-    default: 'On This Day | 8i11',
+    template: '8i11 | %s',
+    default: '8i11 | On This Day',
   },
   description: "Find Substack posts from any date across all years",
 };
