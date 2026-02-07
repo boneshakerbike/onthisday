@@ -45,8 +45,27 @@ async function require_auth(request: NextRequest): Promise<NextResponse | null> 
 
   return NextResponse.json(
     { error: 'Authentication required' },
-    { status: 401 }
+    { status: 401, headers: cors_headers() }
   );
+}
+
+// When running locally, proxy mutations to production
+const is_local = !process.env.TURSO_DATABASE_URL;
+const PROD_API = 'https://8i11.vercel.app/api/suggestions';
+
+async function proxy_to_prod(method: string, body?: string, query?: string) {
+  const pin = process.env.GUEST_PINS?.split(',')[0] || process.env.GUEST_PIN || '';
+  const url = query ? `${PROD_API}?${query}` : PROD_API;
+  const res = await fetch(url, {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Guest-Pin': pin,
+    },
+    ...(body ? { body } : {}),
+  });
+  const data = await res.json();
+  return NextResponse.json(data, { status: res.status });
 }
 
 // Handle CORS preflight
@@ -76,6 +95,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (is_local) {
+    const body = await request.text();
+    return proxy_to_prod('POST', body);
+  }
+
   const auth_error = await require_auth(request);
   if (auth_error) return auth_error;
 
@@ -95,17 +119,22 @@ export async function POST(request: NextRequest) {
       success: true,
       id,
       message: 'Suggestion created'
-    });
+    }, { headers: cors_headers() });
   } catch (error) {
     console.error('POST suggestions error:', error);
     return NextResponse.json(
       { error: 'Failed to create suggestion' },
-      { status: 500 }
+      { status: 500, headers: cors_headers() }
     );
   }
 }
 
 export async function PATCH(request: NextRequest) {
+  if (is_local) {
+    const body = await request.text();
+    return proxy_to_prod('PATCH', body);
+  }
+
   const auth_error = await require_auth(request);
   if (auth_error) return auth_error;
 
@@ -139,17 +168,22 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Suggestion updated'
-    });
+    }, { headers: cors_headers() });
   } catch (error) {
     console.error('PATCH suggestions error:', error);
     return NextResponse.json(
       { error: 'Failed to update suggestion' },
-      { status: 500 }
+      { status: 500, headers: cors_headers() }
     );
   }
 }
 
 export async function DELETE(request: NextRequest) {
+  if (is_local) {
+    const { searchParams } = new URL(request.url);
+    return proxy_to_prod('DELETE', undefined, `id=${searchParams.get('id')}`);
+  }
+
   const auth_error = await require_auth(request);
   if (auth_error) return auth_error;
 
@@ -176,12 +210,12 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Suggestion deleted'
-    });
+    }, { headers: cors_headers() });
   } catch (error) {
     console.error('DELETE suggestions error:', error);
     return NextResponse.json(
       { error: 'Failed to delete suggestion' },
-      { status: 500 }
+      { status: 500, headers: cors_headers() }
     );
   }
 }

@@ -38,13 +38,13 @@ export default function ChipboardPage() {
     fetch_suggestions();
   }, []);
 
+  function api_base() {
+    return window.location.hostname === 'localhost' ? 'https://8i11.vercel.app' : '';
+  }
+
   async function fetch_suggestions() {
     try {
-      // Always fetch from production to see centralized suggestions
-      const base_url = window.location.hostname === 'localhost'
-        ? 'https://8i11.vercel.app'
-        : '';
-      const res = await fetch(`${base_url}/api/suggestions`);
+      const res = await fetch(`${api_base()}/api/suggestions`);
       const data = await res.json();
       if (data.success) {
         set_suggestions(data.suggestions);
@@ -172,8 +172,8 @@ export default function ChipboardPage() {
             )}
           </div>
 
-          {/* Actions - only on production */}
-          {!is_localhost && (
+          {/* Actions */}
+          {(
             <div className="flex items-center gap-2 flex-wrap">
               {s.status === 'pending' && (
                 <>
@@ -203,6 +203,12 @@ export default function ChipboardPage() {
               {s.status === 'considering' && (
                 <>
                   <button
+                    onClick={() => update_status(s.id, 'pending')}
+                    className="px-2 py-1 text-xs bg-yellow-500/20 text-yellow-400 rounded hover:bg-yellow-500/30 transition-all"
+                  >
+                    Pending
+                  </button>
+                  <button
                     onClick={() => {
                       set_editing_id(s.id);
                       set_edit_outcome('');
@@ -229,8 +235,8 @@ export default function ChipboardPage() {
           )}
         </div>
 
-        {/* Outcome input modal - only on production */}
-        {!is_localhost && editing_id === s.id && (
+        {/* Outcome input modal */}
+        {editing_id === s.id && (
           <div className="mt-4 p-3 bg-white/5 border border-white/10 rounded-lg">
             <label className="block text-sm text-gray-400 mb-2">
               What was the outcome? (optional)
@@ -280,41 +286,25 @@ export default function ChipboardPage() {
           </p>
         </div>
 
-        {/* New suggestion form - only on production */}
-        {is_localhost ? (
-          <div className="mb-8 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-            <p className="text-yellow-400 text-sm">
-              Chipboard items are stored in the production database.{' '}
-              <a
-                href="https://8i11.vercel.app/tools/chipboard"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline hover:text-yellow-300"
-              >
-                Add items on the live site →
-              </a>
-            </p>
+        {/* New suggestion form */}
+        <form onSubmit={handle_submit} className="mb-8">
+          <div className="flex flex-col gap-3">
+            <textarea
+              value={new_content}
+              onChange={(e) => set_new_content(e.target.value)}
+              placeholder="What's on your mind? Bugs, ideas, anything..."
+              rows={3}
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400/50 resize-y min-h-[80px]"
+            />
+            <button
+              type="submit"
+              disabled={!new_content.trim() || submitting}
+              className="self-end px-6 py-3 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-medium transition-all"
+            >
+              {submitting ? 'Adding...' : 'Add'}
+            </button>
           </div>
-        ) : (
-          <form onSubmit={handle_submit} className="mb-8">
-            <div className="flex flex-col gap-3">
-              <textarea
-                value={new_content}
-                onChange={(e) => set_new_content(e.target.value)}
-                placeholder="What's on your mind? Bugs, ideas, anything..."
-                rows={3}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400/50 resize-y min-h-[80px]"
-              />
-              <button
-                type="submit"
-                disabled={!new_content.trim() || submitting}
-                className="self-end px-6 py-3 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-medium transition-all"
-              >
-                {submitting ? 'Adding...' : 'Add'}
-              </button>
-            </div>
-          </form>
-        )}
+        </form>
 
         {/* Loading state */}
         {loading ? (
