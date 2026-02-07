@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'user',
-          content: `How would you improve the effectiveness of this prompt?${issue ? `\n\nThe author's concern: ${issue}` : ''}
+          content: `How would you improve the effectiveness of this prompt? Do not respond to the prompt — rewrite it.${issue ? `\n\nChange requested: ${issue}` : ''}
 
 Then provide the complete improved version under this exact heading:
 ## IMPROVED PROMPT

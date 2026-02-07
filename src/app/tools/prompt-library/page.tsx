@@ -70,6 +70,7 @@ export default function PromptLibraryPage() {
   const [renaming, set_renaming] = useState(false);
   const [rename_value, set_rename_value] = useState('');
   const [copied, set_copied] = useState(false);
+  const [copied_id, set_copied_id] = useState<string | null>(null);
 
   // Review issue context
   const [review_issue, set_review_issue] = useState('no emojis');
@@ -514,7 +515,21 @@ export default function PromptLibraryPage() {
                       </div>
                     )}
                   </div>
-                  <span className="text-gray-500 group-hover:text-cyan-400 transition-all text-sm">Open &rarr;</span>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await navigator.clipboard.writeText(p.current_content);
+                        set_copied_id(p.id);
+                        setTimeout(() => set_copied_id(null), 2000);
+                      }}
+                      className="px-2 py-1 text-xs bg-white/5 text-gray-500 hover:text-cyan-400 hover:bg-white/10 rounded transition-all"
+                      title="Copy prompt to clipboard"
+                    >
+                      {copied_id === p.id ? 'Copied!' : 'Copy'}
+                    </button>
+                    <span className="text-gray-500 group-hover:text-cyan-400 transition-all text-sm">Open &rarr;</span>
+                  </div>
                 </div>
               </button>
             ))}
