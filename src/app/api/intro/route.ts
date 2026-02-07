@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
       `${p.year}: "${p.title}"${p.blurb ? ` - ${p.blurb.slice(0, 100)}` : ''}`
     ).join('\n');
 
+    // Prompt Library: "Copy Intro" — update library if this changes
     const prompt = `Write a SHORT 2-sentence intro (30-40 words max) for an "On This Day" post.
 
 Date: ${date_display}

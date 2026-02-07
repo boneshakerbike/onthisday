@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     const client = new Anthropic({ apiKey: api_key });
 
-    // Step 1: Use Sonnet to analyze for gaps
+    // Prompt Library: "Knowledge Diff - Analysis" — update library if this changes
     const analysis_prompt = `You are a meticulous Data Loss Auditor. Your job is finding information present in the OLD document but missing or inadequately represented in the NEW document.
 
 ## METHOD (follow these steps exactly)
@@ -124,6 +124,7 @@ ${new_doc}`;
     // Note: Haiku model name was returning 404, using Sonnet as reliable fallback
     const merge_model = use_opus ? 'claude-opus-4-5-20251101' : 'claude-sonnet-4-20250514';
 
+    // Prompt Library: "Knowledge Diff - Merge" — update library if this changes
     const merge_prompt = `You are a Document Merger. Your job is to take a NEW document and insert missing content from an analysis.
 
 The analysis below identifies content that was in an OLD version but missing from NEW. Insert each piece of missing content into the appropriate section of the NEW document.

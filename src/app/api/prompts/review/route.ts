@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
 
     const client = new Anthropic({ apiKey: api_key });
 
+    // Prompt Library: "Prompt Review" — update library if this changes
     const review = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2048,

@@ -84,7 +84,7 @@ ${plain_text || post.blurb || '(no content available)'}
       day: 'numeric'
     });
 
-    // System prompt (cached) - static instructions that don't change between requests
+    // Prompt Library: "Story Generation" — update library if this changes
     const system_prompt = `You are writing an "On This Day" reflection post for my Substack newsletter.
 
 BASE VOICE (from story generation style):
