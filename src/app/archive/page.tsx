@@ -111,8 +111,9 @@ export default function ArchivePage() {
 
   // Clipboard helper with fallback for mobile browsers
   const copy_to_clipboard = async (text: string, html?: string): Promise<boolean> => {
-    const is_touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    if (html && !is_touch) {
+    const is_mobile = (navigator as unknown as { userAgentData?: { mobile: boolean } })
+      .userAgentData?.mobile ?? /Mobi|Android/i.test(navigator.userAgent);
+    if (html && !is_mobile) {
       try {
         const blob = new Blob([html], { type: 'text/html' });
         await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);

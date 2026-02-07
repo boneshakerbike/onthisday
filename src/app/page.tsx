@@ -159,11 +159,13 @@ export default function OnThisDay() {
 
   // Clipboard helper with fallback for mobile browsers
   const copy_to_clipboard = async (text: string, html?: string): Promise<boolean> => {
-    const is_touch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    // Detect mobile phones (not touchscreen laptops like Chromebooks)
+    const is_mobile = (navigator as unknown as { userAgentData?: { mobile: boolean } })
+      .userAgentData?.mobile ?? /Mobi|Android/i.test(navigator.userAgent);
 
-    // Try rich HTML copy on non-touch devices only
-    // ClipboardItem silently fails on mobile (resolves but doesn't write)
-    if (html && !is_touch) {
+    // Try rich HTML copy on non-mobile devices only
+    // ClipboardItem silently resolves on mobile without actually writing
+    if (html && !is_mobile) {
       try {
         const blob = new Blob([html], { type: 'text/html' });
         await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
@@ -227,8 +229,13 @@ export default function OnThisDay() {
       }
     }
 
-    const text = posts.map(p => `${p.year}: ${p.title} - ${p.url}`).join('\n');
-    const ok = await copy_to_clipboard(text, html);
+    const intro = `On This Day\n\n${date.display} has shown up a few times over the years. ${year_range} Different places, different versions of me. Looking back at them feels like checking old trail conditions.\n\n`;
+    const post_lines = posts.map(p => {
+      if (version === 'simple') return `${p.year}: ${p.title} - ${p.url}`;
+      const blurb_part = p.blurb ? ` – ${p.blurb}` : '';
+      return `${p.year}: ${p.title}${blurb_part} - ${p.url}`;
+    }).join('\n');
+    const ok = await copy_to_clipboard(intro + post_lines, html);
     set_copy_status(ok ? 'Copied!' : 'Copy failed');
     setTimeout(() => set_copy_status(''), 3000);
   };
