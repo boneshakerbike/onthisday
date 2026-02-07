@@ -485,10 +485,10 @@ export default function PromptLibraryPage() {
         ) : (
           <div className="space-y-3">
             {filtered_prompts.map(p => (
-              <button
+              <div
                 key={p.id}
                 onClick={() => open_prompt(p.id)}
-                className="w-full text-left p-4 bg-white/5 border border-white/10 rounded-lg hover:border-cyan-400/30 hover:bg-white/[0.07] transition-all group"
+                className="w-full text-left p-4 bg-white/5 border border-white/10 rounded-lg hover:border-cyan-400/30 hover:bg-white/[0.07] transition-all group cursor-pointer"
               >
                 <div className="flex items-center justify-between">
                   <div className="min-w-0 flex-1">
@@ -531,7 +531,7 @@ export default function PromptLibraryPage() {
                     <span className="text-gray-500 group-hover:text-cyan-400 transition-all text-sm">Open &rarr;</span>
                   </div>
                 </div>
-              </button>
+              </div>
             ))}
           </div>
         )}
