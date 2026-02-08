@@ -160,7 +160,6 @@ export default function BreakoutPage() {
     sound_ref.current = new SoundFX();
   }, []);
 
-  const is_localhost = mounted && typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
   useEffect(() => {
     if (mounted) {
@@ -667,7 +666,7 @@ export default function BreakoutPage() {
       `}</style>
 
       <div className="nav-wrapper">
-        <NavTabs is_localhost={is_localhost} />
+        <NavTabs />
       </div>
       <div className="game-content">
         <h1>Breakout</h1>

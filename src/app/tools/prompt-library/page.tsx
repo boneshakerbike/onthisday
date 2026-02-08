@@ -37,7 +37,6 @@ interface ReviewResult {
 type View = 'list' | 'editor';
 
 export default function PromptLibraryPage() {
-  const [is_localhost, set_is_localhost] = useState(false);
   const [view, set_view] = useState<View>('list');
   const [prompts, set_prompts] = useState<Prompt[]>([]);
   const [loading, set_loading] = useState(true);
@@ -85,7 +84,6 @@ export default function PromptLibraryPage() {
   const [active_tag_filter, set_active_tag_filter] = useState<string | null>(null);
 
   useEffect(() => {
-    set_is_localhost(window.location.hostname === 'localhost');
     fetch_prompts();
     fetch_all_tags();
   }, []);
@@ -882,7 +880,7 @@ export default function PromptLibraryPage() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#0f0f1a] to-[#1a1a2e] text-white">
       <div className="max-w-4xl mx-auto p-4 sm:p-6">
-        <NavTabs is_localhost={is_localhost} />
+        <NavTabs />
         {view === 'list' ? render_list() : render_editor()}
       </div>
     </main>

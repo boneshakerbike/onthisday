@@ -33,11 +33,7 @@ export default function KnowledgeDiffPage() {
   const [result, set_result] = useState<DiffResult | null>(null);
   const [error, set_error] = useState('');
   const [copied, set_copied] = useState(false);
-  const [is_localhost, set_is_localhost] = useState(false);
 
-  useEffect(() => {
-    set_is_localhost(window.location.hostname === 'localhost');
-  }, []);
 
   async function handle_compare() {
     if (!old_doc.trim() || !new_doc.trim()) {
@@ -104,7 +100,7 @@ export default function KnowledgeDiffPage() {
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px' }}>
-        <NavTabs is_localhost={is_localhost} />
+        <NavTabs />
 
         <h1 style={{ fontSize: '1.5em', marginBottom: '8px' }}>Knowledge Diff</h1>
         <p style={{ color: '#888', marginBottom: '24px' }}>

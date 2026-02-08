@@ -5,20 +5,14 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import NavTabs from '@/components/nav_tabs';
 
 export default function AdminPage() {
-  const [is_localhost, set_is_localhost] = useState(false);
-
-  useEffect(() => {
-    set_is_localhost(window.location.hostname === 'localhost');
-  }, []);
-
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#0f0f1a] to-[#1a1a2e] text-white">
       <div className="max-w-3xl mx-auto p-6">
-        <NavTabs is_localhost={is_localhost} />
+        <NavTabs />
 
         <h1 className="text-2xl font-bold text-cyan-400 mb-6">Admin Reference</h1>
 

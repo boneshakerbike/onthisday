@@ -9,7 +9,6 @@ import { useState, useRef, useEffect } from 'react';
 import NavTabs from '@/components/nav_tabs';
 
 export default function MarkdownConverterPage() {
-  const [is_localhost, set_is_localhost] = useState(false);
   const [rich_content, set_rich_content] = useState('');
   const [markdown_content, set_markdown_content] = useState('');
   const [is_updating_from_rich, set_is_updating_from_rich] = useState(false);
@@ -20,7 +19,6 @@ export default function MarkdownConverterPage() {
   const rich_timeout_ref = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    set_is_localhost(window.location.hostname === 'localhost');
     return () => {
       if (rich_timeout_ref.current) clearTimeout(rich_timeout_ref.current);
       if (markdown_timeout_ref.current) clearTimeout(markdown_timeout_ref.current);
@@ -256,7 +254,7 @@ export default function MarkdownConverterPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] text-gray-200 p-5">
       <div className="max-w-6xl mx-auto">
-        <NavTabs is_localhost={is_localhost} />
+        <NavTabs />
 
         <h1 className="text-center text-3xl font-light text-cyan-400 mb-2">
           Markdown Converter

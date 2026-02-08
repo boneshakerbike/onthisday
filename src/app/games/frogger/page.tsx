@@ -141,8 +141,6 @@ export default function FroggerPage() {
     sound_ref.current = new SoundFX();
   }, []);
 
-  // Derive localhost check from mounted state
-  const is_localhost_computed = mounted && typeof window !== 'undefined' && window.location.hostname === 'localhost';
 
   // Load high score after mount
   useEffect(() => {
@@ -772,7 +770,7 @@ export default function FroggerPage() {
       `}</style>
 
       <div className="nav-wrapper">
-        <NavTabs is_localhost={is_localhost_computed} />
+        <NavTabs />
       </div>
       <div className="game-content">
       <h1>Frogger</h1>

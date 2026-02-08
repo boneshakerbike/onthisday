@@ -24,7 +24,6 @@ export default function ChipboardPage() {
   const [new_content, set_new_content] = useState('');
   const [loading, set_loading] = useState(true);
   const [submitting, set_submitting] = useState(false);
-  const [is_localhost, set_is_localhost] = useState(false);
   const [editing_id, set_editing_id] = useState<string | null>(null);
   const [edit_outcome, set_edit_outcome] = useState('');
   const [collapsed, set_collapsed] = useState<Record<GroupKey, boolean>>({
@@ -34,7 +33,6 @@ export default function ChipboardPage() {
   });
 
   useEffect(() => {
-    set_is_localhost(window.location.hostname === 'localhost');
     fetch_suggestions();
   }, []);
 
@@ -274,7 +272,7 @@ export default function ChipboardPage() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#0f0f1a] to-[#1a1a2e] text-white">
       <div className="max-w-4xl mx-auto p-4 sm:p-6">
-        <NavTabs is_localhost={is_localhost} />
+        <NavTabs />
 
         {/* Header */}
         <div className="mb-8">

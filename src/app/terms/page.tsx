@@ -5,20 +5,13 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
 import NavTabs from '@/components/nav_tabs';
 
 export default function TermsPage() {
-  const [is_localhost, set_is_localhost] = useState(false);
-
-  useEffect(() => {
-    set_is_localhost(window.location.hostname === 'localhost');
-  }, []);
-
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#0f0f1a] to-[#1a1a2e] text-white">
       <div className="max-w-3xl mx-auto p-4 sm:p-6">
-        <NavTabs is_localhost={is_localhost} />
+        <NavTabs />
 
         <h1 className="text-2xl font-bold text-cyan-400 mb-2">Terms of Service</h1>
         <p className="text-gray-500 text-sm mb-8">Last updated: February 7, 2026</p>

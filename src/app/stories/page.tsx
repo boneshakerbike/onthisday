@@ -1,10 +1,10 @@
 /**
- * Stories page - redirects to Archive
- * Kept for backwards compatibility
+ * Stories redirect - backwards compatibility
+ * Redirects to /creative/archive
  */
 
 import { redirect } from 'next/navigation';
 
-export default function StoriesPage() {
-  redirect('/archive');
+export default function StoriesRedirect() {
+  redirect('/creative/archive');
 }

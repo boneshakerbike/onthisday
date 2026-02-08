@@ -5,22 +5,15 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import NavTabs from '@/components/nav_tabs';
 
 export default function ToolsPage() {
-  const [is_localhost, set_is_localhost] = useState(false);
-
-  useEffect(() => {
-    set_is_localhost(window.location.hostname === 'localhost');
-  }, []);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] text-gray-200 p-5">
       <div className="max-w-3xl mx-auto">
         {/* Navigation */}
-        <NavTabs is_localhost={is_localhost} />
+        <NavTabs />
 
         {/* Page heading */}
         <h1 className="text-center text-3xl font-light text-cyan-400 mb-8">

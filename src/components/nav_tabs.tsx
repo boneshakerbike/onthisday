@@ -1,6 +1,6 @@
 /**
  * NavTabs - Main navigation header
- * Single line: Tabs left/center, user info right
+ * Tabs: Home | Creative | Tools | Health | Games
  */
 
 'use client';
@@ -11,7 +11,6 @@ import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 
 interface NavTabsProps {
-  is_localhost?: boolean;
   theme?: 'dark' | 'light';
 }
 
@@ -20,16 +19,24 @@ interface DropdownPos {
   left: number;
 }
 
-export default function NavTabs({ is_localhost = false, theme = 'dark' }: NavTabsProps) {
+export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [creative_open, set_creative_open] = useState(false);
   const [tools_open, set_tools_open] = useState(false);
+  const [health_open, set_health_open] = useState(false);
   const [games_open, set_games_open] = useState(false);
+  const [creative_pos, set_creative_pos] = useState<DropdownPos>({ top: 0, left: 0 });
   const [tools_pos, set_tools_pos] = useState<DropdownPos>({ top: 0, left: 0 });
+  const [health_pos, set_health_pos] = useState<DropdownPos>({ top: 0, left: 0 });
   const [games_pos, set_games_pos] = useState<DropdownPos>({ top: 0, left: 0 });
+  const creative_btn_ref = useRef<HTMLButtonElement>(null);
   const tools_btn_ref = useRef<HTMLButtonElement>(null);
+  const health_btn_ref = useRef<HTMLButtonElement>(null);
   const games_btn_ref = useRef<HTMLButtonElement>(null);
+  const creative_menu_ref = useRef<HTMLDivElement>(null);
   const tools_menu_ref = useRef<HTMLDivElement>(null);
+  const health_menu_ref = useRef<HTMLDivElement>(null);
   const games_menu_ref = useRef<HTMLDivElement>(null);
 
   const is_light = theme === 'light';
@@ -38,9 +45,17 @@ export default function NavTabs({ is_localhost = false, theme = 'dark' }: NavTab
   useEffect(() => {
     function handle_click_outside(event: MouseEvent) {
       const target = event.target as Node;
+      if (creative_open && creative_btn_ref.current && !creative_btn_ref.current.contains(target) &&
+          creative_menu_ref.current && !creative_menu_ref.current.contains(target)) {
+        set_creative_open(false);
+      }
       if (tools_open && tools_btn_ref.current && !tools_btn_ref.current.contains(target) &&
           tools_menu_ref.current && !tools_menu_ref.current.contains(target)) {
         set_tools_open(false);
+      }
+      if (health_open && health_btn_ref.current && !health_btn_ref.current.contains(target) &&
+          health_menu_ref.current && !health_menu_ref.current.contains(target)) {
+        set_health_open(false);
       }
       if (games_open && games_btn_ref.current && !games_btn_ref.current.contains(target) &&
           games_menu_ref.current && !games_menu_ref.current.contains(target)) {
@@ -50,25 +65,38 @@ export default function NavTabs({ is_localhost = false, theme = 'dark' }: NavTab
 
     document.addEventListener('mousedown', handle_click_outside);
     return () => document.removeEventListener('mousedown', handle_click_outside);
-  }, [tools_open, games_open]);
+  }, [creative_open, tools_open, health_open, games_open]);
 
-  // Calculate dropdown position when opening
-  const open_tools = () => {
-    if (tools_btn_ref.current) {
-      const rect = tools_btn_ref.current.getBoundingClientRect();
-      set_tools_pos({ top: rect.bottom + 4, left: rect.left });
-    }
-    set_tools_open(!tools_open);
+  const close_all = () => {
+    set_creative_open(false);
+    set_tools_open(false);
+    set_health_open(false);
     set_games_open(false);
   };
 
-  const open_games = () => {
-    if (games_btn_ref.current) {
-      const rect = games_btn_ref.current.getBoundingClientRect();
-      set_games_pos({ top: rect.bottom + 4, left: rect.left });
+  const open_dropdown = (name: string) => {
+    const refs: Record<string, React.RefObject<HTMLButtonElement | null>> = {
+      creative: creative_btn_ref, tools: tools_btn_ref, health: health_btn_ref, games: games_btn_ref
+    };
+    const setters: Record<string, (v: DropdownPos) => void> = {
+      creative: set_creative_pos, tools: set_tools_pos, health: set_health_pos, games: set_games_pos
+    };
+    const toggles: Record<string, [boolean, (v: boolean) => void]> = {
+      creative: [creative_open, set_creative_open],
+      tools: [tools_open, set_tools_open],
+      health: [health_open, set_health_open],
+      games: [games_open, set_games_open],
+    };
+
+    const ref = refs[name];
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      setters[name]({ top: rect.bottom + 4, left: rect.left });
     }
-    set_games_open(!games_open);
-    set_tools_open(false);
+
+    const [is_open, set_open] = toggles[name];
+    close_all();
+    if (!is_open) set_open(true);
   };
 
   const is_active = (path: string) => {
@@ -86,43 +114,65 @@ export default function NavTabs({ is_localhost = false, theme = 'dark' }: NavTab
 
   const inactive_class = `px-3 py-2 text-sm font-medium transition-all border-b-2 border-transparent whitespace-nowrap ${is_light ? 'text-gray-400 hover:text-[#c4704b]' : 'text-gray-500 hover:text-cyan-400'}`;
 
+  const dropdown_class = `py-1 rounded-lg shadow-xl min-w-[180px] z-[9999] ${is_light ? 'bg-white border border-[#e5e0d8]' : 'bg-[#1a1a2e] border border-white/10'}`;
+
+  const dropdown_item_class = `block px-4 py-2 text-sm transition-all ${is_light ? 'text-gray-600 hover:bg-[#c4704b]/10 hover:text-[#c4704b]' : 'text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400'}`;
+
+  const chevron = (is_open: boolean) => (
+    <svg
+      className={`w-4 h-4 transition-transform ${is_open ? 'rotate-180' : ''}`}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+
   return (
     <>
     <header className={`mb-6 border-b ${is_light ? 'border-[#e5e0d8]' : 'border-white/10'}`}>
       <div className="flex items-center justify-between">
         {/* Left: Navigation tabs - scrollable on mobile */}
         <nav className="flex items-center overflow-x-auto scrollbar-hide">
-          {/* Dev Home - only on localhost */}
-          {is_localhost && (
-            <a
-              href="http://localhost:8080"
-              className={inactive_class}
-            >
-              Dev
-            </a>
-          )}
-
-          {/* On This Day */}
+          {/* Home */}
           <Link href="/" className={tab_class('/')}>
-            On This Day
+            Home
           </Link>
+
+          {/* Creative dropdown */}
+          <div className="relative">
+            <button
+              ref={creative_btn_ref}
+              onClick={() => open_dropdown('creative')}
+              className={`${tab_class('/creative')} flex items-center gap-1`}
+            >
+              Creative
+              {chevron(creative_open)}
+            </button>
+          </div>
 
           {/* Tools dropdown */}
           <div className="relative">
             <button
               ref={tools_btn_ref}
-              onClick={open_tools}
+              onClick={() => open_dropdown('tools')}
               className={`${tab_class('/tools')} flex items-center gap-1`}
             >
               Tools
-              <svg
-                className={`w-4 h-4 transition-transform ${tools_open ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+              {chevron(tools_open)}
+            </button>
+          </div>
+
+          {/* Health dropdown */}
+          <div className="relative">
+            <button
+              ref={health_btn_ref}
+              onClick={() => open_dropdown('health')}
+              className={`${tab_class('/health')} flex items-center gap-1`}
+            >
+              Health
+              {chevron(health_open)}
             </button>
           </div>
 
@@ -130,30 +180,14 @@ export default function NavTabs({ is_localhost = false, theme = 'dark' }: NavTab
           <div className="relative">
             <button
               ref={games_btn_ref}
-              onClick={open_games}
+              onClick={() => open_dropdown('games')}
               className={`${tab_class('/games')} flex items-center gap-1`}
             >
               Games
-              <svg
-                className={`w-4 h-4 transition-transform ${games_open ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+              {chevron(games_open)}
             </button>
           </div>
 
-          {/* Visit Substack - external link */}
-          <a
-            href="https://8i11.substack.com/publish/posts/drafts"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={inactive_class}
-          >
-            Drafts ↗
-          </a>
         </nav>
 
         {/* Right: User info */}
@@ -171,84 +205,111 @@ export default function NavTabs({ is_localhost = false, theme = 'dark' }: NavTab
       </div>
     </header>
 
-    {/* Tools dropdown menu - fixed position to escape overflow */}
+    {/* Creative dropdown menu */}
+    {creative_open && (
+      <div
+        ref={creative_menu_ref}
+        style={{ position: 'fixed', top: creative_pos.top, left: creative_pos.left }}
+        className={dropdown_class}
+      >
+        <Link
+          href="/creative"
+          onClick={() => set_creative_open(false)}
+          className={dropdown_item_class}
+        >
+          On This Day
+        </Link>
+        <Link
+          href="/creative/archive"
+          onClick={() => set_creative_open(false)}
+          className={dropdown_item_class}
+        >
+          Archive
+        </Link>
+      </div>
+    )}
+
+    {/* Tools dropdown menu */}
     {tools_open && (
       <div
         ref={tools_menu_ref}
         style={{ position: 'fixed', top: tools_pos.top, left: tools_pos.left }}
-        className={`py-1 rounded-lg shadow-xl min-w-[180px] z-[9999] ${is_light ? 'bg-white border border-[#e5e0d8]' : 'bg-[#1a1a2e] border border-white/10'}`}
+        className={dropdown_class}
       >
-        <Link
-          href="/archive"
-          onClick={() => set_tools_open(false)}
-          className={`block px-4 py-2 text-sm transition-all ${is_light ? 'text-gray-600 hover:bg-[#c4704b]/10 hover:text-[#c4704b]' : 'text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400'}`}
-        >
-          Archive
-        </Link>
         <Link
           href="/tools/markdown"
           onClick={() => set_tools_open(false)}
-          className={`block px-4 py-2 text-sm transition-all ${is_light ? 'text-gray-600 hover:bg-[#c4704b]/10 hover:text-[#c4704b]' : 'text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400'}`}
+          className={dropdown_item_class}
         >
           Markdown Converter
         </Link>
         <Link
           href="/tools/chipboard"
           onClick={() => set_tools_open(false)}
-          className={`block px-4 py-2 text-sm transition-all ${is_light ? 'text-gray-600 hover:bg-[#c4704b]/10 hover:text-[#c4704b]' : 'text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400'}`}
+          className={dropdown_item_class}
         >
           Chipboard
         </Link>
         <Link
           href="/tools/knowledge-diff"
           onClick={() => set_tools_open(false)}
-          className={`block px-4 py-2 text-sm transition-all ${is_light ? 'text-gray-600 hover:bg-[#c4704b]/10 hover:text-[#c4704b]' : 'text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400'}`}
+          className={dropdown_item_class}
         >
           Knowledge Diff
         </Link>
         <Link
           href="/tools/prompt-library"
           onClick={() => set_tools_open(false)}
-          className={`block px-4 py-2 text-sm transition-all ${is_light ? 'text-gray-600 hover:bg-[#c4704b]/10 hover:text-[#c4704b]' : 'text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400'}`}
+          className={dropdown_item_class}
         >
           Prompt Library
-        </Link>
-        <Link
-          href="/tools/wellness"
-          onClick={() => set_tools_open(false)}
-          className={`block px-4 py-2 text-sm transition-all ${is_light ? 'text-gray-600 hover:bg-[#c4704b]/10 hover:text-[#c4704b]' : 'text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400'}`}
-        >
-          Wellness
         </Link>
         <div className={`border-t my-1 ${is_light ? 'border-[#e5e0d8]' : 'border-white/10'}`}></div>
         <Link
           href="/tools/admin"
           onClick={() => set_tools_open(false)}
-          className={`block px-4 py-2 text-sm transition-all ${is_light ? 'text-gray-600 hover:bg-[#c4704b]/10 hover:text-[#c4704b]' : 'text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400'}`}
+          className={dropdown_item_class}
         >
           Admin Reference
         </Link>
       </div>
     )}
 
-    {/* Games dropdown menu - fixed position to escape overflow */}
+    {/* Health dropdown menu */}
+    {health_open && (
+      <div
+        ref={health_menu_ref}
+        style={{ position: 'fixed', top: health_pos.top, left: health_pos.left }}
+        className={dropdown_class}
+      >
+        <Link
+          href="/health/wellness"
+          onClick={() => set_health_open(false)}
+          className={dropdown_item_class}
+        >
+          Wellness
+        </Link>
+      </div>
+    )}
+
+    {/* Games dropdown menu */}
     {games_open && (
       <div
         ref={games_menu_ref}
         style={{ position: 'fixed', top: games_pos.top, left: games_pos.left }}
-        className={`py-1 rounded-lg shadow-xl min-w-[150px] z-[9999] ${is_light ? 'bg-white border border-[#e5e0d8]' : 'bg-[#1a1a2e] border border-white/10'}`}
+        className={`${dropdown_class} min-w-[150px]`}
       >
         <Link
           href="/games/frogger"
           onClick={() => set_games_open(false)}
-          className={`block px-4 py-2 text-sm transition-all ${is_light ? 'text-gray-600 hover:bg-[#c4704b]/10 hover:text-[#c4704b]' : 'text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400'}`}
+          className={dropdown_item_class}
         >
           Frogger
         </Link>
         <Link
           href="/games/breakout"
           onClick={() => set_games_open(false)}
-          className={`block px-4 py-2 text-sm transition-all ${is_light ? 'text-gray-600 hover:bg-[#c4704b]/10 hover:text-[#c4704b]' : 'text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400'}`}
+          className={dropdown_item_class}
         >
           Breakout
         </Link>
