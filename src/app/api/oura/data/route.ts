@@ -58,11 +58,17 @@ export async function GET(request: NextRequest) {
     const base = 'https://api.ouraring.com/v2/usercollection';
     const params = `start_date=${target_date}&end_date=${target_date}`;
 
+    // Activity endpoint uses exclusive end_date, so bump by one day
+    const next_day = new Date(target_date + 'T12:00:00Z');
+    next_day.setDate(next_day.getDate() + 1);
+    const activity_end = next_day.toISOString().split('T')[0];
+    const activity_params = `start_date=${target_date}&end_date=${activity_end}`;
+
     // Fetch all three in parallel
     const [sleep_res, readiness_res, activity_res] = await Promise.all([
       oura_fetch(`${base}/daily_sleep?${params}`, tokens),
       oura_fetch(`${base}/daily_readiness?${params}`, tokens),
-      oura_fetch(`${base}/daily_activity?${params}`, tokens),
+      oura_fetch(`${base}/daily_activity?${activity_params}`, tokens),
     ]);
 
     // If any return 401, try refresh once
@@ -73,7 +79,7 @@ export async function GET(request: NextRequest) {
         const [s, r, a] = await Promise.all([
           oura_fetch(`${base}/daily_sleep?${params}`, tokens),
           oura_fetch(`${base}/daily_readiness?${params}`, tokens),
-          oura_fetch(`${base}/daily_activity?${params}`, tokens),
+          oura_fetch(`${base}/daily_activity?${activity_params}`, tokens),
         ]);
         const sleep_data = await s.json();
         const readiness_data = await r.json();
