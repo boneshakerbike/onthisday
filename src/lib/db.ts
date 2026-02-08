@@ -1174,3 +1174,110 @@ export async function trim_prompt_versions(prompt_id: string, keep_count: number
 
   return to_delete.rows.length;
 }
+
+// ── Oura Ring Tokens ────────────────────────────────────────
+
+export interface OuraTokens {
+  access_token: string;
+  refresh_token: string;
+  expires_at: number;
+  scope: string;
+}
+
+async function init_oura_schema(): Promise<void> {
+  const db = get_client();
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS oura_tokens (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      access_token TEXT NOT NULL,
+      refresh_token TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      scope TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+}
+
+let oura_schema_initialized = false;
+async function ensure_oura_schema(): Promise<void> {
+  if (!oura_schema_initialized) {
+    await init_oura_schema();
+    oura_schema_initialized = true;
+  }
+}
+
+export async function save_oura_tokens(tokens: OuraTokens): Promise<void> {
+  await ensure_oura_schema();
+  const db = get_client();
+
+  await db.execute({
+    sql: `INSERT INTO oura_tokens (id, access_token, refresh_token, expires_at, scope, updated_at)
+          VALUES (1, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(id) DO UPDATE SET
+            access_token = excluded.access_token,
+            refresh_token = excluded.refresh_token,
+            expires_at = excluded.expires_at,
+            scope = excluded.scope,
+            updated_at = CURRENT_TIMESTAMP`,
+    args: [tokens.access_token, tokens.refresh_token, tokens.expires_at, tokens.scope]
+  });
+}
+
+export async function get_oura_tokens(): Promise<OuraTokens | null> {
+  await ensure_oura_schema();
+  const db = get_client();
+
+  const result = await db.execute('SELECT access_token, refresh_token, expires_at, scope FROM oura_tokens WHERE id = 1');
+
+  if (result.rows.length === 0) return null;
+
+  const row = result.rows[0];
+  return {
+    access_token: row.access_token as string,
+    refresh_token: row.refresh_token as string,
+    expires_at: row.expires_at as number,
+    scope: row.scope as string,
+  };
+}
+
+export async function delete_oura_tokens(): Promise<boolean> {
+  await ensure_oura_schema();
+  const db = get_client();
+
+  const result = await db.execute('DELETE FROM oura_tokens WHERE id = 1');
+  return result.rowsAffected > 0;
+}
+
+export async function refresh_oura_access_token(): Promise<OuraTokens> {
+  const tokens = await get_oura_tokens();
+  if (!tokens) throw new Error('No Oura tokens found');
+
+  const res = await fetch('https://api.ouraring.com/oauth/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: tokens.refresh_token,
+      client_id: process.env.OURA_CLIENT_ID || '',
+      client_secret: process.env.OURA_CLIENT_SECRET || '',
+    }),
+  });
+
+  if (!res.ok) {
+    const error_text = await res.text();
+    throw new Error(`Oura token refresh failed: ${res.status} ${error_text}`);
+  }
+
+  const data = await res.json();
+  const new_tokens: OuraTokens = {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token || tokens.refresh_token,
+    expires_at: Math.floor(Date.now() / 1000) + (data.expires_in || 86400),
+    scope: tokens.scope,
+  };
+
+  await save_oura_tokens(new_tokens);
+  return new_tokens;
+}
