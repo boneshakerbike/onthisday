@@ -49,7 +49,7 @@ function WellnessContent() {
   const [connected, set_connected] = useState<boolean | null>(null);
   const [loading, set_loading] = useState(true);
   const [data, set_data] = useState<WellnessData | null>(null);
-  const [selected_date, set_selected_date] = useState(new Date().toISOString().split('T')[0]);
+  const [selected_date, set_selected_date] = useState(new Date().toLocaleDateString('en-CA'));
   const [error, set_error] = useState<string | null>(null);
   const [show_raw, set_show_raw] = useState<string | null>(null);
   const [toast, set_toast] = useState<string | null>(null);
@@ -70,7 +70,7 @@ function WellnessContent() {
       set_error(`Connection failed: ${error_param}`);
     }
 
-    fetch_data(new Date().toISOString().split('T')[0]);
+    fetch_data(new Date().toLocaleDateString('en-CA'));
   }, [search_params]);
 
   async function fetch_data(date: string) {
