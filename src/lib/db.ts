@@ -823,6 +823,24 @@ export async function update_suggestion(
 }
 
 /**
+ * Update suggestion content text
+ */
+export async function update_suggestion_content(
+  id: string,
+  content: string
+): Promise<boolean> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: `UPDATE suggestions SET content = ? WHERE id = ?`,
+    args: [content, id]
+  });
+
+  return result.rowsAffected > 0;
+}
+
+/**
  * Delete a suggestion
  */
 export async function delete_suggestion(id: string): Promise<boolean> {

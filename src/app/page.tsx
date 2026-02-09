@@ -53,7 +53,7 @@ export default function HomePage() {
     {
       title: 'Health',
       description: 'Oura Ring daily scores — sleep, readiness, activity',
-      icon: '💍',
+      icon: '🚴',
       color: 'green',
       links: [
         { label: 'Wellness', href: '/health/wellness' },

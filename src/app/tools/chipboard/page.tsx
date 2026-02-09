@@ -26,6 +26,8 @@ export default function ChipboardPage() {
   const [submitting, set_submitting] = useState(false);
   const [editing_id, set_editing_id] = useState<string | null>(null);
   const [edit_outcome, set_edit_outcome] = useState('');
+  const [editing_content_id, set_editing_content_id] = useState<string | null>(null);
+  const [edit_content, set_edit_content] = useState('');
   const [collapsed, set_collapsed] = useState<Record<GroupKey, boolean>>({
     pending: false,
     considering: false,
@@ -92,6 +94,25 @@ export default function ChipboardPage() {
       }
     } catch (error) {
       console.error('Failed to update suggestion:', error);
+    }
+  }
+
+  async function save_content(id: string) {
+    if (!edit_content.trim()) return;
+    try {
+      const res = await fetch('/api/suggestions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, content: edit_content.trim() })
+      });
+      const data = await res.json();
+      if (data.success) {
+        set_editing_content_id(null);
+        set_edit_content('');
+        fetch_suggestions();
+      }
+    } catch (error) {
+      console.error('Failed to update suggestion content:', error);
     }
   }
 
@@ -162,7 +183,34 @@ export default function ChipboardPage() {
                 {format_date(s.created_at)}
               </span>
             </div>
-            <p className="text-gray-200 break-words">{s.content}</p>
+            {editing_content_id === s.id ? (
+              <div className="flex flex-col gap-2">
+                <textarea
+                  value={edit_content}
+                  onChange={(e) => set_edit_content(e.target.value)}
+                  rows={4}
+                  className="w-full bg-white/5 border border-cyan-400/50 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none resize-y min-h-[80px]"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => save_content(s.id)}
+                    disabled={!edit_content.trim()}
+                    className="px-3 py-1 text-xs bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 rounded transition-all"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => { set_editing_content_id(null); set_edit_content(''); }}
+                    className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20 rounded transition-all"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-200 break-words">{s.content}</p>
+            )}
             {s.outcome && (
               <p className="mt-2 text-sm text-gray-400 italic break-words">
                 Outcome: {s.outcome}
@@ -175,6 +223,15 @@ export default function ChipboardPage() {
             <div className="flex items-center gap-2 flex-wrap">
               {s.status === 'pending' && (
                 <>
+                  <button
+                    onClick={() => {
+                      set_editing_content_id(s.id);
+                      set_edit_content(s.content);
+                    }}
+                    className="px-2 py-1 text-xs bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/30 transition-all"
+                  >
+                    Edit
+                  </button>
                   <button
                     onClick={() => update_status(s.id, 'considering')}
                     className="px-2 py-1 text-xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-all"

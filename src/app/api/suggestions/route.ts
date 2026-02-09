@@ -14,6 +14,7 @@ import {
   get_suggestions,
   create_suggestion,
   update_suggestion,
+  update_suggestion_content,
   delete_suggestion,
   Suggestion
 } from '@/lib/db';
@@ -139,13 +140,34 @@ export async function PATCH(request: NextRequest) {
   if (auth_error) return auth_error;
 
   try {
-    const { id, status, outcome } = await request.json();
+    const { id, status, outcome, content } = await request.json();
 
     if (!id) {
       return NextResponse.json(
         { error: 'Suggestion ID is required' },
         { status: 400 }
       );
+    }
+
+    // Content-only edit (no status change)
+    if (content !== undefined && !status) {
+      if (typeof content !== 'string' || content.trim().length === 0) {
+        return NextResponse.json(
+          { error: 'Content cannot be empty' },
+          { status: 400 }
+        );
+      }
+      const updated = await update_suggestion_content(id, content.trim());
+      if (!updated) {
+        return NextResponse.json(
+          { error: 'Suggestion not found' },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        message: 'Suggestion content updated'
+      }, { headers: cors_headers() });
     }
 
     const valid_statuses: Suggestion['status'][] = ['pending', 'considering', 'done', 'rejected'];

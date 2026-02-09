@@ -30,6 +30,9 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
   const [tools_pos, set_tools_pos] = useState<DropdownPos>({ top: 0, left: 0 });
   const [health_pos, set_health_pos] = useState<DropdownPos>({ top: 0, left: 0 });
   const [games_pos, set_games_pos] = useState<DropdownPos>({ top: 0, left: 0 });
+  const nav_ref = useRef<HTMLElement>(null);
+  const [can_scroll_left, set_can_scroll_left] = useState(false);
+  const [can_scroll_right, set_can_scroll_right] = useState(false);
   const creative_btn_ref = useRef<HTMLButtonElement>(null);
   const tools_btn_ref = useRef<HTMLButtonElement>(null);
   const health_btn_ref = useRef<HTMLButtonElement>(null);
@@ -40,6 +43,24 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
   const games_menu_ref = useRef<HTMLDivElement>(null);
 
   const is_light = theme === 'light';
+
+  // Track nav scroll position for fade indicators
+  useEffect(() => {
+    const nav = nav_ref.current;
+    if (!nav) return;
+    const check_scroll = () => {
+      set_can_scroll_left(nav.scrollLeft > 0);
+      set_can_scroll_right(nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 1);
+    };
+    check_scroll();
+    nav.addEventListener('scroll', check_scroll);
+    const observer = new ResizeObserver(check_scroll);
+    observer.observe(nav);
+    return () => {
+      nav.removeEventListener('scroll', check_scroll);
+      observer.disconnect();
+    };
+  }, []);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -105,7 +126,7 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
   };
 
   const tab_class = (path: string) => {
-    const base = 'px-3 py-2 text-sm font-medium transition-all border-b-2 whitespace-nowrap';
+    const base = 'px-2 sm:px-3 py-2 text-sm font-medium transition-all border-b-2 whitespace-nowrap';
     if (is_active(path)) {
       return `${base} ${is_light ? 'text-[#c4704b] border-[#c4704b]' : 'text-cyan-400 border-cyan-400'}`;
     }
@@ -134,7 +155,14 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
     <header className={`mb-6 border-b ${is_light ? 'border-[#e5e0d8]' : 'border-white/10'}`}>
       <div className="flex items-center justify-between">
         {/* Left: Navigation tabs - scrollable on mobile */}
-        <nav className="flex items-center overflow-x-auto scrollbar-hide">
+        <div className="relative flex-1 min-w-0">
+        {can_scroll_left && (
+          <div className={`absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-r ${is_light ? 'from-[#faf8f5]' : 'from-[#1a1a2e]'} to-transparent`} />
+        )}
+        {can_scroll_right && (
+          <div className={`absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-l ${is_light ? 'from-[#faf8f5]' : 'from-[#1a1a2e]'} to-transparent`} />
+        )}
+        <nav ref={nav_ref} className="flex items-center overflow-x-auto scrollbar-hide">
           {/* Home */}
           <Link href="/" className={tab_class('/')}>
             Home
@@ -189,6 +217,7 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
           </div>
 
         </nav>
+        </div>
 
         {/* Right: User info */}
         {session && (
