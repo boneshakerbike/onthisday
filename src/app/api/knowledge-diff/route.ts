@@ -30,25 +30,39 @@ export async function POST(request: NextRequest) {
     const client = new Anthropic({ apiKey: api_key });
 
     // Prompt Library: "Knowledge Diff - Analysis" — update library if this changes
-    const analysis_prompt = `You are a meticulous Data Loss Auditor. Your job is finding information present in the OLD document but missing or inadequately represented in the NEW document.
+    const analysis_prompt = `You are a meticulous Data Loss Auditor. Your job is finding information present in the OLD document but missing or inadequately represented in the NEW document — including losses of depth, structure, and functional knowledge.
 
 ## METHOD (follow these steps exactly)
 
-**Step 1: Inventory.** Go through the OLD document section by section. For each section, list every distinct fact, decision, configuration detail, URL, instruction, or piece of knowledge.
+**Step 1: Classify.** Go through the OLD document and classify each section by knowledge type:
+- PROCEDURE: Step-by-step instructions, decision trees, workflows
+- TROUBLESHOOTING: Diagnostic steps, error resolution, conditional branches
+- REFERENCE: Facts, URLs, constants, version numbers, configurations
+- CHECKLIST: Verification steps, monitoring items, review lists
+- STRATEGY: Architecture decisions, design rationale, trade-off analysis
+- HISTORICAL: Timelines, context, evolution of decisions
+- EDUCATIONAL: Explanations, rationale, background knowledge
 
-**Step 2: Cross-reference.** For each item from Step 1, verify it exists in the NEW document. Mark each as:
-- PRESENT: Exists in NEW (same or updated form)
+**Step 2: Inventory.** For each section, list every distinct fact, decision, configuration detail, URL, instruction, or piece of knowledge.
+
+**Step 3: Cross-reference.** For each item from Step 2, verify it exists in the NEW document. Mark each as:
+- PRESENT: Exists in NEW with equivalent depth and detail
 - REPLACED: Content was replaced by something more specific or better (note what replaced it)
 - MOVED: Content moved to a different section
+- REDUCED: Content exists but lost procedural depth, steps, or operational detail
 - LOST: Content is missing with no equivalent
 
-**Step 3: Report.** Based on your cross-reference, produce your output.
+**Step 4: Structural check.** Compare knowledge types present in OLD vs NEW. Flag if an entire knowledge type class has disappeared or been severely reduced.
+
+**Step 5: Report.** Based on your cross-reference, produce your output.
 
 ## WHAT COUNTS AS A LOSS
 
 - A fact, URL, decision, or instruction in OLD with no equivalent in NEW = LOSS
 - A specific item replaced by a vague generalization = LOSS (specificity lost)
 - A configuration detail, command, or path that was dropped = LOSS
+- A multi-step procedure collapsed into a summary bullet = LOSS (depth lost)
+- An entire knowledge type class (e.g., all troubleshooting) removed = MAJOR LOSS
 
 ## WHAT IS NOT A LOSS
 
@@ -68,15 +82,21 @@ Summary: [1-2 sentence summary of what was verified]
 If you find ANY losses (even minor ones):
 GAPS_FOUND
 
+First, report any knowledge type losses:
+KNOWLEDGE_TYPE_LOSSES:
+- [TYPE]: [GONE | SEVERELY_REDUCED] — was [N sections/items], now [N or 0]
+(If no type-level losses, write KNOWLEDGE_TYPE_LOSSES: NONE)
+
 Then list each gap:
 ---
 SEVERITY: [MAJOR or MINOR]
+TYPE: [PROCEDURE | TROUBLESHOOTING | REFERENCE | CHECKLIST | STRATEGY | HISTORICAL | EDUCATIONAL]
 SECTION: [which section in OLD it belongs to]
 CONTENT: [the exact content that was lost]
 CONTEXT: [why this is a loss, not an intentional change]
 ---
 
-MAJOR = meaningful knowledge, decisions, or technical details lost
+MAJOR = meaningful knowledge, decisions, technical details, or procedural depth lost
 MINOR = small details, minor wording, or edge-case information
 
 Err on the side of flagging. It is better to report a MINOR gap that turns out to be intentional than to miss a real loss.
@@ -89,7 +109,7 @@ ${new_doc}`;
 
     const analysis = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
+      max_tokens: 8192,
       messages: [
         { role: 'user', content: analysis_prompt }
       ]
@@ -125,15 +145,17 @@ ${new_doc}`;
     const merge_model = use_opus ? 'claude-opus-4-5-20251101' : 'claude-sonnet-4-20250514';
 
     // Prompt Library: "Knowledge Diff - Merge" — update library if this changes
-    const merge_prompt = `You are a Document Merger. Your job is to take a NEW document and insert missing content from an analysis.
+    const merge_prompt = `You are a Document Merger. Your job is to take a NEW document and insert missing content from an analysis, preserving institutional and functional knowledge.
 
-The analysis below identifies content that was in an OLD version but missing from NEW. Insert each piece of missing content into the appropriate section of the NEW document.
+The analysis below identifies content that was in an OLD version but missing from NEW, including knowledge type classifications. Insert each piece of missing content into the NEW document.
 
 RULES:
-- Preserve the NEW document's structure exactly
-- Insert missing content in the appropriate sections as identified
+- Use the NEW document's structure as your base
+- Insert missing content into appropriate existing sections where possible
+- If gaps belong to a knowledge type or section that no longer exists in NEW, recreate that section at a logical location and label it: "## Recovered: [Section Name]"
 - Do not summarize or paraphrase - use exact content from the gaps
 - Do not add commentary or explanations
+- Preserve procedural depth: if a multi-step workflow was lost, restore the full workflow, not a summary
 - Output ONLY the complete merged document, nothing else
 
 GAPS ANALYSIS:
