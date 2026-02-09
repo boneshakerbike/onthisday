@@ -1062,6 +1062,7 @@ export async function get_all_prompt_tags(): Promise<string[]> {
 
 /**
  * Save a new version of a prompt
+ * Snapshots the old content as v0 on first save so no version is ever lost
  */
 export async function save_prompt_version(
   prompt_id: string,
@@ -1071,9 +1072,9 @@ export async function save_prompt_version(
   await ensure_prompts_schema();
   const db = get_client();
 
-  // Get current version count
+  // Get current content and version count
   const prompt = await db.execute({
-    sql: 'SELECT version_count FROM prompts WHERE id = ?',
+    sql: 'SELECT current_content, version_count FROM prompts WHERE id = ?',
     args: [prompt_id]
   });
 
@@ -1081,13 +1082,23 @@ export async function save_prompt_version(
     throw new Error('Prompt not found');
   }
 
-  const new_version = (prompt.rows[0].version_count as number) + 1;
-  const version_id = generate_id();
+  const old_content = prompt.rows[0].current_content as string;
+  const old_version_count = prompt.rows[0].version_count as number;
+
+  // If this is the first save, snapshot the original content as v0
+  if (old_version_count === 0) {
+    await db.execute({
+      sql: `INSERT INTO prompt_versions (id, prompt_id, version_number, content, note) VALUES (?, ?, ?, ?, ?)`,
+      args: [generate_id(), prompt_id, 0, old_content, null]
+    });
+  }
+
+  const new_version = old_version_count + 1;
 
   // Insert new version
   await db.execute({
     sql: `INSERT INTO prompt_versions (id, prompt_id, version_number, content, note) VALUES (?, ?, ?, ?, ?)`,
-    args: [version_id, prompt_id, new_version, content, note || null]
+    args: [generate_id(), prompt_id, new_version, content, note || null]
   });
 
   // Update prompt

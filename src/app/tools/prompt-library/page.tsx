@@ -754,7 +754,7 @@ export default function PromptLibraryPage() {
                 onClick={() => set_show_history(!show_history)}
                 className={`px-4 py-2 text-sm rounded transition-all border ${show_history ? 'bg-white/10 border-cyan-400/30 text-cyan-400' : 'bg-white/5 border-white/10 text-gray-400 hover:text-gray-200'}`}
               >
-                History ({active_prompt.version_count})
+                History ({versions.length})
               </button>
               <button
                 onClick={handle_delete}
