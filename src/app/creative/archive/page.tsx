@@ -217,6 +217,17 @@ export default function ArchivePage() {
             </div>
           )}
 
+          {/* Month quick-nav (only when grouped by date) */}
+          {stories.length > 0 && sort_order.startsWith('date_') && grouped.length > 1 && (
+            <nav className="month-nav">
+              {grouped.map(({ month }) => (
+                <a key={month} href={`#month-${month.toLowerCase()}`} className="month-nav-link">
+                  {month.slice(0, 3)}
+                </a>
+              ))}
+            </nav>
+          )}
+
           {stories.length === 0 ? (
             <div className="empty-state">
               <p>No stories yet.</p>
@@ -224,7 +235,7 @@ export default function ArchivePage() {
             </div>
           ) : (
             grouped.map(({ month, stories: month_stories }) => (
-              <section key={month || 'all'} className="month-section">
+              <section key={month || 'all'} id={month ? `month-${month.toLowerCase()}` : undefined} className="month-section">
                 {month && (
                   <h2 className="month-title">
                     {month}
@@ -439,6 +450,30 @@ const base_styles = `
     margin-left: 8px;
     font-weight: 400;
     vertical-align: middle;
+  }
+
+  .month-nav {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 36px;
+  }
+
+  .month-nav-link {
+    padding: 5px 10px;
+    font-size: 0.8em;
+    color: #7c7c7c;
+    text-decoration: none;
+    border: 1px solid #e5e0d8;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+  }
+
+  .month-nav-link:hover {
+    border-color: #c4704b;
+    color: #c4704b;
+    background: #c4704b10;
   }
 
   .toast {
