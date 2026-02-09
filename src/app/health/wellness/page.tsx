@@ -342,10 +342,10 @@ function WellnessContent() {
                   <DetailItem label="Steps" value={data.activity.steps != null ? (data.activity.steps as number).toLocaleString() : '—'} />
                   <DetailItem label="Active Cal" value={data.activity.active_calories != null ? `${data.activity.active_calories}` : '—'} />
                   <DetailItem label="Total Cal" value={data.activity.total_calories != null ? `${data.activity.total_calories}` : '—'} />
-                  <DetailItem label="Sedentary" value={format_minutes(data.activity.sedentary_time as number)} />
-                  <DetailItem label="High Activity" value={format_minutes(data.activity.high_activity_time as number)} />
-                  <DetailItem label="Medium Activity" value={format_minutes(data.activity.medium_activity_time as number)} />
-                  <DetailItem label="Low Activity" value={format_minutes(data.activity.low_activity_time as number)} />
+                  <DetailItem label="Sedentary" value={format_duration(data.activity.sedentary_time as number)} />
+                  <DetailItem label="High Activity" value={format_duration(data.activity.high_activity_time as number)} />
+                  <DetailItem label="Medium Activity" value={format_duration(data.activity.medium_activity_time as number)} />
+                  <DetailItem label="Low Activity" value={format_duration(data.activity.low_activity_time as number)} />
                   <DetailItem label="Walking Equiv" value={data.activity.equivalent_walking_distance != null ? `${((data.activity.equivalent_walking_distance as number) / 1000).toFixed(1)} km` : '—'} />
                   <DetailItem label="Inactivity Alerts" value={data.activity.inactivity_alerts != null ? `${data.activity.inactivity_alerts}` : '—'} />
                 </div>
