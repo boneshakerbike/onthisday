@@ -166,6 +166,20 @@ function LoginForm() {
           Enter as Guest
         </button>
       </form>
+
+      <p
+        style={{
+          marginTop: '24px',
+          fontSize: '13px',
+          color: '#666',
+        }}
+      >
+        Just browsing?{' '}
+        <a href="/creative/archive" style={{ color: '#00d9ff', textDecoration: 'none' }}>Stories</a>
+        {' and '}
+        <a href="/games/frogger" style={{ color: '#00d9ff', textDecoration: 'none' }}>Games</a>
+        {' are free to explore.'}
+      </p>
     </div>
   );
 }
