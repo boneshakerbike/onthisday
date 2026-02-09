@@ -1299,3 +1299,252 @@ export async function refresh_oura_access_token(): Promise<OuraTokens> {
   await save_oura_tokens(new_tokens);
   return new_tokens;
 }
+
+// ── Wellness Cache ──────────────────────────────────────────
+
+export interface WellnessSnapshot {
+  date: string;
+  sleep_score: number | null;
+  readiness_score: number | null;
+  activity_score: number | null;
+  stress_high: number | null;
+  recovery_high: number | null;
+  hrv_average: number | null;
+  resting_hr: number | null;
+  spo2_average: number | null;
+  steps: number | null;
+  active_calories: number | null;
+  daily_sleep: unknown | null;
+  daily_readiness: unknown | null;
+  daily_activity: unknown | null;
+  daily_stress: unknown | null;
+  daily_resilience: unknown | null;
+  daily_cardiovascular_age: unknown | null;
+  daily_spo2: unknown | null;
+  sleep_detail: unknown | null;
+  heartrate: unknown | null;
+  vo2_max: unknown | null;
+  workouts: unknown | null;
+  sessions: unknown | null;
+  fetched_at: string;
+}
+
+export interface WellnessScores {
+  date: string;
+  sleep_score: number | null;
+  readiness_score: number | null;
+  activity_score: number | null;
+  stress_high: number | null;
+  recovery_high: number | null;
+  hrv_average: number | null;
+  resting_hr: number | null;
+  spo2_average: number | null;
+  steps: number | null;
+  active_calories: number | null;
+}
+
+async function init_wellness_schema(): Promise<void> {
+  const db = get_client();
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS wellness_cache (
+      date TEXT PRIMARY KEY,
+      sleep_score INTEGER,
+      readiness_score INTEGER,
+      activity_score INTEGER,
+      stress_high INTEGER,
+      recovery_high INTEGER,
+      hrv_average REAL,
+      resting_hr INTEGER,
+      spo2_average REAL,
+      steps INTEGER,
+      active_calories INTEGER,
+      daily_sleep_json TEXT,
+      daily_readiness_json TEXT,
+      daily_activity_json TEXT,
+      daily_stress_json TEXT,
+      daily_resilience_json TEXT,
+      daily_cardiovascular_age_json TEXT,
+      daily_spo2_json TEXT,
+      sleep_json TEXT,
+      heartrate_json TEXT,
+      vo2_max_json TEXT,
+      workout_json TEXT,
+      session_json TEXT,
+      fetched_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+}
+
+let wellness_schema_initialized = false;
+async function ensure_wellness_schema(): Promise<void> {
+  if (!wellness_schema_initialized) {
+    await init_wellness_schema();
+    wellness_schema_initialized = true;
+  }
+}
+
+export async function get_wellness_cache(date: string): Promise<WellnessSnapshot | null> {
+  await ensure_wellness_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'SELECT * FROM wellness_cache WHERE date = ?',
+    args: [date]
+  });
+
+  if (result.rows.length === 0) return null;
+
+  const row = result.rows[0];
+  return {
+    date: row.date as string,
+    sleep_score: row.sleep_score as number | null,
+    readiness_score: row.readiness_score as number | null,
+    activity_score: row.activity_score as number | null,
+    stress_high: row.stress_high as number | null,
+    recovery_high: row.recovery_high as number | null,
+    hrv_average: row.hrv_average as number | null,
+    resting_hr: row.resting_hr as number | null,
+    spo2_average: row.spo2_average as number | null,
+    steps: row.steps as number | null,
+    active_calories: row.active_calories as number | null,
+    daily_sleep: row.daily_sleep_json ? JSON.parse(row.daily_sleep_json as string) : null,
+    daily_readiness: row.daily_readiness_json ? JSON.parse(row.daily_readiness_json as string) : null,
+    daily_activity: row.daily_activity_json ? JSON.parse(row.daily_activity_json as string) : null,
+    daily_stress: row.daily_stress_json ? JSON.parse(row.daily_stress_json as string) : null,
+    daily_resilience: row.daily_resilience_json ? JSON.parse(row.daily_resilience_json as string) : null,
+    daily_cardiovascular_age: row.daily_cardiovascular_age_json ? JSON.parse(row.daily_cardiovascular_age_json as string) : null,
+    daily_spo2: row.daily_spo2_json ? JSON.parse(row.daily_spo2_json as string) : null,
+    sleep_detail: row.sleep_json ? JSON.parse(row.sleep_json as string) : null,
+    heartrate: row.heartrate_json ? JSON.parse(row.heartrate_json as string) : null,
+    vo2_max: row.vo2_max_json ? JSON.parse(row.vo2_max_json as string) : null,
+    workouts: row.workout_json ? JSON.parse(row.workout_json as string) : null,
+    sessions: row.session_json ? JSON.parse(row.session_json as string) : null,
+    fetched_at: row.fetched_at as string,
+  };
+}
+
+export async function save_wellness_cache(snapshot: WellnessSnapshot): Promise<void> {
+  await ensure_wellness_schema();
+  const db = get_client();
+
+  await db.execute({
+    sql: `INSERT OR REPLACE INTO wellness_cache (
+      date, sleep_score, readiness_score, activity_score,
+      stress_high, recovery_high, hrv_average, resting_hr,
+      spo2_average, steps, active_calories,
+      daily_sleep_json, daily_readiness_json, daily_activity_json,
+      daily_stress_json, daily_resilience_json, daily_cardiovascular_age_json,
+      daily_spo2_json, sleep_json, heartrate_json,
+      vo2_max_json, workout_json, session_json,
+      fetched_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+    args: [
+      snapshot.date,
+      snapshot.sleep_score,
+      snapshot.readiness_score,
+      snapshot.activity_score,
+      snapshot.stress_high,
+      snapshot.recovery_high,
+      snapshot.hrv_average,
+      snapshot.resting_hr,
+      snapshot.spo2_average,
+      snapshot.steps,
+      snapshot.active_calories,
+      snapshot.daily_sleep ? JSON.stringify(snapshot.daily_sleep) : null,
+      snapshot.daily_readiness ? JSON.stringify(snapshot.daily_readiness) : null,
+      snapshot.daily_activity ? JSON.stringify(snapshot.daily_activity) : null,
+      snapshot.daily_stress ? JSON.stringify(snapshot.daily_stress) : null,
+      snapshot.daily_resilience ? JSON.stringify(snapshot.daily_resilience) : null,
+      snapshot.daily_cardiovascular_age ? JSON.stringify(snapshot.daily_cardiovascular_age) : null,
+      snapshot.daily_spo2 ? JSON.stringify(snapshot.daily_spo2) : null,
+      snapshot.sleep_detail ? JSON.stringify(snapshot.sleep_detail) : null,
+      snapshot.heartrate ? JSON.stringify(snapshot.heartrate) : null,
+      snapshot.vo2_max ? JSON.stringify(snapshot.vo2_max) : null,
+      snapshot.workouts ? JSON.stringify(snapshot.workouts) : null,
+      snapshot.sessions ? JSON.stringify(snapshot.sessions) : null,
+    ]
+  });
+}
+
+export async function get_wellness_range(
+  start_date: string,
+  end_date: string
+): Promise<WellnessSnapshot[]> {
+  await ensure_wellness_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'SELECT * FROM wellness_cache WHERE date >= ? AND date <= ? ORDER BY date ASC',
+    args: [start_date, end_date]
+  });
+
+  return result.rows.map(row => ({
+    date: row.date as string,
+    sleep_score: row.sleep_score as number | null,
+    readiness_score: row.readiness_score as number | null,
+    activity_score: row.activity_score as number | null,
+    stress_high: row.stress_high as number | null,
+    recovery_high: row.recovery_high as number | null,
+    hrv_average: row.hrv_average as number | null,
+    resting_hr: row.resting_hr as number | null,
+    spo2_average: row.spo2_average as number | null,
+    steps: row.steps as number | null,
+    active_calories: row.active_calories as number | null,
+    daily_sleep: row.daily_sleep_json ? JSON.parse(row.daily_sleep_json as string) : null,
+    daily_readiness: row.daily_readiness_json ? JSON.parse(row.daily_readiness_json as string) : null,
+    daily_activity: row.daily_activity_json ? JSON.parse(row.daily_activity_json as string) : null,
+    daily_stress: row.daily_stress_json ? JSON.parse(row.daily_stress_json as string) : null,
+    daily_resilience: row.daily_resilience_json ? JSON.parse(row.daily_resilience_json as string) : null,
+    daily_cardiovascular_age: row.daily_cardiovascular_age_json ? JSON.parse(row.daily_cardiovascular_age_json as string) : null,
+    daily_spo2: row.daily_spo2_json ? JSON.parse(row.daily_spo2_json as string) : null,
+    sleep_detail: row.sleep_json ? JSON.parse(row.sleep_json as string) : null,
+    heartrate: row.heartrate_json ? JSON.parse(row.heartrate_json as string) : null,
+    vo2_max: row.vo2_max_json ? JSON.parse(row.vo2_max_json as string) : null,
+    workouts: row.workout_json ? JSON.parse(row.workout_json as string) : null,
+    sessions: row.session_json ? JSON.parse(row.session_json as string) : null,
+    fetched_at: row.fetched_at as string,
+  }));
+}
+
+export async function get_wellness_scores(
+  start_date: string,
+  end_date: string
+): Promise<WellnessScores[]> {
+  await ensure_wellness_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: `SELECT date, sleep_score, readiness_score, activity_score,
+      stress_high, recovery_high, hrv_average, resting_hr,
+      spo2_average, steps, active_calories
+    FROM wellness_cache WHERE date >= ? AND date <= ? ORDER BY date ASC`,
+    args: [start_date, end_date]
+  });
+
+  return result.rows.map(row => ({
+    date: row.date as string,
+    sleep_score: row.sleep_score as number | null,
+    readiness_score: row.readiness_score as number | null,
+    activity_score: row.activity_score as number | null,
+    stress_high: row.stress_high as number | null,
+    recovery_high: row.recovery_high as number | null,
+    hrv_average: row.hrv_average as number | null,
+    resting_hr: row.resting_hr as number | null,
+    spo2_average: row.spo2_average as number | null,
+    steps: row.steps as number | null,
+    active_calories: row.active_calories as number | null,
+  }));
+}
+
+export async function is_wellness_cached(date: string): Promise<boolean> {
+  await ensure_wellness_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'SELECT 1 FROM wellness_cache WHERE date = ?',
+    args: [date]
+  });
+
+  return result.rows.length > 0;
+}

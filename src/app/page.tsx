@@ -52,7 +52,7 @@ export default function HomePage() {
     },
     {
       title: 'Health',
-      description: 'Oura Ring daily scores — sleep, readiness, activity',
+      description: 'Oura Ring wellness — scores, HRV, stress, sleep details, and more',
       icon: '🚴',
       color: 'green',
       links: [

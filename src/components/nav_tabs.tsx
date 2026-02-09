@@ -42,6 +42,9 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
   const health_menu_ref = useRef<HTMLDivElement>(null);
   const games_menu_ref = useRef<HTMLDivElement>(null);
 
+  const [is_local, set_is_local] = useState(false);
+  useEffect(() => { set_is_local(window.location.hostname === 'localhost'); }, []);
+
   const is_light = theme === 'light';
 
   // Track nav scroll position for fade indicators
@@ -220,17 +223,27 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
         </div>
 
         {/* Right: User info */}
-        {session && (
-          <div className={`text-xs pr-1 whitespace-nowrap ml-4 ${is_light ? 'text-gray-500' : 'text-gray-500'}`}>
-            <span className="hidden sm:inline">{session.user?.name || session.user?.email || 'Guest'}</span>
-            <button
-              onClick={() => signOut()}
-              className={`ml-2 underline ${is_light ? 'text-gray-500 hover:text-[#c4704b]' : 'text-gray-500 hover:text-cyan-400'}`}
+        <div className="flex items-center whitespace-nowrap ml-4">
+          {is_local && (
+            <a
+              href="http://localhost:8080"
+              className={`text-xs mr-3 ${is_light ? 'text-gray-400 hover:text-[#c4704b]' : 'text-gray-500 hover:text-cyan-400'}`}
             >
-              Sign out
-            </button>
-          </div>
-        )}
+              Dev Hub
+            </a>
+          )}
+          {session && (
+            <div className={`text-xs pr-1 ${is_light ? 'text-gray-500' : 'text-gray-500'}`}>
+              <span className="hidden sm:inline">{session.user?.name || session.user?.email || 'Guest'}</span>
+              <button
+                onClick={() => signOut()}
+                className={`ml-2 underline ${is_light ? 'text-gray-500 hover:text-[#c4704b]' : 'text-gray-500 hover:text-cyan-400'}`}
+              >
+                Sign out
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
 
