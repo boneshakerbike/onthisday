@@ -45,21 +45,21 @@ export const auth_options: NextAuthOptions = {
     signIn: '/login',
   },
   callbacks: {
-    async signIn({ user, account }) {
+    async signIn({ account, profile }) {
       // Allow guests with valid PIN
       if (account?.provider === 'guest-pin') {
         return true;
       }
 
-      // Restrict GitHub login to allowed users
+      // Restrict GitHub login to allowed users by unique login (not display name)
       // Set ALLOWED_GITHUB_USERS=user1,user2 in env, or defaults to boneshakerbike
       const allowed_users = process.env.ALLOWED_GITHUB_USERS?.split(',').map(u => u.trim())
         || ['boneshakerbike'];
 
       if (account?.provider === 'github') {
-        const username = user.name ?? '';
-        if (!allowed_users.includes(username)) {
-          console.log(`GitHub login denied for: ${username}`);
+        const login = (profile as { login?: string })?.login ?? '';
+        if (!allowed_users.includes(login)) {
+          console.log(`GitHub login denied for: ${login}`);
           return false;
         }
       }

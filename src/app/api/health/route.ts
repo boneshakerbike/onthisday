@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@libsql/client';
+import { getToken } from 'next-auth/jwt';
 import { cleanup_duplicate_stories, cleanup_duplicate_posts } from '@/lib/db';
 
 const is_turso = !!process.env.TURSO_DATABASE_URL;
@@ -78,6 +79,16 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Require auth for destructive operations (GET stays public for health checks)
+  const token = await getToken({ req: request });
+  const pin_header = request.headers.get('X-Guest-Pin');
+  const valid_pins = (process.env.GUEST_PINS || process.env.GUEST_PIN || '')
+    .split(',').map(p => p.trim()).filter(Boolean);
+
+  if (!token && (!pin_header || !valid_pins.includes(pin_header))) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  }
+
   const action = request.nextUrl.searchParams.get('action');
 
   if (action === 'cleanup_stories') {
