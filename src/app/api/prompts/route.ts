@@ -16,9 +16,13 @@ import {
   update_prompt_notes, update_prompt_tags, get_all_prompt_tags
 } from '@/lib/db';
 
-function cors_headers() {
+// CORS headers for cross-origin requests (production + localhost dev)
+const ALLOWED_ORIGINS = ['https://8i11.vercel.app', 'http://localhost:3000'];
+
+function cors_headers(origin?: string | null) {
+  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': allowed,
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-Guest-Pin',
   };
@@ -40,8 +44,8 @@ async function require_auth(request: NextRequest): Promise<NextResponse | null> 
   return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
 }
 
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: cors_headers() });
+export async function OPTIONS(request: NextRequest) {
+  return NextResponse.json({}, { headers: cors_headers(request.headers.get('origin')) });
 }
 
 export async function GET(request: NextRequest) {
@@ -86,6 +90,10 @@ export async function POST(request: NextRequest) {
     }
     const prompt_content = (typeof content === 'string') ? content : '';
 
+    if (prompt_content.length > 100000) {
+      return NextResponse.json({ error: 'Prompt content must be under 100KB' }, { status: 413 });
+    }
+
     const id = await create_prompt(name.trim(), prompt_content);
     return NextResponse.json({ success: true, id });
   } catch (error) {
@@ -110,6 +118,9 @@ export async function PATCH(request: NextRequest) {
       const { content, note } = body;
       if (!content || typeof content !== 'string') {
         return NextResponse.json({ error: 'Content is required' }, { status: 400 });
+      }
+      if (content.length > 100000) {
+        return NextResponse.json({ error: 'Prompt content must be under 100KB' }, { status: 413 });
       }
       const version_number = await save_prompt_version(id, content, note);
       return NextResponse.json({ success: true, version_number });

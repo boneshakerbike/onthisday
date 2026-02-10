@@ -167,8 +167,9 @@ ${formatted_posts}`;
 
   } catch (error) {
     console.error('Generate error:', error);
+    const is_prod = process.env.NODE_ENV === 'production';
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to generate story' },
+      { error: is_prod ? 'Failed to generate story' : (error instanceof Error ? error.message : 'Failed to generate story') },
       { status: 500 }
     );
   }

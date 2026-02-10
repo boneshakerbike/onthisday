@@ -27,6 +27,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Size limit: 200KB per document
+    const MAX_DOC_LENGTH = 200000;
+    if (old_doc.length > MAX_DOC_LENGTH || new_doc.length > MAX_DOC_LENGTH) {
+      return NextResponse.json(
+        { error: `Documents must be under ${MAX_DOC_LENGTH / 1000}KB each` },
+        { status: 413 }
+      );
+    }
+
     const client = new Anthropic({ apiKey: api_key });
 
     // Prompt Library: "Knowledge Diff - Analysis" — update library if this changes
@@ -119,13 +128,8 @@ ${new_doc}`;
       ? analysis.content[0].text.trim()
       : '';
 
-    // Check if no gaps found
-    // GAPS_FOUND takes priority - if both keywords appear, treat as gaps found
-    const has_gaps_found = analysis_text.includes('GAPS_FOUND');
-    const has_no_gaps = analysis_text.includes('NO_GAPS_FOUND');
-    const no_gaps = has_no_gaps && !has_gaps_found;
-
-    if (no_gaps) {
+    // Check for NO_GAPS_FOUND first (more specific match avoids substring collision)
+    if (analysis_text.includes('NO_GAPS_FOUND')) {
       return NextResponse.json({
         success: true,
         complete: true,
@@ -140,31 +144,37 @@ ${new_doc}`;
       });
     }
 
+    // Extract just the gap entries from the analysis for the merger
+    // The full analysis includes cross-referencing noise (PRESENT, MOVED, REPLACED items)
+    // which overwhelms the merger on large documents
+    const gaps_start = analysis_text.indexOf('GAPS_FOUND');
+    const gaps_section = gaps_start >= 0 ? analysis_text.substring(gaps_start) : analysis_text;
+    const gap_count = (gaps_section.match(/\nSEVERITY:/g) || []).length;
+
     // Step 2: Gaps found - use Sonnet (or Opus) to produce merged document
-    // Note: Haiku model name was returning 404, using Sonnet as reliable fallback
     const merge_model = use_opus ? 'claude-opus-4-5-20251101' : 'claude-sonnet-4-20250514';
 
     // Prompt Library: "Knowledge Diff - Merge" — update library if this changes
-    const merge_prompt = `You are a Document Merger. Your job is to take a NEW document and insert missing content from an analysis, preserving institutional and functional knowledge.
+    const merge_prompt = `You are a Document Merger. You MUST insert ${gap_count} missing items into the NEW document below.
 
-The analysis below identifies content that was in an OLD version but missing from NEW, including knowledge type classifications. Insert each piece of missing content into the NEW document.
+Each gap entry has a CONTENT field — that is the exact text to insert. You MUST insert every single one. The merged document MUST be longer than the original NEW document.
 
 RULES:
 - Use the NEW document's structure as your base
-- Insert missing content into appropriate existing sections where possible
-- If gaps belong to a knowledge type or section that no longer exists in NEW, recreate that section at a logical location and label it: "## Recovered: [Section Name]"
-- Do not summarize or paraphrase - use exact content from the gaps
+- Insert each gap's CONTENT into the appropriate existing section
+- If a gap's SECTION no longer exists in NEW, recreate it as "## Recovered: [Section Name]"
+- Use the exact content from each gap — do not summarize or paraphrase
 - Do not add commentary or explanations
-- Preserve procedural depth: if a multi-step workflow was lost, restore the full workflow, not a summary
+- Preserve procedural depth: restore full workflows, not summaries
 - Output ONLY the complete merged document, nothing else
 
-GAPS ANALYSIS:
-${analysis_text}
+GAPS TO INSERT (${gap_count} items):
+${gaps_section}
 
 NEW DOCUMENT TO MERGE INTO:
 ${new_doc}
 
-Output the complete merged document:`;
+Output the complete merged document with all ${gap_count} gaps inserted:`;
 
     const merge = await client.messages.create({
       model: merge_model,
@@ -178,12 +188,20 @@ Output the complete merged document:`;
       ? merge.content[0].text.trim()
       : '';
 
+    // Verify the merge actually changed something
+    const length_ratio = merged_doc.length / new_doc.length;
+    const merge_warning = (length_ratio > 0.98 && length_ratio < 1.02)
+      ? 'Warning: Merged document is nearly identical to the new document. The merger may not have inserted all gaps. Review the gaps analysis below to verify.'
+      : null;
+
     return NextResponse.json({
       success: true,
       complete: false,
-      message: 'Gaps found and merged. Use the document below.',
+      message: merge_warning || `Gaps found and merged (${gap_count} items). Use the document below.`,
       gaps_found: analysis_text,
       merged_document: merged_doc,
+      gap_count,
+      merge_warning,
       usage: {
         analysis_input: analysis.usage.input_tokens,
         analysis_output: analysis.usage.output_tokens,
@@ -194,8 +212,9 @@ Output the complete merged document:`;
 
   } catch (error) {
     console.error('Knowledge diff error:', error);
+    const is_prod = process.env.NODE_ENV === 'production';
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to compare documents' },
+      { error: is_prod ? 'Failed to compare documents' : (error instanceof Error ? error.message : 'Failed to compare documents') },
       { status: 500 }
     );
   }

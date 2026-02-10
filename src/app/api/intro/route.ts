@@ -86,8 +86,9 @@ Output ONLY the intro, nothing else.`;
 
   } catch (error) {
     console.error('Intro generation error:', error);
+    const is_prod = process.env.NODE_ENV === 'production';
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to generate intro' },
+      { error: is_prod ? 'Failed to generate intro' : (error instanceof Error ? error.message : 'Failed to generate intro') },
       { status: 500 }
     );
   }

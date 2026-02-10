@@ -19,10 +19,13 @@ import {
   Suggestion
 } from '@/lib/db';
 
-// CORS headers for cross-origin requests (localhost dev + CLI)
-function cors_headers() {
+// CORS headers for cross-origin requests (production + localhost dev)
+const ALLOWED_ORIGINS = ['https://8i11.vercel.app', 'http://localhost:3000'];
+
+function cors_headers(origin?: string | null) {
+  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': allowed,
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, X-Guest-Pin',
   };
@@ -70,8 +73,8 @@ async function proxy_to_prod(method: string, body?: string, query?: string) {
 }
 
 // Handle CORS preflight
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: cors_headers() });
+export async function OPTIONS(request: NextRequest) {
+  return NextResponse.json({}, { headers: cors_headers(request.headers.get('origin')) });
 }
 
 export async function GET(request: NextRequest) {
@@ -111,6 +114,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Content is required' },
         { status: 400 }
+      );
+    }
+
+    if (content.length > 5000) {
+      return NextResponse.json(
+        { error: 'Content must be under 5000 characters' },
+        { status: 413 }
       );
     }
 

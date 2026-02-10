@@ -22,6 +22,8 @@ interface DiffResult {
   analysis_summary?: string;
   gaps_found?: string;
   merged_document?: string;
+  gap_count?: number;
+  merge_warning?: string | null;
   usage: UsageInfo;
 }
 
@@ -256,14 +258,14 @@ export default function KnowledgeDiffPage() {
         {result && (
           <div style={{
             background: '#252525',
-            border: `1px solid ${result.complete ? '#166534' : '#854d0e'}`,
+            border: `1px solid ${result.complete ? '#166534' : (result.merge_warning ? '#7f2d2d' : '#854d0e')}`,
             borderRadius: '12px',
             overflow: 'hidden'
           }}>
             {/* Header */}
             <div style={{
               padding: '16px 20px',
-              background: result.complete ? '#14532d' : '#422006',
+              background: result.complete ? '#14532d' : (result.merge_warning ? '#3f1d1d' : '#422006'),
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between'
@@ -274,14 +276,14 @@ export default function KnowledgeDiffPage() {
                 gap: '12px'
               }}>
                 <span style={{ fontSize: '24px' }}>
-                  {result.complete ? '✓' : '⚠'}
+                  {result.complete ? '✓' : (result.merge_warning ? '✗' : '⚠')}
                 </span>
                 <div>
                   <div style={{
                     fontWeight: 600,
-                    color: result.complete ? '#86efac' : '#fde047'
+                    color: result.complete ? '#86efac' : (result.merge_warning ? '#fca5a5' : '#fde047')
                   }}>
-                    {result.complete ? 'New document is complete' : 'Gaps found and merged'}
+                    {result.complete ? 'New document is complete' : (result.merge_warning ? 'Merge may have failed' : `${result.gap_count || 0} gaps found and merged`)}
                   </div>
                   <div style={{ fontSize: '13px', color: '#888' }}>
                     {result.message}
@@ -365,13 +367,13 @@ export default function KnowledgeDiffPage() {
 
                 {/* Gaps detail (collapsible) */}
                 {result.gaps_found && (
-                  <details style={{ marginTop: '16px' }}>
+                  <details open={!!result.merge_warning} style={{ marginTop: '16px' }}>
                     <summary style={{
                       cursor: 'pointer',
                       color: '#888',
                       fontSize: '13px'
                     }}>
-                      View detected gaps
+                      View detected gaps ({result.gap_count || 0} items)
                     </summary>
                     <pre style={{
                       marginTop: '8px',

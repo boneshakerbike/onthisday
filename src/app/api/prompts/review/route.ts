@@ -86,8 +86,9 @@ ${content}`
 
   } catch (error) {
     console.error('Prompt review error:', error);
+    const is_prod = process.env.NODE_ENV === 'production';
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to review prompt' },
+      { error: is_prod ? 'Failed to review prompt' : (error instanceof Error ? error.message : 'Failed to review prompt') },
       { status: 500 }
     );
   }
