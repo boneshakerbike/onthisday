@@ -186,23 +186,31 @@ export async function get_posts_on_date(month: number, day: number): Promise<Pos
 function extract_blurb(html: string | null, max_len: number = 200): string | null {
   if (!html) return null;
 
-  const match = html.match(/<p[^>]*>(.+?)<\/p>/is);
-  if (!match) return null;
+  // Try each <p> tag until we find one with actual text content
+  // (first <p> may contain only images or empty markup)
+  const p_regex = /<p[^>]*>(.*?)<\/p>/gis;
+  let match;
 
-  let text = match[1].replace(/<[^>]*>/g, '');
-  text = text.replace(/&amp;/g, '&')
-             .replace(/&lt;/g, '<')
-             .replace(/&gt;/g, '>')
-             .replace(/&quot;/g, '"')
-             .replace(/&#39;/g, "'")
-             .replace(/&nbsp;/g, ' ');
-  text = text.trim();
+  while ((match = p_regex.exec(html)) !== null) {
+    let text = match[1].replace(/<[^>]*>/g, '');
+    text = text.replace(/&amp;/g, '&')
+               .replace(/&lt;/g, '<')
+               .replace(/&gt;/g, '>')
+               .replace(/&quot;/g, '"')
+               .replace(/&#39;/g, "'")
+               .replace(/&nbsp;/g, ' ');
+    text = text.trim();
 
-  if (text.length > max_len) {
-    text = text.substring(0, max_len).replace(/\s+\S*$/, '') + '...';
+    if (!text) continue;
+
+    if (text.length > max_len) {
+      text = text.substring(0, max_len).replace(/\s+\S*$/, '') + '...';
+    }
+
+    return text;
   }
 
-  return text || null;
+  return null;
 }
 
 /**
