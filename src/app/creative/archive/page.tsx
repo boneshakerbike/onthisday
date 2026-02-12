@@ -24,45 +24,6 @@ interface Story {
 
 type SortOrder = 'date_asc' | 'date_desc' | 'created_asc' | 'created_desc';
 
-// Get week number (1-5) from day of month
-function get_week_num(day: number): number {
-  if (day <= 7) return 1;
-  if (day <= 14) return 2;
-  if (day <= 21) return 3;
-  if (day <= 28) return 4;
-  return 5;
-}
-
-// Get date range label for a week within a month (e.g., "1–7", "29–31")
-function get_week_range(month: string, week: number): string {
-  const days_in_month: Record<string, number> = {
-    January: 31, February: 29, March: 31, April: 30, May: 31, June: 30,
-    July: 31, August: 31, September: 30, October: 31, November: 30, December: 31
-  };
-  const start = (week - 1) * 7 + 1;
-  const end = week === 5 ? days_in_month[month] || 31 : week * 7;
-  return `${start}–${end}`;
-}
-
-// Sub-group stories by week within a month
-function group_by_week(stories: Story[], month: string) {
-  const weeks: Record<number, Story[]> = {};
-  for (const story of stories) {
-    const day = parseInt(story.date_key.split('-')[1], 10);
-    const week = get_week_num(day);
-    if (!weeks[week]) weeks[week] = [];
-    weeks[week].push(story);
-  }
-  return Object.keys(weeks)
-    .map(Number)
-    .sort((a, b) => a - b)
-    .map(week => ({
-      week,
-      label: `${month.slice(0, 3)} ${get_week_range(month, week)}`,
-      stories: weeks[week]
-    }));
-}
-
 // Group stories by month (respects sort order)
 function group_by_month(stories: Story[], sort_order: SortOrder) {
   const months = [
@@ -273,76 +234,47 @@ export default function ArchivePage() {
               <p>Stories will appear here once they are generated.</p>
             </div>
           ) : (
-            grouped.map(({ month, stories: month_stories }) => {
-              const weeks = month ? group_by_week(month_stories, month) : [];
-              const show_weeks = month && weeks.length > 1;
+            grouped.map(({ month, stories: month_stories }) => (
+              <section key={month || 'all'} id={month ? `month-${month.toLowerCase()}` : undefined} className="month-section">
+                {month && (
+                  <h2 className="month-title">
+                    {month}
+                    <span className="story-count">{month_stories.length}</span>
+                  </h2>
+                )}
+                <div className="story-grid">
+                  {month_stories.map((story) => (
+                    <div key={story.id} className="story-card">
+                      <Link href={`/story/${story.id}`} className="story-link">
+                        <div className="story-date">{story.date_display}</div>
+                        <h3 className="story-title-text">
+                          {get_title(story.content, story.date_display)}
+                        </h3>
+                        <div className="story-meta">
+                          {story.post_count} {story.post_count === 1 ? 'moment' : 'moments'}
+                        </div>
+                      </Link>
 
-              const render_story = (story: Story) => (
-                <li key={story.id} className="story-item">
-                  <div className="story-card">
-                    <Link href={`/story/${story.id}`} className="story-link">
-                      <div className="story-date">{story.date_display}</div>
-                      <h3 className="story-title-text">
-                        {get_title(story.content, story.date_display)}
-                      </h3>
-                      <div className="story-meta">
-                        {story.post_count} {story.post_count === 1 ? 'moment' : 'moments'} across the years
-                      </div>
-                    </Link>
-
-                    {/* Admin actions */}
-                    {is_authenticated && (
-                      <div className="admin-actions">
-                        <button onClick={() => copy_story(story, 'substack')} className="action-btn substack">Sub</button>
-                        <button onClick={() => copy_story(story, 'social')} className="action-btn social">Soc</button>
-                        <button onClick={() => copy_story(story, 'markdown')} className="action-btn md">MD</button>
-                        <button
-                          onClick={() => delete_story(story.id)}
-                          disabled={deleting === story.id}
-                          className="action-btn delete"
-                        >
-                          {deleting === story.id ? '...' : '×'}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </li>
-              );
-
-              return (
-                <section key={month || 'all'} id={month ? `month-${month.toLowerCase()}` : undefined} className="month-section">
-                  {month && (
-                    <h2 className="month-title">
-                      {month}
-                      <span className="story-count">{month_stories.length}</span>
-                    </h2>
-                  )}
-                  {show_weeks && (
-                    <nav className="week-nav">
-                      {weeks.map(({ week }) => (
-                        <a key={week} href={`#month-${month.toLowerCase()}-w${week}`} className="week-nav-link">
-                          W{week}
-                        </a>
-                      ))}
-                    </nav>
-                  )}
-                  {show_weeks ? (
-                    weeks.map(({ week, label, stories: week_stories }) => (
-                      <div key={week} id={`month-${month.toLowerCase()}-w${week}`} className="week-group">
-                        <div className="week-label">{label}</div>
-                        <ul className="story-list">
-                          {week_stories.map(render_story)}
-                        </ul>
-                      </div>
-                    ))
-                  ) : (
-                    <ul className="story-list">
-                      {month_stories.map(render_story)}
-                    </ul>
-                  )}
-                </section>
-              );
-            })
+                      {/* Admin actions */}
+                      {is_authenticated && (
+                        <div className="admin-actions">
+                          <button onClick={() => copy_story(story, 'substack')} className="action-btn substack">Sub</button>
+                          <button onClick={() => copy_story(story, 'social')} className="action-btn social">Soc</button>
+                          <button onClick={() => copy_story(story, 'markdown')} className="action-btn md">MD</button>
+                          <button
+                            onClick={() => delete_story(story.id)}
+                            disabled={deleting === story.id}
+                            className="action-btn delete"
+                          >
+                            {deleting === story.id ? '...' : '×'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))
           )}
 
           <footer className="archive-footer">
@@ -375,7 +307,7 @@ const base_styles = `
   }
 
   .archive-container {
-    max-width: 720px;
+    max-width: 960px;
     margin: 0 auto;
     padding: 60px 24px 80px;
   }
@@ -415,49 +347,61 @@ const base_styles = `
   }
 
   .month-section {
-    margin-bottom: 48px;
+    margin-bottom: 40px;
   }
 
   .month-title {
     font-family: 'Lora', Georgia, serif;
-    font-size: 1.4em;
+    font-size: 1.3em;
     font-weight: 600;
     color: #1a1a1a;
-    margin: 0 0 16px 0;
+    margin: 0 0 14px 0;
   }
 
-  .story-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+  .story-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
   }
 
-  .story-item {
-    margin-bottom: 16px;
+  @media (max-width: 800px) {
+    .story-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  @media (max-width: 580px) {
+    .story-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (max-width: 360px) {
+    .story-grid { grid-template-columns: 1fr; }
   }
 
   .story-card {
     background: rgba(255, 255, 255, 0.6);
     border-radius: 8px;
-    border: 1px solid transparent;
+    border: 1px solid #e5e0d8;
     transition: all 0.2s ease;
-    position: relative;
+    display: flex;
+    flex-direction: column;
   }
 
   .story-card:hover {
-    background: rgba(255, 255, 255, 0.9);
-    border-color: #c4704b40;
+    background: rgba(255, 255, 255, 0.95);
+    border-color: #c4704b60;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   }
 
   .story-link {
-    display: block;
-    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    padding: 14px 14px 10px;
     text-decoration: none;
     color: inherit;
+    flex: 1;
   }
 
   .story-date {
-    font-size: 0.85em;
+    font-size: 0.78em;
     color: #c4704b;
     font-weight: 500;
     margin-bottom: 4px;
@@ -465,15 +409,21 @@ const base_styles = `
 
   .story-title-text {
     font-family: 'Lora', Georgia, serif;
-    font-size: 1.15em;
+    font-size: 0.95em;
     font-weight: 500;
     color: #1a1a1a;
     margin: 0 0 6px 0;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .story-meta {
-    font-size: 0.85em;
+    font-size: 0.75em;
     color: #9c9c9c;
+    margin-top: auto;
   }
 
   .archive-footer {
@@ -539,43 +489,6 @@ const base_styles = `
     background: #c4704b10;
   }
 
-  .week-nav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin: -8px 0 20px 0;
-  }
-
-  .week-nav-link {
-    padding: 3px 9px;
-    font-size: 0.72em;
-    color: #8a7e74;
-    text-decoration: none;
-    background: #ece7df;
-    border: 1px solid #ddd6cb;
-    border-radius: 4px;
-    transition: all 0.2s ease;
-  }
-
-  .week-nav-link:hover {
-    border-color: #c4704b;
-    color: #c4704b;
-    background: #c4704b15;
-  }
-
-  .week-group {
-    margin-bottom: 4px;
-  }
-
-  .week-label {
-    font-size: 0.72em;
-    color: #8a7e74;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    padding: 12px 0 6px 2px;
-  }
-
   .toast {
     position: fixed;
     top: 20px;
@@ -630,10 +543,8 @@ const admin_styles = `
 
   .admin-actions {
     display: flex;
-    gap: 4px;
-    padding: 0 12px 10px 12px;
-    padding-top: 8px;
-    margin: 0 8px;
+    gap: 3px;
+    padding: 0 10px 8px;
     opacity: 0;
     transition: opacity 0.15s ease;
   }
