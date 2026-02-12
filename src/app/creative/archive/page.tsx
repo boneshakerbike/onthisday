@@ -545,16 +545,17 @@ const base_styles = `
   .week-nav {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    margin: -12px 0 16px 0;
+    gap: 5px;
+    margin: -8px 0 20px 0;
   }
 
   .week-nav-link {
-    padding: 2px 8px;
-    font-size: 0.7em;
-    color: #9c9c9c;
+    padding: 3px 9px;
+    font-size: 0.72em;
+    color: #8a7e74;
     text-decoration: none;
-    border: 1px solid #e5e0d8;
+    background: #ece7df;
+    border: 1px solid #ddd6cb;
     border-radius: 4px;
     transition: all 0.2s ease;
   }
@@ -562,21 +563,20 @@ const base_styles = `
   .week-nav-link:hover {
     border-color: #c4704b;
     color: #c4704b;
-    background: #c4704b10;
+    background: #c4704b15;
   }
 
   .week-group {
-    margin-bottom: 8px;
+    margin-bottom: 4px;
   }
 
   .week-label {
-    font-size: 0.75em;
-    color: #b0a99f;
+    font-size: 0.72em;
+    color: #8a7e74;
     font-weight: 500;
-    letter-spacing: 0.03em;
-    padding: 8px 0 6px 4px;
-    border-bottom: 1px solid #ece7df;
-    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 12px 0 6px 2px;
   }
 
   .toast {
