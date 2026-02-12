@@ -423,9 +423,7 @@ const base_styles = `
     font-size: 1.4em;
     font-weight: 600;
     color: #1a1a1a;
-    margin: 0 0 20px 0;
-    padding-bottom: 12px;
-    border-bottom: 1px solid #e5e0d8;
+    margin: 0 0 16px 0;
   }
 
   .story-list {
@@ -634,9 +632,14 @@ const admin_styles = `
     display: flex;
     gap: 4px;
     padding: 0 12px 10px 12px;
-    border-top: 1px solid #f0ebe4;
     padding-top: 8px;
     margin: 0 8px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .story-card:hover .admin-actions {
+    opacity: 1;
   }
 
   .action-btn {
