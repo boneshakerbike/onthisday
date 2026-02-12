@@ -279,37 +279,33 @@ export default function ArchivePage() {
 
               const render_story = (story: Story) => (
                 <li key={story.id} className="story-item">
-                  <Link href={`/story/${story.id}`} className="story-link">
-                    <div className="story-date">{story.date_display}</div>
-                    <h3 className="story-title-text">
-                      {get_title(story.content, story.date_display)}
-                    </h3>
-                    <div className="story-meta">
-                      {story.post_count} {story.post_count === 1 ? 'moment' : 'moments'} across the years
-                    </div>
-                  </Link>
+                  <div className="story-card">
+                    <Link href={`/story/${story.id}`} className="story-link">
+                      <div className="story-date">{story.date_display}</div>
+                      <h3 className="story-title-text">
+                        {get_title(story.content, story.date_display)}
+                      </h3>
+                      <div className="story-meta">
+                        {story.post_count} {story.post_count === 1 ? 'moment' : 'moments'} across the years
+                      </div>
+                    </Link>
 
-                  {/* Admin actions */}
-                  {is_authenticated && (
-                    <div className="admin-actions">
-                      <button onClick={() => copy_story(story, 'substack')} className="action-btn substack">
-                        Substack
-                      </button>
-                      <button onClick={() => copy_story(story, 'social')} className="action-btn social">
-                        Social
-                      </button>
-                      <button onClick={() => copy_story(story, 'markdown')} className="action-btn md">
-                        MD
-                      </button>
-                      <button
-                        onClick={() => delete_story(story.id)}
-                        disabled={deleting === story.id}
-                        className="action-btn delete"
-                      >
-                        {deleting === story.id ? '...' : '×'}
-                      </button>
-                    </div>
-                  )}
+                    {/* Admin actions */}
+                    {is_authenticated && (
+                      <div className="admin-actions">
+                        <button onClick={() => copy_story(story, 'substack')} className="action-btn substack">Sub</button>
+                        <button onClick={() => copy_story(story, 'social')} className="action-btn social">Soc</button>
+                        <button onClick={() => copy_story(story, 'markdown')} className="action-btn md">MD</button>
+                        <button
+                          onClick={() => delete_story(story.id)}
+                          disabled={deleting === story.id}
+                          className="action-btn delete"
+                        >
+                          {deleting === story.id ? '...' : '×'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </li>
               );
 
@@ -442,21 +438,24 @@ const base_styles = `
     margin-bottom: 16px;
   }
 
+  .story-card {
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 8px;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+
+  .story-card:hover {
+    background: rgba(255, 255, 255, 0.9);
+    border-color: #c4704b40;
+  }
+
   .story-link {
     display: block;
     padding: 16px 20px;
-    background: rgba(255, 255, 255, 0.6);
-    border-radius: 8px;
     text-decoration: none;
     color: inherit;
-    transition: all 0.2s ease;
-    border: 1px solid transparent;
-  }
-
-  .story-link:hover {
-    background: rgba(255, 255, 255, 0.9);
-    border-color: #c4704b40;
-    transform: translateX(4px);
   }
 
   .story-date {
@@ -633,50 +632,52 @@ const admin_styles = `
 
   .admin-actions {
     display: flex;
-    gap: 8px;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid #e5e0d8;
+    gap: 4px;
+    padding: 0 12px 10px 12px;
+    border-top: 1px solid #f0ebe4;
+    padding-top: 8px;
+    margin: 0 8px;
   }
 
   .action-btn {
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-size: 0.75em;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.65em;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
     border: 1px solid;
+    background: transparent;
   }
 
   .action-btn.substack {
-    background: transparent;
-    border-color: #7c3aed;
-    color: #7c3aed;
+    border-color: #7c3aed40;
+    color: #7c3aed90;
   }
 
   .action-btn.substack:hover {
     background: #7c3aed;
+    border-color: #7c3aed;
     color: white;
   }
 
   .action-btn.social,
   .action-btn.md {
-    background: transparent;
-    border-color: #9c9c9c;
+    border-color: #d4d4d4;
     color: #9c9c9c;
   }
 
   .action-btn.social:hover,
   .action-btn.md:hover {
     background: #9c9c9c;
+    border-color: #9c9c9c;
     color: white;
   }
 
   .action-btn.delete {
-    background: transparent;
-    border-color: #e5534b50;
-    color: #e5534b80;
+    border-color: #e5534b30;
+    color: #e5534b60;
+    margin-left: auto;
   }
 
   .action-btn.delete:hover {
