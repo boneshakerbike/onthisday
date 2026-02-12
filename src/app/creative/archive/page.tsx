@@ -24,6 +24,45 @@ interface Story {
 
 type SortOrder = 'date_asc' | 'date_desc' | 'created_asc' | 'created_desc';
 
+// Get week number (1-5) from day of month
+function get_week_num(day: number): number {
+  if (day <= 7) return 1;
+  if (day <= 14) return 2;
+  if (day <= 21) return 3;
+  if (day <= 28) return 4;
+  return 5;
+}
+
+// Get date range label for a week within a month (e.g., "1–7", "29–31")
+function get_week_range(month: string, week: number): string {
+  const days_in_month: Record<string, number> = {
+    January: 31, February: 29, March: 31, April: 30, May: 31, June: 30,
+    July: 31, August: 31, September: 30, October: 31, November: 30, December: 31
+  };
+  const start = (week - 1) * 7 + 1;
+  const end = week === 5 ? days_in_month[month] || 31 : week * 7;
+  return `${start}–${end}`;
+}
+
+// Sub-group stories by week within a month
+function group_by_week(stories: Story[], month: string) {
+  const weeks: Record<number, Story[]> = {};
+  for (const story of stories) {
+    const day = parseInt(story.date_key.split('-')[1], 10);
+    const week = get_week_num(day);
+    if (!weeks[week]) weeks[week] = [];
+    weeks[week].push(story);
+  }
+  return Object.keys(weeks)
+    .map(Number)
+    .sort((a, b) => a - b)
+    .map(week => ({
+      week,
+      label: `${month.slice(0, 3)} ${get_week_range(month, week)}`,
+      stories: weeks[week]
+    }));
+}
+
 // Group stories by month (respects sort order)
 function group_by_month(stories: Story[], sort_order: SortOrder) {
   const months = [
@@ -234,53 +273,80 @@ export default function ArchivePage() {
               <p>Stories will appear here once they are generated.</p>
             </div>
           ) : (
-            grouped.map(({ month, stories: month_stories }) => (
-              <section key={month || 'all'} id={month ? `month-${month.toLowerCase()}` : undefined} className="month-section">
-                {month && (
-                  <h2 className="month-title">
-                    {month}
-                    <span className="story-count">{month_stories.length}</span>
-                  </h2>
-                )}
-                <ul className="story-list">
-                  {month_stories.map((story) => (
-                    <li key={story.id} className="story-item">
-                      <Link href={`/story/${story.id}`} className="story-link">
-                        <div className="story-date">{story.date_display}</div>
-                        <h3 className="story-title-text">
-                          {get_title(story.content, story.date_display)}
-                        </h3>
-                        <div className="story-meta">
-                          {story.post_count} {story.post_count === 1 ? 'moment' : 'moments'} across the years
-                        </div>
-                      </Link>
+            grouped.map(({ month, stories: month_stories }) => {
+              const weeks = month ? group_by_week(month_stories, month) : [];
+              const show_weeks = month && weeks.length > 1;
 
-                      {/* Admin actions */}
-                      {is_authenticated && (
-                        <div className="admin-actions">
-                          <button onClick={() => copy_story(story, 'substack')} className="action-btn substack">
-                            Substack
-                          </button>
-                          <button onClick={() => copy_story(story, 'social')} className="action-btn social">
-                            Social
-                          </button>
-                          <button onClick={() => copy_story(story, 'markdown')} className="action-btn md">
-                            MD
-                          </button>
-                          <button
-                            onClick={() => delete_story(story.id)}
-                            disabled={deleting === story.id}
-                            className="action-btn delete"
-                          >
-                            {deleting === story.id ? '...' : '×'}
-                          </button>
-                        </div>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))
+              const render_story = (story: Story) => (
+                <li key={story.id} className="story-item">
+                  <Link href={`/story/${story.id}`} className="story-link">
+                    <div className="story-date">{story.date_display}</div>
+                    <h3 className="story-title-text">
+                      {get_title(story.content, story.date_display)}
+                    </h3>
+                    <div className="story-meta">
+                      {story.post_count} {story.post_count === 1 ? 'moment' : 'moments'} across the years
+                    </div>
+                  </Link>
+
+                  {/* Admin actions */}
+                  {is_authenticated && (
+                    <div className="admin-actions">
+                      <button onClick={() => copy_story(story, 'substack')} className="action-btn substack">
+                        Substack
+                      </button>
+                      <button onClick={() => copy_story(story, 'social')} className="action-btn social">
+                        Social
+                      </button>
+                      <button onClick={() => copy_story(story, 'markdown')} className="action-btn md">
+                        MD
+                      </button>
+                      <button
+                        onClick={() => delete_story(story.id)}
+                        disabled={deleting === story.id}
+                        className="action-btn delete"
+                      >
+                        {deleting === story.id ? '...' : '×'}
+                      </button>
+                    </div>
+                  )}
+                </li>
+              );
+
+              return (
+                <section key={month || 'all'} id={month ? `month-${month.toLowerCase()}` : undefined} className="month-section">
+                  {month && (
+                    <h2 className="month-title">
+                      {month}
+                      <span className="story-count">{month_stories.length}</span>
+                    </h2>
+                  )}
+                  {show_weeks && (
+                    <nav className="week-nav">
+                      {weeks.map(({ week }) => (
+                        <a key={week} href={`#month-${month.toLowerCase()}-w${week}`} className="week-nav-link">
+                          W{week}
+                        </a>
+                      ))}
+                    </nav>
+                  )}
+                  {show_weeks ? (
+                    weeks.map(({ week, label, stories: week_stories }) => (
+                      <div key={week} id={`month-${month.toLowerCase()}-w${week}`} className="week-group">
+                        <div className="week-label">{label}</div>
+                        <ul className="story-list">
+                          {week_stories.map(render_story)}
+                        </ul>
+                      </div>
+                    ))
+                  ) : (
+                    <ul className="story-list">
+                      {month_stories.map(render_story)}
+                    </ul>
+                  )}
+                </section>
+              );
+            })
           )}
 
           <footer className="archive-footer">
@@ -474,6 +540,43 @@ const base_styles = `
     border-color: #c4704b;
     color: #c4704b;
     background: #c4704b10;
+  }
+
+  .week-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: -12px 0 16px 0;
+  }
+
+  .week-nav-link {
+    padding: 2px 8px;
+    font-size: 0.7em;
+    color: #9c9c9c;
+    text-decoration: none;
+    border: 1px solid #e5e0d8;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+  }
+
+  .week-nav-link:hover {
+    border-color: #c4704b;
+    color: #c4704b;
+    background: #c4704b10;
+  }
+
+  .week-group {
+    margin-bottom: 8px;
+  }
+
+  .week-label {
+    font-size: 0.75em;
+    color: #b0a99f;
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    padding: 8px 0 6px 4px;
+    border-bottom: 1px solid #ece7df;
+    margin-bottom: 12px;
   }
 
   .toast {
