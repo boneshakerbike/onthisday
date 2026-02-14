@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
         const q = ep.use_activity_params ? activity_params : params;
         const res = await oura_fetch(`${base}/${ep.path}?${q}`, tokens);
         if (!res.ok) {
-          if (res.status === 403) return { key: ep.key, data: [] };
+          if ([401, 403, 404].includes(res.status)) return { key: ep.key, data: [] };
           throw new Error(`${ep.key}: ${res.status}`);
         }
         const json = await res.json();
