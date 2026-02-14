@@ -150,7 +150,7 @@ async function fetch_personal_info(tokens: OuraTokens): Promise<OuraPersonalInfo
       fetched_at: new Date().toISOString(),
     };
     // Include raw response for debugging (temporary)
-    (info as Record<string, unknown>)._raw = data;
+    (info as unknown as Record<string, unknown>)._raw = data;
     await save_personal_info(info);
     return info;
   } catch (err) {
