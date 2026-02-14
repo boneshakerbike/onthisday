@@ -131,8 +131,12 @@ async function fetch_personal_info(tokens: OuraTokens): Promise<OuraPersonalInfo
 
   try {
     const res = await oura_fetch('https://api.ouraring.com/v2/usercollection/personal_info', tokens);
-    if (!res.ok) return cached; // Return stale cache if fetch fails
+    if (!res.ok) {
+      console.warn(`Oura personal_info failed: ${res.status} ${res.statusText}`);
+      return cached;
+    }
     const data = await res.json();
+    console.log('Oura personal_info response:', JSON.stringify(data));
     const info: OuraPersonalInfo = {
       age: data.age ?? null,
       weight: data.weight ?? null,
@@ -143,7 +147,8 @@ async function fetch_personal_info(tokens: OuraTokens): Promise<OuraPersonalInfo
     };
     await save_personal_info(info);
     return info;
-  } catch {
+  } catch (err) {
+    console.error('Oura personal_info error:', err);
     return cached;
   }
 }
