@@ -122,21 +122,25 @@ async function fetch_all_endpoints(
 }
 
 async function fetch_personal_info(tokens: OuraTokens): Promise<OuraPersonalInfo | null> {
-  // Check cache first (re-fetch if stale > 7 days)
+  // Check cache first (re-fetch if stale > 7 days or all null)
   const cached = await get_personal_info();
   if (cached) {
     const age_ms = Date.now() - new Date(cached.fetched_at).getTime();
-    if (age_ms < 7 * 24 * 60 * 60 * 1000) return cached;
+    const has_data = cached.age != null || cached.weight != null || cached.height != null;
+    if (has_data && age_ms < 7 * 24 * 60 * 60 * 1000) return cached;
   }
 
   try {
-    const res = await oura_fetch('https://api.ouraring.com/v2/usercollection/personal_info', tokens);
+    // Try both possible API paths
+    let res = await oura_fetch('https://api.ouraring.com/v2/usercollection/personal_info', tokens);
+    if (res.status === 404) {
+      res = await oura_fetch('https://api.ouraring.com/v2/personal_info', tokens);
+    }
     if (!res.ok) {
       console.warn(`Oura personal_info failed: ${res.status} ${res.statusText}`);
       return cached;
     }
     const data = await res.json();
-    console.log('Oura personal_info response:', JSON.stringify(data));
     const info: OuraPersonalInfo = {
       age: data.age ?? null,
       weight: data.weight ?? null,
@@ -145,6 +149,8 @@ async function fetch_personal_info(tokens: OuraTokens): Promise<OuraPersonalInfo
       email: data.email ?? null,
       fetched_at: new Date().toISOString(),
     };
+    // Include raw response for debugging (temporary)
+    (info as Record<string, unknown>)._raw = data;
     await save_personal_info(info);
     return info;
   } catch (err) {
