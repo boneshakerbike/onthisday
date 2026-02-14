@@ -1,8 +1,11 @@
 /**
  * API route: GET /api/oura/data
- * Fetches comprehensive wellness data from Oura (12 endpoints)
+ * Fetches wellness data from Oura (9 working endpoints)
  * Cache-first for past dates, always fresh for today
  * Supports ?range=N to return N days from cache
+ *
+ * Dead endpoints (Oura API returns no data): personal_info,
+ * cardiovascular_age, vo2_max, resilience, sleep_time
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -13,10 +16,8 @@ import {
   get_wellness_cache,
   save_wellness_cache,
   get_wellness_range,
-  get_personal_info,
-  save_personal_info,
 } from '@/lib/db';
-import type { OuraTokens, WellnessSnapshot, OuraPersonalInfo } from '@/lib/db';
+import type { OuraTokens, WellnessSnapshot } from '@/lib/db';
 
 async function require_auth(request: NextRequest): Promise<NextResponse | null> {
   const token = await getToken({ req: request });
@@ -50,10 +51,6 @@ const ENDPOINTS: EndpointDef[] = [
   { key: 'daily_sleep', path: 'daily_sleep' },
   { key: 'daily_readiness', path: 'daily_readiness' },
   { key: 'daily_stress', path: 'daily_stress' },
-  { key: 'daily_resilience', path: 'daily_resilience' },
-  { key: 'daily_cardiovascular_age', path: 'daily_cardiovascular_age' },
-  { key: 'vo2_max', path: 'vo2_max' },
-  { key: 'sleep_time', path: 'sleep_time' },
   // Scope: spo2 (inclusive end_date)
   { key: 'daily_spo2', path: 'daily_spo2' },
   // Exclusive end_date endpoints (need +1 day)
@@ -121,44 +118,6 @@ async function fetch_all_endpoints(
   return data;
 }
 
-async function fetch_personal_info(tokens: OuraTokens): Promise<OuraPersonalInfo | null> {
-  // Check cache first (re-fetch if stale > 7 days or all null)
-  const cached = await get_personal_info();
-  if (cached) {
-    const age_ms = Date.now() - new Date(cached.fetched_at).getTime();
-    const has_data = cached.age != null || cached.weight != null || cached.height != null;
-    if (has_data && age_ms < 7 * 24 * 60 * 60 * 1000) return cached;
-  }
-
-  try {
-    // Try both possible API paths
-    let res = await oura_fetch('https://api.ouraring.com/v2/usercollection/personal_info', tokens);
-    if (res.status === 404) {
-      res = await oura_fetch('https://api.ouraring.com/v2/personal_info', tokens);
-    }
-    if (!res.ok) {
-      console.warn(`Oura personal_info failed: ${res.status} ${res.statusText}`);
-      return cached;
-    }
-    const data = await res.json();
-    const info: OuraPersonalInfo = {
-      age: data.age ?? null,
-      weight: data.weight ?? null,
-      height: data.height ?? null,
-      biological_sex: data.biological_sex ?? null,
-      email: data.email ?? null,
-      fetched_at: new Date().toISOString(),
-    };
-    // Include raw response for debugging (temporary)
-    (info as unknown as Record<string, unknown>)._raw = data;
-    await save_personal_info(info);
-    return info;
-  } catch (err) {
-    console.error('Oura personal_info error:', err);
-    return cached;
-  }
-}
-
 export async function GET(request: NextRequest) {
   const auth_error = await require_auth(request);
   if (auth_error) return auth_error;
@@ -211,9 +170,6 @@ export async function GET(request: NextRequest) {
     const today = now_mt.toISOString().split('T')[0];
     const is_today = target_date === today;
 
-    // Fetch personal info for all paths (cached 7 days)
-    const personal_info = await fetch_personal_info(tokens);
-
     // Cache-first for past dates
     if (!is_today) {
       const cached = await get_wellness_cache(target_date);
@@ -223,7 +179,6 @@ export async function GET(request: NextRequest) {
           connected: true,
           cached: true,
           date: target_date,
-          personal_info,
           ...build_response(cached),
         });
       }
@@ -271,15 +226,15 @@ export async function GET(request: NextRequest) {
       daily_readiness: data.daily_readiness ?? null,
       daily_activity: data.daily_activity ?? null,
       daily_stress: data.daily_stress ?? null,
-      daily_resilience: data.daily_resilience ?? null,
-      daily_cardiovascular_age: data.daily_cardiovascular_age ?? null,
+      daily_resilience: null,
+      daily_cardiovascular_age: null,
       daily_spo2: data.daily_spo2 ?? null,
       sleep_detail: data.sleep_detail ?? null,
       heartrate: data.heartrate ?? null,
-      vo2_max: data.vo2_max ?? null,
+      vo2_max: null,
       workouts: data.workouts ?? null,
       sessions: data.sessions ?? null,
-      sleep_time: data.sleep_time ?? null,
+      sleep_time: null,
       fetched_at: new Date().toISOString(),
     };
 
@@ -297,7 +252,6 @@ export async function GET(request: NextRequest) {
       connected: true,
       cached: false,
       date: target_date,
-      personal_info,
       ...build_response(snapshot),
     });
 
@@ -312,22 +266,15 @@ export async function GET(request: NextRequest) {
 
 function build_response(s: WellnessSnapshot) {
   return {
-    // Legacy fields (backward compat with existing UI)
     sleep: s.daily_sleep,
     readiness: s.daily_readiness,
     activity: s.daily_activity,
-    // New fields
     stress: s.daily_stress,
-    resilience: s.daily_resilience,
-    cardiovascular_age: s.daily_cardiovascular_age,
     spo2: s.daily_spo2,
     sleep_detail: s.sleep_detail,
     heartrate: s.heartrate,
-    vo2_max: s.vo2_max,
     workouts: s.workouts,
     sessions: s.sessions,
-    sleep_time: s.sleep_time,
-    // Headline scores
     scores: {
       sleep: s.sleep_score,
       readiness: s.readiness_score,

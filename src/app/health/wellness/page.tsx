@@ -1,6 +1,6 @@
 /**
- * Wellness Dashboard - Oura Ring comprehensive wellness data
- * Sections: Scores, Body Signals, Resilience, Sleep Details, Activity, Workouts, Sessions
+ * Wellness Dashboard - Oura Ring wellness data
+ * Sections: Scores, Body Signals, Sleep Details, Activity, Contributors, Workouts, Sessions
  */
 
 'use client';
@@ -9,14 +9,6 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import NavTabs from '@/components/nav_tabs';
 
-interface PersonalInfo {
-  age: number | null;
-  weight: number | null;
-  height: number | null;
-  biological_sex: string | null;
-  email: string | null;
-}
-
 interface WellnessData {
   date: string;
   cached?: boolean;
@@ -24,16 +16,11 @@ interface WellnessData {
   readiness: Record<string, unknown> | null;
   activity: Record<string, unknown> | null;
   stress: Record<string, unknown> | null;
-  resilience: Record<string, unknown> | null;
-  cardiovascular_age: Record<string, unknown> | null;
   spo2: Record<string, unknown> | null;
   sleep_detail: Record<string, unknown>[] | null;
   heartrate: Record<string, unknown>[] | null;
-  vo2_max: Record<string, unknown> | null;
   workouts: Record<string, unknown>[] | null;
   sessions: Record<string, unknown>[] | null;
-  sleep_time: Record<string, unknown> | null;
-  personal_info: PersonalInfo | null;
   scores: {
     sleep: number | null;
     readiness: number | null;
@@ -74,14 +61,6 @@ function format_duration(seconds: number | null | undefined): string {
   return `${minutes}m`;
 }
 
-function format_minutes(minutes: number | null | undefined): string {
-  if (minutes == null) return '—';
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
-
 function format_time(iso_string: string | null | undefined): string {
   if (!iso_string) return '—';
   try {
@@ -90,26 +69,6 @@ function format_time(iso_string: string | null | undefined): string {
   } catch {
     return '—';
   }
-}
-
-function format_bedtime_offset(seconds: number | null | undefined): string {
-  if (seconds == null) return '—';
-  // Oura offset is seconds from midnight (can be negative for before midnight)
-  let secs = seconds;
-  if (secs < 0) secs += 86400; // normalize negative to previous day
-  const hours = Math.floor(secs / 3600);
-  const mins = Math.floor((secs % 3600) / 60);
-  const period = hours >= 12 ? 'PM' : 'AM';
-  const h12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
-  return `${h12}:${mins.toString().padStart(2, '0')} ${period}`;
-}
-
-function resilience_color(level: string | null | undefined): string {
-  if (!level) return 'bg-gray-500/20 text-gray-400';
-  const l = level.toLowerCase();
-  if (l === 'strong' || l === 'exceptional') return 'bg-green-400/20 text-green-400';
-  if (l === 'adequate') return 'bg-yellow-400/20 text-yellow-400';
-  return 'bg-red-400/20 text-red-400';
 }
 
 function day_summary_style(summary: string | null | undefined): { label: string; color: string } {
@@ -298,32 +257,7 @@ function WellnessContent() {
   const scores = data?.scores;
   const sleep_period = Array.isArray(data?.sleep_detail) ? data.sleep_detail[0] : null;
   const readiness = data?.readiness as Record<string, unknown> | null;
-  const resilience = data?.resilience as Record<string, unknown> | null;
   const stress = data?.stress as Record<string, unknown> | null;
-  const cardiovascular_age = data?.cardiovascular_age as Record<string, unknown> | null;
-  const personal_info = data?.personal_info as PersonalInfo | null;
-  const sleep_time = data?.sleep_time as Record<string, unknown> | null;
-
-  // Cardio age display
-  const vascular_age = cardiovascular_age?.vascular_age as number | null | undefined;
-  let cardio_age_value: string | null = null;
-  let cardio_age_sublabel: string | undefined;
-  if (vascular_age != null && personal_info?.age != null) {
-    const diff = personal_info.age - vascular_age;
-    if (diff > 0) {
-      cardio_age_value = `${diff}`;
-      cardio_age_sublabel = `yrs younger (${vascular_age})`;
-    } else if (diff < 0) {
-      cardio_age_value = `${Math.abs(diff)}`;
-      cardio_age_sublabel = `yrs older (${vascular_age})`;
-    } else {
-      cardio_age_value = `${vascular_age}`;
-      cardio_age_sublabel = 'same as actual';
-    }
-  } else if (vascular_age != null) {
-    cardio_age_value = `${vascular_age}`;
-    cardio_age_sublabel = 'yrs';
-  }
 
   // Body temperature deviation (from readiness contributors)
   const temp_deviation_c = readiness?.temperature_deviation as number | null | undefined;
@@ -346,13 +280,6 @@ function WellnessContent() {
     Math.round((sleep_period.rem_sleep_duration as number) / total_sleep_secs * 100) : null;
   const light_pct = (total_sleep_secs && sleep_period?.light_sleep_duration) ?
     Math.round((sleep_period.light_sleep_duration as number) / total_sleep_secs * 100) : null;
-
-  // Optimal bedtime from sleep_time
-  const optimal_bedtime = sleep_time?.optimal_bedtime as Record<string, unknown> | null | undefined;
-
-  // Resilience contributors
-  const resilience_level = resilience?.level as string | null | undefined;
-  const resilience_contributors = resilience?.contributors as Record<string, unknown> | null | undefined;
 
   // Sleep debt display
   let sleep_debt_value: string | null = null;
@@ -480,17 +407,6 @@ function WellnessContent() {
                 icon="🌡️"
               />
               <SignalCard
-                label="Cardio Age"
-                value={cardio_age_value}
-                sublabel={cardio_age_sublabel}
-                icon="🫀"
-              />
-              <SignalCard
-                label="VO2 Max"
-                value={data?.vo2_max ? (data.vo2_max as Record<string, unknown>).vo2_max as number : null}
-                icon="🏔️"
-              />
-              <SignalCard
                 label="Calories"
                 value={scores?.active_calories != null ? `${scores.active_calories}` : null}
                 sublabel="active"
@@ -504,44 +420,7 @@ function WellnessContent() {
               />
             </div>
 
-            {/* === Section 3: Resilience === */}
-            {resilience && (
-              <CollapsibleSection
-                title="Resilience"
-                icon="🛡️"
-                badge={resilience_level ? (
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${resilience_color(resilience_level)}`}>
-                    {resilience_level}
-                  </span>
-                ) : undefined}
-                expanded={expanded.resilience}
-                on_toggle={() => toggle_section('resilience')}
-              >
-                {resilience_contributors ? (
-                  <div className="grid grid-cols-3 gap-3">
-                    {([
-                      ['sleep_recovery', 'Sleep Recovery'],
-                      ['daytime_recovery', 'Daytime Recovery'],
-                      ['stress', 'Stress Load'],
-                    ] as const).map(([key, label]) => {
-                      const val = resilience_contributors[key] as number | null | undefined;
-                      return (
-                        <div key={key} className="p-3 bg-white/5 border border-white/10 rounded-lg text-center">
-                          <div className="text-xs text-gray-500 mb-1">{label}</div>
-                          <div className={`text-lg font-semibold ${score_color(val)}`}>
-                            {val != null ? val : '—'}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-sm text-gray-500">No contributor data available</div>
-                )}
-              </CollapsibleSection>
-            )}
-
-            {/* === Section 4: Sleep Details (expandable) === */}
+            {/* === Section 3: Sleep Details (expandable) === */}
             {sleep_period && (
               <CollapsibleSection
                 title="Sleep Details"
@@ -578,17 +457,11 @@ function WellnessContent() {
                   <DetailItem label="Latency" value={format_duration(sleep_period.latency as number)} />
                   <DetailItem label="Restless" value={sleep_period.restless_periods != null ? `${sleep_period.restless_periods}` : '—'} />
                   <DetailItem label="SpO2" value={scores?.spo2_average != null ? `${scores.spo2_average}%` : '—'} />
-                  {optimal_bedtime && (
-                    <DetailItem
-                      label="Optimal Bedtime"
-                      value={`${format_bedtime_offset(optimal_bedtime.start_offset as number)} – ${format_bedtime_offset(optimal_bedtime.end_offset as number)}`}
-                    />
-                  )}
                 </div>
               </CollapsibleSection>
             )}
 
-            {/* === Section 5: Activity Details (expandable) === */}
+            {/* === Section 4: Activity Details (expandable) === */}
             {data?.activity && (
               <CollapsibleSection
                 title="Activity Details"
@@ -610,7 +483,7 @@ function WellnessContent() {
               </CollapsibleSection>
             )}
 
-            {/* === Section 6: Score Contributors (expandable) === */}
+            {/* === Section 5: Score Contributors (expandable) === */}
             <CollapsibleSection
               title="Score Contributors"
               icon="📊"
@@ -648,7 +521,7 @@ function WellnessContent() {
               </div>
             </CollapsibleSection>
 
-            {/* === Section 7: Workouts (conditional) === */}
+            {/* === Section 6: Workouts (conditional) === */}
             {data?.workouts && (data.workouts as Record<string, unknown>[]).length > 0 && (
               <CollapsibleSection
                 title={`Workouts (${(data.workouts as Record<string, unknown>[]).length})`}
@@ -682,7 +555,7 @@ function WellnessContent() {
               </CollapsibleSection>
             )}
 
-            {/* === Section 8: Sessions (conditional) === */}
+            {/* === Section 7: Sessions (conditional) === */}
             {data?.sessions && (data.sessions as Record<string, unknown>[]).length > 0 && (
               <CollapsibleSection
                 title={`Sessions (${(data.sessions as Record<string, unknown>[]).length})`}
