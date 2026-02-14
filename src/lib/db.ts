@@ -1284,6 +1284,8 @@ export async function delete_oura_tokens(): Promise<boolean> {
   const db = get_client();
 
   const result = await db.execute('DELETE FROM oura_tokens WHERE id = 1');
+  // Clear personal_info cache so reconnect fetches fresh data
+  try { await db.execute('DELETE FROM oura_personal_info WHERE id = 1'); } catch { /* table may not exist */ }
   return result.rowsAffected > 0;
 }
 
