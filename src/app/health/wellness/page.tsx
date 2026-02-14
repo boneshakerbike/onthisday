@@ -1,6 +1,6 @@
 /**
  * Wellness Dashboard - Oura Ring comprehensive wellness data
- * Sections: Scores, Body Signals, Sleep Details, Activity, Workouts, Sessions
+ * Sections: Scores, Body Signals, Resilience, Sleep Details, Activity, Workouts, Sessions
  */
 
 'use client';
@@ -8,6 +8,14 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import NavTabs from '@/components/nav_tabs';
+
+interface PersonalInfo {
+  age: number | null;
+  weight: number | null;
+  height: number | null;
+  biological_sex: string | null;
+  email: string | null;
+}
 
 interface WellnessData {
   date: string;
@@ -24,6 +32,8 @@ interface WellnessData {
   vo2_max: Record<string, unknown> | null;
   workouts: Record<string, unknown>[] | null;
   sessions: Record<string, unknown>[] | null;
+  sleep_time: Record<string, unknown> | null;
+  personal_info: PersonalInfo | null;
   scores: {
     sleep: number | null;
     readiness: number | null;
@@ -36,6 +46,10 @@ interface WellnessData {
     steps: number | null;
     active_calories: number | null;
   };
+}
+
+interface RangeSnapshot {
+  sleep_detail: Record<string, unknown>[] | null;
 }
 
 function score_color(score: number | null | undefined): string {
@@ -68,6 +82,93 @@ function format_minutes(minutes: number | null | undefined): string {
   return `${m}m`;
 }
 
+function format_time(iso_string: string | null | undefined): string {
+  if (!iso_string) return '—';
+  try {
+    const d = new Date(iso_string);
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  } catch {
+    return '—';
+  }
+}
+
+function format_bedtime_offset(seconds: number | null | undefined): string {
+  if (seconds == null) return '—';
+  // Oura offset is seconds from midnight (can be negative for before midnight)
+  let secs = seconds;
+  if (secs < 0) secs += 86400; // normalize negative to previous day
+  const hours = Math.floor(secs / 3600);
+  const mins = Math.floor((secs % 3600) / 60);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const h12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+  return `${h12}:${mins.toString().padStart(2, '0')} ${period}`;
+}
+
+function resilience_color(level: string | null | undefined): string {
+  if (!level) return 'bg-gray-500/20 text-gray-400';
+  const l = level.toLowerCase();
+  if (l === 'strong' || l === 'exceptional') return 'bg-green-400/20 text-green-400';
+  if (l === 'adequate') return 'bg-yellow-400/20 text-yellow-400';
+  return 'bg-red-400/20 text-red-400';
+}
+
+function day_summary_style(summary: string | null | undefined): { label: string; color: string } {
+  if (!summary) return { label: '', color: '' };
+  const s = summary.toLowerCase();
+  if (s === 'restored') return { label: 'Restored', color: 'text-green-400' };
+  if (s === 'normal') return { label: 'Normal', color: 'text-yellow-400' };
+  if (s === 'stressful') return { label: 'Stressful', color: 'text-red-400' };
+  return { label: summary, color: 'text-gray-400' };
+}
+
+function compute_workout_avg_hr(
+  workout: Record<string, unknown>,
+  heartrate_data: Record<string, unknown>[] | null
+): number | null {
+  if (!heartrate_data || heartrate_data.length === 0) return null;
+  const start = workout.start_datetime as string | undefined;
+  const end = workout.end_datetime as string | undefined;
+  if (!start || !end) return null;
+
+  const start_ts = new Date(start).getTime();
+  const end_ts = new Date(end).getTime();
+
+  const hr_points = heartrate_data.filter(hr => {
+    const ts_str = hr.timestamp as string | undefined;
+    if (!ts_str) return false;
+    const ts = new Date(ts_str).getTime();
+    return ts >= start_ts && ts <= end_ts;
+  });
+
+  if (hr_points.length === 0) return null;
+  const sum = hr_points.reduce((acc, hr) => acc + (hr.bpm as number || 0), 0);
+  return Math.round(sum / hr_points.length);
+}
+
+function compute_sleep_debt(snapshots: RangeSnapshot[]): { hours: number; minutes: number; surplus: boolean } | null {
+  let total_deficit_seconds = 0;
+  let days_with_data = 0;
+
+  for (const snap of snapshots) {
+    const detail = Array.isArray(snap.sleep_detail) ? snap.sleep_detail[0] : null;
+    if (!detail) continue;
+    const total_sleep = detail.total_sleep_duration as number | undefined;
+    if (total_sleep == null) continue;
+    days_with_data++;
+    // 8 hours = 28800 seconds target
+    total_deficit_seconds += (28800 - total_sleep);
+  }
+
+  if (days_with_data === 0) return null;
+  const surplus = total_deficit_seconds < 0;
+  const abs_seconds = Math.abs(total_deficit_seconds);
+  return {
+    hours: Math.floor(abs_seconds / 3600),
+    minutes: Math.floor((abs_seconds % 3600) / 60),
+    surplus,
+  };
+}
+
 export default function WellnessPage() {
   return (
     <Suspense fallback={
@@ -87,6 +188,7 @@ function WellnessContent() {
   const [loading, set_loading] = useState(true);
   const [syncing, set_syncing] = useState(false);
   const [data, set_data] = useState<WellnessData | null>(null);
+  const [sleep_debt, set_sleep_debt] = useState<{ hours: number; minutes: number; surplus: boolean } | null>(null);
   const [selected_date, set_selected_date] = useState(new Date().toLocaleDateString('en-CA'));
   const [error, set_error] = useState<string | null>(null);
   const [show_raw, set_show_raw] = useState<string | null>(null);
@@ -121,6 +223,8 @@ function WellnessContent() {
       } else if (json.success) {
         set_connected(true);
         set_data(json);
+        // Fetch 14-day range for sleep debt calculation
+        fetch_sleep_debt(date);
       } else {
         set_error(json.error || 'Unknown error');
       }
@@ -129,6 +233,19 @@ function WellnessContent() {
       console.error(err);
     } finally {
       set_loading(false);
+    }
+  }
+
+  async function fetch_sleep_debt(date: string) {
+    try {
+      const res = await fetch(`/api/oura/data?date=${date}&range=14`);
+      const json = await res.json();
+      if (json.success && json.snapshots) {
+        const debt = compute_sleep_debt(json.snapshots as RangeSnapshot[]);
+        set_sleep_debt(debt);
+      }
+    } catch {
+      // Non-critical, ignore
     }
   }
 
@@ -178,6 +295,70 @@ function WellnessContent() {
 
   const scores = data?.scores;
   const sleep_period = Array.isArray(data?.sleep_detail) ? data.sleep_detail[0] : null;
+  const readiness = data?.readiness as Record<string, unknown> | null;
+  const resilience = data?.resilience as Record<string, unknown> | null;
+  const stress = data?.stress as Record<string, unknown> | null;
+  const cardiovascular_age = data?.cardiovascular_age as Record<string, unknown> | null;
+  const personal_info = data?.personal_info as PersonalInfo | null;
+  const sleep_time = data?.sleep_time as Record<string, unknown> | null;
+
+  // Cardio age display
+  const vascular_age = cardiovascular_age?.vascular_age as number | null | undefined;
+  let cardio_age_value: string | null = null;
+  let cardio_age_sublabel: string | undefined;
+  if (vascular_age != null && personal_info?.age != null) {
+    const diff = personal_info.age - vascular_age;
+    if (diff > 0) {
+      cardio_age_value = `${diff}`;
+      cardio_age_sublabel = `yrs younger (${vascular_age})`;
+    } else if (diff < 0) {
+      cardio_age_value = `${Math.abs(diff)}`;
+      cardio_age_sublabel = `yrs older (${vascular_age})`;
+    } else {
+      cardio_age_value = `${vascular_age}`;
+      cardio_age_sublabel = 'same as actual';
+    }
+  } else if (vascular_age != null) {
+    cardio_age_value = `${vascular_age}`;
+    cardio_age_sublabel = 'yrs';
+  }
+
+  // Body temperature deviation (from readiness contributors)
+  const temp_deviation_c = readiness?.temperature_deviation as number | null | undefined;
+  let temp_display: string | null = null;
+  if (temp_deviation_c != null) {
+    const temp_f = temp_deviation_c * 9 / 5;
+    const sign = temp_f >= 0 ? '+' : '';
+    temp_display = `${sign}${temp_f.toFixed(1)}`;
+  }
+
+  // Stress day summary
+  const day_summary = stress?.day_summary as string | null | undefined;
+  const summary_style = day_summary_style(day_summary);
+
+  // Sleep stage percentages
+  const total_sleep_secs = sleep_period?.total_sleep_duration as number | undefined;
+  const deep_pct = (total_sleep_secs && sleep_period?.deep_sleep_duration) ?
+    Math.round((sleep_period.deep_sleep_duration as number) / total_sleep_secs * 100) : null;
+  const rem_pct = (total_sleep_secs && sleep_period?.rem_sleep_duration) ?
+    Math.round((sleep_period.rem_sleep_duration as number) / total_sleep_secs * 100) : null;
+  const light_pct = (total_sleep_secs && sleep_period?.light_sleep_duration) ?
+    Math.round((sleep_period.light_sleep_duration as number) / total_sleep_secs * 100) : null;
+
+  // Optimal bedtime from sleep_time
+  const optimal_bedtime = sleep_time?.optimal_bedtime as Record<string, unknown> | null | undefined;
+
+  // Resilience contributors
+  const resilience_level = resilience?.level as string | null | undefined;
+  const resilience_contributors = resilience?.contributors as Record<string, unknown> | null | undefined;
+
+  // Sleep debt display
+  let sleep_debt_value: string | null = null;
+  let sleep_debt_sublabel: string | undefined;
+  if (sleep_debt) {
+    sleep_debt_value = sleep_debt.hours > 0 ? `${sleep_debt.hours}h ${sleep_debt.minutes}m` : `${sleep_debt.minutes}m`;
+    sleep_debt_sublabel = sleep_debt.surplus ? 'surplus (14d)' : 'deficit (14d)';
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-[#0f0f1a] to-[#1a1a2e] text-white">
@@ -272,7 +453,7 @@ function WellnessContent() {
               <SignalCard
                 label="Stress"
                 value={scores?.stress_high != null ? format_minutes(scores.stress_high) : null}
-                sublabel="high stress"
+                sublabel={day_summary ? <span className={summary_style.color}>{summary_style.label}</span> : 'high stress'}
                 icon="😤"
               />
               <SignalCard
@@ -282,14 +463,16 @@ function WellnessContent() {
                 icon="🧘"
               />
               <SignalCard
-                label="Resilience"
-                value={data?.resilience ? String((data.resilience as Record<string, unknown>).level || '—') : null}
-                icon="🛡️"
+                label="Body Temp"
+                value={temp_display}
+                unit="°F"
+                sublabel="deviation"
+                icon="🌡️"
               />
               <SignalCard
                 label="Cardio Age"
-                value={data?.cardiovascular_age ? (data.cardiovascular_age as Record<string, unknown>).vascular_age as number : null}
-                unit="yrs"
+                value={cardio_age_value}
+                sublabel={cardio_age_sublabel}
                 icon="🫀"
               />
               <SignalCard
@@ -303,9 +486,52 @@ function WellnessContent() {
                 sublabel="active"
                 icon="🔥"
               />
+              <SignalCard
+                label="Sleep Debt"
+                value={sleep_debt_value}
+                sublabel={sleep_debt_sublabel}
+                icon="💤"
+              />
             </div>
 
-            {/* === Section 3: Sleep Details (expandable) === */}
+            {/* === Section 3: Resilience === */}
+            {resilience && (
+              <CollapsibleSection
+                title="Resilience"
+                icon="🛡️"
+                badge={resilience_level ? (
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${resilience_color(resilience_level)}`}>
+                    {resilience_level}
+                  </span>
+                ) : undefined}
+                expanded={expanded.resilience}
+                on_toggle={() => toggle_section('resilience')}
+              >
+                {resilience_contributors ? (
+                  <div className="grid grid-cols-3 gap-3">
+                    {([
+                      ['sleep_recovery', 'Sleep Recovery'],
+                      ['daytime_recovery', 'Daytime Recovery'],
+                      ['stress', 'Stress Load'],
+                    ] as const).map(([key, label]) => {
+                      const val = resilience_contributors[key] as number | null | undefined;
+                      return (
+                        <div key={key} className="p-3 bg-white/5 border border-white/10 rounded-lg text-center">
+                          <div className="text-xs text-gray-500 mb-1">{label}</div>
+                          <div className={`text-lg font-semibold ${score_color(val)}`}>
+                            {val != null ? val : '—'}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500">No contributor data available</div>
+                )}
+              </CollapsibleSection>
+            )}
+
+            {/* === Section 4: Sleep Details (expandable) === */}
             {sleep_period && (
               <CollapsibleSection
                 title="Sleep Details"
@@ -315,9 +541,24 @@ function WellnessContent() {
               >
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <DetailItem label="Total Sleep" value={format_duration(sleep_period.total_sleep_duration as number)} />
-                  <DetailItem label="Deep Sleep" value={format_duration(sleep_period.deep_sleep_duration as number)} />
-                  <DetailItem label="REM Sleep" value={format_duration(sleep_period.rem_sleep_duration as number)} />
-                  <DetailItem label="Light Sleep" value={format_duration(sleep_period.light_sleep_duration as number)} />
+                  <DetailItem label="Time in Bed" value={format_duration(sleep_period.time_in_bed as number)} />
+                  <DetailItem label="Bedtime" value={format_time(sleep_period.bedtime_start as string)} />
+                  <DetailItem label="Wake Time" value={format_time(sleep_period.bedtime_end as string)} />
+                  <DetailItem label="Deep Sleep" value={
+                    deep_pct != null
+                      ? `${format_duration(sleep_period.deep_sleep_duration as number)} (${deep_pct}%)`
+                      : format_duration(sleep_period.deep_sleep_duration as number)
+                  } />
+                  <DetailItem label="REM Sleep" value={
+                    rem_pct != null
+                      ? `${format_duration(sleep_period.rem_sleep_duration as number)} (${rem_pct}%)`
+                      : format_duration(sleep_period.rem_sleep_duration as number)
+                  } />
+                  <DetailItem label="Light Sleep" value={
+                    light_pct != null
+                      ? `${format_duration(sleep_period.light_sleep_duration as number)} (${light_pct}%)`
+                      : format_duration(sleep_period.light_sleep_duration as number)
+                  } />
                   <DetailItem label="Awake Time" value={format_duration(sleep_period.awake_time as number)} />
                   <DetailItem label="Efficiency" value={sleep_period.efficiency != null ? `${sleep_period.efficiency}%` : '—'} />
                   <DetailItem label="Avg HR" value={sleep_period.average_heart_rate != null ? `${sleep_period.average_heart_rate} bpm` : '—'} />
@@ -326,11 +567,18 @@ function WellnessContent() {
                   <DetailItem label="Lowest HR" value={sleep_period.lowest_heart_rate != null ? `${sleep_period.lowest_heart_rate} bpm` : '—'} />
                   <DetailItem label="Latency" value={format_duration(sleep_period.latency as number)} />
                   <DetailItem label="Restless" value={sleep_period.restless_periods != null ? `${sleep_period.restless_periods}` : '—'} />
+                  <DetailItem label="SpO2" value={scores?.spo2_average != null ? `${scores.spo2_average}%` : '—'} />
+                  {optimal_bedtime && (
+                    <DetailItem
+                      label="Optimal Bedtime"
+                      value={`${format_bedtime_offset(optimal_bedtime.start_offset as number)} – ${format_bedtime_offset(optimal_bedtime.end_offset as number)}`}
+                    />
+                  )}
                 </div>
               </CollapsibleSection>
             )}
 
-            {/* === Section 4: Activity Details (expandable) === */}
+            {/* === Section 5: Activity Details (expandable) === */}
             {data?.activity && (
               <CollapsibleSection
                 title="Activity Details"
@@ -352,7 +600,7 @@ function WellnessContent() {
               </CollapsibleSection>
             )}
 
-            {/* === Section 5: Score Contributors (expandable) === */}
+            {/* === Section 6: Score Contributors (expandable) === */}
             <CollapsibleSection
               title="Score Contributors"
               icon="📊"
@@ -360,7 +608,6 @@ function WellnessContent() {
               on_toggle={() => toggle_section('contributors')}
             >
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Sleep contributors */}
                 <ContributorCard
                   title="Sleep"
                   data={data?.sleep}
@@ -369,7 +616,6 @@ function WellnessContent() {
                     ['latency', 'Latency'], ['timing', 'Timing'], ['rem_sleep', 'REM Sleep'], ['total_sleep', 'Total Sleep'],
                   ]}
                 />
-                {/* Readiness contributors */}
                 <ContributorCard
                   title="Readiness"
                   data={data?.readiness}
@@ -380,7 +626,6 @@ function WellnessContent() {
                     ['resting_heart_rate', 'Resting HR'], ['sleep_balance', 'Sleep Balance'],
                   ]}
                 />
-                {/* Activity contributors */}
                 <ContributorCard
                   title="Activity"
                   data={data?.activity}
@@ -393,7 +638,7 @@ function WellnessContent() {
               </div>
             </CollapsibleSection>
 
-            {/* === Section 6: Workouts (conditional) === */}
+            {/* === Section 7: Workouts (conditional) === */}
             {data?.workouts && (data.workouts as Record<string, unknown>[]).length > 0 && (
               <CollapsibleSection
                 title={`Workouts (${(data.workouts as Record<string, unknown>[]).length})`}
@@ -402,28 +647,32 @@ function WellnessContent() {
                 on_toggle={() => toggle_section('workouts')}
               >
                 <div className="space-y-3">
-                  {(data.workouts as Record<string, unknown>[]).map((w, i) => (
-                    <div key={i} className="p-3 bg-white/5 border border-white/10 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium text-gray-200">{(w.activity as string) || 'Workout'}</span>
-                        <span className="text-xs text-gray-500">{w.intensity as string}</span>
+                  {(data.workouts as Record<string, unknown>[]).map((w, i) => {
+                    const avg_hr = compute_workout_avg_hr(w, data.heartrate);
+                    return (
+                      <div key={i} className="p-3 bg-white/5 border border-white/10 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium text-gray-200">{(w.activity as string) || 'Workout'}</span>
+                          <span className="text-xs text-gray-500">{w.intensity as string}</span>
+                        </div>
+                        <div className="flex gap-4 text-sm text-gray-400 flex-wrap">
+                          {w.calories != null ? <span>{w.calories as number} cal</span> : null}
+                          {w.distance != null ? <span>{((w.distance as number) / 1000).toFixed(1)} km</span> : null}
+                          {(w.start_datetime && w.end_datetime) ? (
+                            <span>{format_duration(
+                              (new Date(String(w.end_datetime)).getTime() - new Date(String(w.start_datetime)).getTime()) / 1000
+                            )}</span>
+                          ) : null}
+                          {avg_hr != null ? <span>{avg_hr} avg bpm</span> : null}
+                        </div>
                       </div>
-                      <div className="flex gap-4 text-sm text-gray-400">
-                        {w.calories != null ? <span>{w.calories as number} cal</span> : null}
-                        {w.distance != null ? <span>{((w.distance as number) / 1000).toFixed(1)} km</span> : null}
-                        {(w.start_datetime && w.end_datetime) ? (
-                          <span>{format_duration(
-                            (new Date(String(w.end_datetime)).getTime() - new Date(String(w.start_datetime)).getTime()) / 1000
-                          )}</span>
-                        ) : null}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CollapsibleSection>
             )}
 
-            {/* === Section 7: Sessions (conditional) === */}
+            {/* === Section 8: Sessions (conditional) === */}
             {data?.sessions && (data.sessions as Record<string, unknown>[]).length > 0 && (
               <CollapsibleSection
                 title={`Sessions (${(data.sessions as Record<string, unknown>[]).length})`}
@@ -471,7 +720,7 @@ function SignalCard({ label, value, unit, sublabel, icon }: {
   label: string;
   value: number | string | null | undefined;
   unit?: string;
-  sublabel?: string;
+  sublabel?: string | React.ReactNode;
   icon: string;
 }) {
   return (
@@ -490,9 +739,10 @@ function SignalCard({ label, value, unit, sublabel, icon }: {
   );
 }
 
-function CollapsibleSection({ title, icon, expanded, on_toggle, children }: {
+function CollapsibleSection({ title, icon, badge, expanded, on_toggle, children }: {
   title: string;
   icon: string;
+  badge?: React.ReactNode;
   expanded?: boolean;
   on_toggle: () => void;
   children: React.ReactNode;
@@ -511,6 +761,7 @@ function CollapsibleSection({ title, icon, expanded, on_toggle, children }: {
         </svg>
         <span className="text-sm">{icon}</span>
         <span className="text-sm font-medium text-gray-200">{title}</span>
+        {badge && <span className="ml-auto">{badge}</span>}
       </button>
       {expanded && (
         <div className="mt-2 p-4 bg-white/5 border border-white/10 rounded-lg">

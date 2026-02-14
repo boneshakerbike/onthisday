@@ -1345,6 +1345,16 @@ export interface WellnessSnapshot {
   vo2_max: unknown | null;
   workouts: unknown | null;
   sessions: unknown | null;
+  sleep_time: unknown | null;
+  fetched_at: string;
+}
+
+export interface OuraPersonalInfo {
+  age: number | null;
+  weight: number | null;
+  height: number | null;
+  biological_sex: string | null;
+  email: string | null;
   fetched_at: string;
 }
 
@@ -1399,6 +1409,13 @@ let wellness_schema_initialized = false;
 async function ensure_wellness_schema(): Promise<void> {
   if (!wellness_schema_initialized) {
     await init_wellness_schema();
+    // Migration: add sleep_time_json column
+    const db = get_client();
+    try {
+      await db.execute(`ALTER TABLE wellness_cache ADD COLUMN sleep_time_json TEXT`);
+    } catch {
+      // Column already exists
+    }
     wellness_schema_initialized = true;
   }
 }
@@ -1439,6 +1456,7 @@ export async function get_wellness_cache(date: string): Promise<WellnessSnapshot
     vo2_max: row.vo2_max_json ? JSON.parse(row.vo2_max_json as string) : null,
     workouts: row.workout_json ? JSON.parse(row.workout_json as string) : null,
     sessions: row.session_json ? JSON.parse(row.session_json as string) : null,
+    sleep_time: row.sleep_time_json ? JSON.parse(row.sleep_time_json as string) : null,
     fetched_at: row.fetched_at as string,
   };
 }
@@ -1455,9 +1473,9 @@ export async function save_wellness_cache(snapshot: WellnessSnapshot): Promise<v
       daily_sleep_json, daily_readiness_json, daily_activity_json,
       daily_stress_json, daily_resilience_json, daily_cardiovascular_age_json,
       daily_spo2_json, sleep_json, heartrate_json,
-      vo2_max_json, workout_json, session_json,
+      vo2_max_json, workout_json, session_json, sleep_time_json,
       fetched_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
     args: [
       snapshot.date,
       snapshot.sleep_score,
@@ -1482,6 +1500,7 @@ export async function save_wellness_cache(snapshot: WellnessSnapshot): Promise<v
       snapshot.vo2_max ? JSON.stringify(snapshot.vo2_max) : null,
       snapshot.workouts ? JSON.stringify(snapshot.workouts) : null,
       snapshot.sessions ? JSON.stringify(snapshot.sessions) : null,
+      snapshot.sleep_time ? JSON.stringify(snapshot.sleep_time) : null,
     ]
   });
 }
@@ -1522,6 +1541,7 @@ export async function get_wellness_range(
     vo2_max: row.vo2_max_json ? JSON.parse(row.vo2_max_json as string) : null,
     workouts: row.workout_json ? JSON.parse(row.workout_json as string) : null,
     sessions: row.session_json ? JSON.parse(row.session_json as string) : null,
+    sleep_time: row.sleep_time_json ? JSON.parse(row.sleep_time_json as string) : null,
     fetched_at: row.fetched_at as string,
   }));
 }
@@ -1554,6 +1574,61 @@ export async function get_wellness_scores(
     steps: row.steps as number | null,
     active_calories: row.active_calories as number | null,
   }));
+}
+
+// ── Oura Personal Info ──────────────────────────────────────
+
+async function init_personal_info_schema(): Promise<void> {
+  const db = get_client();
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS oura_personal_info (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      age INTEGER,
+      weight REAL,
+      height REAL,
+      biological_sex TEXT,
+      email TEXT,
+      fetched_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+}
+
+let personal_info_schema_initialized = false;
+async function ensure_personal_info_schema(): Promise<void> {
+  if (!personal_info_schema_initialized) {
+    await init_personal_info_schema();
+    personal_info_schema_initialized = true;
+  }
+}
+
+export async function save_personal_info(info: OuraPersonalInfo): Promise<void> {
+  await ensure_personal_info_schema();
+  const db = get_client();
+  await db.execute({
+    sql: `INSERT INTO oura_personal_info (id, age, weight, height, biological_sex, email, fetched_at)
+          VALUES (1, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(id) DO UPDATE SET
+            age = excluded.age, weight = excluded.weight, height = excluded.height,
+            biological_sex = excluded.biological_sex, email = excluded.email,
+            fetched_at = CURRENT_TIMESTAMP`,
+    args: [info.age, info.weight, info.height, info.biological_sex, info.email]
+  });
+}
+
+export async function get_personal_info(): Promise<OuraPersonalInfo | null> {
+  await ensure_personal_info_schema();
+  const db = get_client();
+  const result = await db.execute('SELECT * FROM oura_personal_info WHERE id = 1');
+  if (result.rows.length === 0) return null;
+  const row = result.rows[0];
+  return {
+    age: row.age as number | null,
+    weight: row.weight as number | null,
+    height: row.height as number | null,
+    biological_sex: (row.biological_sex as string) || null,
+    email: (row.email as string) || null,
+    fetched_at: row.fetched_at as string,
+  };
 }
 
 export async function is_wellness_cached(date: string): Promise<boolean> {

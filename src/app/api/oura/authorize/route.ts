@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     client_id,
     redirect_uri,
     response_type: 'code',
-    scope: 'daily heartrate spo2 workout session',
+    scope: 'personal daily heartrate spo2 workout session',
     state,
   });
 

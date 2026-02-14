@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       access_token: data.access_token,
       refresh_token: data.refresh_token,
       expires_at: Math.floor(Date.now() / 1000) + (data.expires_in || 86400),
-      scope: data.scope || 'daily heartrate spo2 workout session',
+      scope: data.scope || 'personal daily heartrate spo2 workout session',
     });
 
     const response = NextResponse.redirect(`${base_url}/health/wellness?connected=true`);

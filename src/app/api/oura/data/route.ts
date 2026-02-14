@@ -13,8 +13,10 @@ import {
   get_wellness_cache,
   save_wellness_cache,
   get_wellness_range,
+  get_personal_info,
+  save_personal_info,
 } from '@/lib/db';
-import type { OuraTokens, WellnessSnapshot } from '@/lib/db';
+import type { OuraTokens, WellnessSnapshot, OuraPersonalInfo } from '@/lib/db';
 
 async function require_auth(request: NextRequest): Promise<NextResponse | null> {
   const token = await getToken({ req: request });
@@ -61,6 +63,8 @@ const ENDPOINTS: EndpointDef[] = [
   { key: 'workouts', path: 'workout', array_response: true },
   // Scope: session
   { key: 'sessions', path: 'session', array_response: true },
+  // Scope: daily
+  { key: 'sleep_time', path: 'sleep_time' },
 ];
 
 function extract_headline_scores(data: Record<string, unknown>): Partial<WellnessSnapshot> {
@@ -120,6 +124,33 @@ async function fetch_all_endpoints(
   return data;
 }
 
+async function fetch_personal_info(tokens: OuraTokens): Promise<OuraPersonalInfo | null> {
+  // Check cache first (re-fetch if stale > 7 days)
+  const cached = await get_personal_info();
+  if (cached) {
+    const age_ms = Date.now() - new Date(cached.fetched_at).getTime();
+    if (age_ms < 7 * 24 * 60 * 60 * 1000) return cached;
+  }
+
+  try {
+    const res = await oura_fetch('https://api.ouraring.com/v2/usercollection/personal_info', tokens);
+    if (!res.ok) return cached; // Return stale cache if fetch fails
+    const data = await res.json();
+    const info: OuraPersonalInfo = {
+      age: data.age ?? null,
+      weight: data.weight ?? null,
+      height: data.height ?? null,
+      biological_sex: data.biological_sex ?? null,
+      email: data.email ?? null,
+      fetched_at: new Date().toISOString(),
+    };
+    await save_personal_info(info);
+    return info;
+  } catch {
+    return cached;
+  }
+}
+
 export async function GET(request: NextRequest) {
   const auth_error = await require_auth(request);
   if (auth_error) return auth_error;
@@ -170,6 +201,9 @@ export async function GET(request: NextRequest) {
     const today = new Date().toISOString().split('T')[0];
     const is_today = target_date === today;
 
+    // Fetch personal info for all paths (cached 7 days)
+    const personal_info = await fetch_personal_info(tokens);
+
     // Cache-first for past dates
     if (!is_today) {
       const cached = await get_wellness_cache(target_date);
@@ -179,6 +213,7 @@ export async function GET(request: NextRequest) {
           connected: true,
           cached: true,
           date: target_date,
+          personal_info,
           ...build_response(cached),
         });
       }
@@ -234,6 +269,7 @@ export async function GET(request: NextRequest) {
       vo2_max: data.vo2_max ?? null,
       workouts: data.workouts ?? null,
       sessions: data.sessions ?? null,
+      sleep_time: data.sleep_time ?? null,
       fetched_at: new Date().toISOString(),
     };
 
@@ -251,6 +287,7 @@ export async function GET(request: NextRequest) {
       connected: true,
       cached: false,
       date: target_date,
+      personal_info,
       ...build_response(snapshot),
     });
 
@@ -279,6 +316,7 @@ function build_response(s: WellnessSnapshot) {
     vo2_max: s.vo2_max,
     workouts: s.workouts,
     sessions: s.sessions,
+    sleep_time: s.sleep_time,
     // Headline scores
     scores: {
       sleep: s.sleep_score,

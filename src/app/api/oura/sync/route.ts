@@ -53,6 +53,7 @@ const ENDPOINTS: EndpointDef[] = [
   { key: 'heartrate', path: 'heartrate' },
   { key: 'workouts', path: 'workout' },
   { key: 'sessions', path: 'session' },
+  { key: 'sleep_time', path: 'sleep_time' },
 ];
 
 // Endpoints that return items with a "day" field for grouping
@@ -195,6 +196,7 @@ export async function POST(request: NextRequest) {
         vo2_max: find_for_date('vo2_max') as Record<string, unknown> | null,
         workouts: find_for_date('workouts') as unknown,
         sessions: find_for_date('sessions') as unknown,
+        sleep_time: find_for_date('sleep_time') as Record<string, unknown> | null,
         fetched_at: new Date().toISOString(),
       };
 
