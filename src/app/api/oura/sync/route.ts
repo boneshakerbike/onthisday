@@ -79,8 +79,9 @@ export async function POST(request: NextRequest) {
     const days = Math.min(Math.max(body.days || 7, 1), 30);
     const force = body.force === true;
 
-    // Calculate date range (exclude today — data still accumulating)
-    const today = new Date();
+    // Calculate date range (exclude today MT — data still accumulating)
+    const now_mt = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Denver' }));
+    const today = now_mt;
     const end_date = new Date(today);
     end_date.setDate(end_date.getDate() - 1);
     const start_date = new Date(end_date);

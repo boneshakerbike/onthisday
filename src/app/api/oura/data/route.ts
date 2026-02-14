@@ -198,7 +198,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const today = new Date().toISOString().split('T')[0];
+    // Use Mountain Time for "today" check (client sends Mountain Time dates)
+    const now_mt = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Denver' }));
+    const today = now_mt.toISOString().split('T')[0];
     const is_today = target_date === today;
 
     // Fetch personal info for all paths (cached 7 days)

@@ -249,17 +249,19 @@ function WellnessContent() {
     }
   }
 
-  async function handle_sync() {
+  async function handle_sync(force = false) {
     set_syncing(true);
     try {
       const res = await fetch('/api/oura/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ days: 7 }),
+        body: JSON.stringify({ days: 7, force }),
       });
       const json = await res.json();
       if (json.success) {
         set_toast(`Synced ${json.synced} day${json.synced !== 1 ? 's' : ''}${json.skipped ? `, ${json.skipped} already cached` : ''}`);
+        // Refresh current view with updated data
+        fetch_data(selected_date);
       } else {
         set_toast(`Sync error: ${json.error}`);
       }
@@ -418,11 +420,19 @@ function WellnessContent() {
                 className="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-gray-200 focus:outline-none focus:border-cyan-400/30"
               />
               <button
-                onClick={handle_sync}
+                onClick={() => handle_sync(false)}
                 disabled={syncing}
                 className="px-4 py-2 text-sm bg-white/5 border border-white/10 rounded-lg hover:border-cyan-400/30 hover:text-cyan-400 disabled:opacity-50 transition-all"
               >
                 {syncing ? 'Syncing...' : 'Sync 7 Days'}
+              </button>
+              <button
+                onClick={() => handle_sync(true)}
+                disabled={syncing}
+                className="px-4 py-2 text-sm bg-white/5 border border-white/10 rounded-lg hover:border-orange-400/30 hover:text-orange-400 disabled:opacity-50 transition-all"
+                title="Re-fetch and overwrite cached data"
+              >
+                Force
               </button>
               {data?.cached && (
                 <span className="text-xs text-gray-500">cached</span>
@@ -448,7 +458,7 @@ function WellnessContent() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
               <SignalCard label="HRV" value={scores?.hrv_average} unit="ms" icon="💓" />
               <SignalCard label="Resting HR" value={scores?.resting_hr} unit="bpm" icon="❤️" />
-              <SignalCard label="SpO2" value={scores?.spo2_average} unit="%" icon="🫁" />
+              <SignalCard label="SpO2" value={scores?.spo2_average != null ? Math.round(scores.spo2_average * 10) / 10 : null} unit="%" icon="🫁" />
               <SignalCard label="Steps" value={scores?.steps ? scores.steps.toLocaleString() : null} icon="👟" />
               <SignalCard
                 label="Stress"
