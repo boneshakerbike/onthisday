@@ -41,19 +41,21 @@ interface EndpointDef {
 }
 
 const ENDPOINTS: EndpointDef[] = [
+  // Inclusive end_date
   { key: 'daily_sleep', path: 'daily_sleep' },
   { key: 'daily_readiness', path: 'daily_readiness' },
-  { key: 'daily_activity', path: 'daily_activity', use_activity_params: true },
   { key: 'daily_stress', path: 'daily_stress' },
   { key: 'daily_resilience', path: 'daily_resilience' },
   { key: 'daily_cardiovascular_age', path: 'daily_cardiovascular_age' },
-  { key: 'sleep_detail', path: 'sleep' },
   { key: 'vo2_max', path: 'vo2_max' },
   { key: 'daily_spo2', path: 'daily_spo2' },
-  { key: 'heartrate', path: 'heartrate' },
-  { key: 'workouts', path: 'workout' },
-  { key: 'sessions', path: 'session' },
   { key: 'sleep_time', path: 'sleep_time' },
+  // Exclusive end_date (need +1 day)
+  { key: 'daily_activity', path: 'daily_activity', use_activity_params: true },
+  { key: 'sleep_detail', path: 'sleep', use_activity_params: true },
+  { key: 'heartrate', path: 'heartrate', use_activity_params: true },
+  { key: 'workouts', path: 'workout', use_activity_params: true },
+  { key: 'sessions', path: 'session', use_activity_params: true },
 ];
 
 // Endpoints that return items with a "day" field for grouping

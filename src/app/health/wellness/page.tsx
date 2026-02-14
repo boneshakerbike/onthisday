@@ -462,13 +462,13 @@ function WellnessContent() {
               <SignalCard label="Steps" value={scores?.steps ? scores.steps.toLocaleString() : null} icon="👟" />
               <SignalCard
                 label="Stress"
-                value={scores?.stress_high != null ? format_minutes(scores.stress_high) : null}
+                value={scores?.stress_high != null ? format_duration(scores.stress_high) : null}
                 sublabel={day_summary ? <span className={summary_style.color}>{summary_style.label}</span> : 'high stress'}
                 icon="😤"
               />
               <SignalCard
                 label="Recovery"
-                value={scores?.recovery_high != null ? format_minutes(scores.recovery_high) : null}
+                value={scores?.recovery_high != null ? format_duration(scores.recovery_high) : null}
                 sublabel="restorative"
                 icon="🧘"
               />

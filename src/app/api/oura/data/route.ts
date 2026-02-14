@@ -46,25 +46,22 @@ interface EndpointDef {
 }
 
 const ENDPOINTS: EndpointDef[] = [
-  // Scope: daily
+  // Scope: daily (inclusive end_date)
   { key: 'daily_sleep', path: 'daily_sleep' },
   { key: 'daily_readiness', path: 'daily_readiness' },
-  { key: 'daily_activity', path: 'daily_activity', use_activity_params: true },
   { key: 'daily_stress', path: 'daily_stress' },
   { key: 'daily_resilience', path: 'daily_resilience' },
   { key: 'daily_cardiovascular_age', path: 'daily_cardiovascular_age' },
-  { key: 'sleep_detail', path: 'sleep', array_response: true },
   { key: 'vo2_max', path: 'vo2_max' },
-  // Scope: spo2
-  { key: 'daily_spo2', path: 'daily_spo2' },
-  // Scope: heartrate
-  { key: 'heartrate', path: 'heartrate', array_response: true },
-  // Scope: workout
-  { key: 'workouts', path: 'workout', array_response: true },
-  // Scope: session
-  { key: 'sessions', path: 'session', array_response: true },
-  // Scope: daily
   { key: 'sleep_time', path: 'sleep_time' },
+  // Scope: spo2 (inclusive end_date)
+  { key: 'daily_spo2', path: 'daily_spo2' },
+  // Exclusive end_date endpoints (need +1 day)
+  { key: 'daily_activity', path: 'daily_activity', use_activity_params: true },
+  { key: 'sleep_detail', path: 'sleep', array_response: true, use_activity_params: true },
+  { key: 'heartrate', path: 'heartrate', array_response: true, use_activity_params: true },
+  { key: 'workouts', path: 'workout', array_response: true, use_activity_params: true },
+  { key: 'sessions', path: 'session', array_response: true, use_activity_params: true },
 ];
 
 function extract_headline_scores(data: Record<string, unknown>): Partial<WellnessSnapshot> {
