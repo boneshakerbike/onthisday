@@ -18,6 +18,7 @@ interface UsageInfo {
 
 interface DiffResult {
   has_losses: boolean;
+  truncation_detected?: boolean;
   analysis: string;
   appendix?: string;
   usage: UsageInfo;
@@ -82,6 +83,17 @@ export default function KnowledgeDiffPage() {
         appendix_input: 0,
         appendix_output: 0
       };
+
+      if (analysis_result.truncation_detected) {
+        set_result({
+          has_losses: false,
+          truncation_detected: true,
+          analysis: analysis_result.analysis,
+          usage: combined_usage
+        });
+        set_status('');
+        return;
+      }
 
       if (!analysis_result.has_losses) {
         set_result({
@@ -305,14 +317,14 @@ export default function KnowledgeDiffPage() {
         {result && (
           <div style={{
             background: '#252525',
-            border: `1px solid ${result.has_losses ? '#854d0e' : '#166534'}`,
+            border: `1px solid ${result.truncation_detected ? '#b45309' : result.has_losses ? '#854d0e' : '#166534'}`,
             borderRadius: '12px',
             overflow: 'hidden'
           }}>
             {/* Header */}
             <div style={{
               padding: '16px 20px',
-              background: result.has_losses ? '#422006' : '#14532d',
+              background: result.truncation_detected ? '#78350f' : result.has_losses ? '#422006' : '#14532d',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between'
@@ -323,19 +335,23 @@ export default function KnowledgeDiffPage() {
                 gap: '12px'
               }}>
                 <span style={{ fontSize: '24px' }}>
-                  {result.has_losses ? '\u26A0' : '\u2713'}
+                  {result.truncation_detected ? '\u26A0' : result.has_losses ? '\u26A0' : '\u2713'}
                 </span>
                 <div>
                   <div style={{
                     fontWeight: 600,
-                    color: result.has_losses ? '#fde047' : '#86efac'
+                    color: result.truncation_detected ? '#fb923c' : result.has_losses ? '#fde047' : '#86efac'
                   }}>
-                    {result.has_losses ? 'Knowledge would be lost' : 'No knowledge loss detected'}
+                    {result.truncation_detected
+                      ? 'Input may be truncated or wrong document'
+                      : result.has_losses ? 'Knowledge would be lost' : 'No knowledge loss detected'}
                   </div>
                   <div style={{ fontSize: '13px', color: '#888' }}>
-                    {result.has_losses
-                      ? 'Appendix generated — copy and paste at the end of your new document'
-                      : 'Safe to replace the old document with the new one'}
+                    {result.truncation_detected
+                      ? 'The NEW document looks significantly shorter or cut off — check your inputs before trusting results'
+                      : result.has_losses
+                        ? 'Appendix generated — copy and paste at the end of your new document'
+                        : 'Safe to replace the old document with the new one'}
                   </div>
                 </div>
               </div>

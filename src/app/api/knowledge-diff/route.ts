@@ -42,21 +42,34 @@ export async function POST(request: NextRequest) {
       }
 
       // Prompt Library: "Knowledge Diff - Analysis" — update library if this changes
-      const prompt = `Compare these two versions of a document. The OLD version is being replaced with the NEW version.
+      const prompt = `Compare OLD vs NEW. Identify only knowledge that is VERIFIED missing from NEW.
 
-Identify any knowledge, information, or details from the OLD document that would be LOST in the replacement.
+Preflight:
+- OLD chars: ${old_doc.length}, OLD lines: ${old_doc.split('\n').length}
+- NEW chars: ${new_doc.length}, NEW lines: ${new_doc.split('\n').length}
+- First 3 lines of OLD and NEW (verify you received the full documents)
+- Last 3 lines of OLD and NEW (verify documents are not truncated)
+If NEW chars < 0.6 * OLD chars, or if last lines look cut off, output:
+INPUT_TRUNCATION_OR_WRONG_DOC
+and stop.
 
-NOT a loss: updated values (e.g. version numbers), completed/removed tasks, reorganized content that's still present, new additions in NEW.
+Rules:
+- NOT a loss: reorganized content still present, updated values, completed tasks, additions in NEW
+- IS a loss: facts present in OLD that do not exist anywhere in NEW
+- No "appears to be" reasoning. Only diff and search based claims.
 
-IS a loss: missing facts, dropped URLs/commands/configs, procedures collapsed into vague summaries, removed sections with no equivalent.
-
-If nothing meaningful would be lost:
+If nothing meaningful is lost:
 NO_LOSS
-[Brief summary of what you checked]
+[brief summary of checks]
 
-If knowledge would be lost, list each item with the exact detail from OLD needed to recover it:
+If loss exists:
 KNOWLEDGE_LOSS
-[Each specific item that would be lost]
+For each item include:
+- LABEL: short description
+- SECTION: the header where it came from in OLD
+- OLD_QUOTE: (1 to 3 exact lines from OLD)
+- ABSENT_CHECK: exact string searched in NEW and "not found"
+- RECOVERY_NOTE: how to re-add it (1 sentence)
 
 OLD DOCUMENT:
 ${old_doc}
@@ -73,6 +86,21 @@ ${new_doc}`;
       const text = result.content[0].type === 'text'
         ? result.content[0].text.trim()
         : '';
+
+      // Check for truncation detection first
+      const truncation_detected = text.includes('INPUT_TRUNCATION_OR_WRONG_DOC');
+      if (truncation_detected) {
+        return NextResponse.json({
+          success: true,
+          truncation_detected: true,
+          has_losses: false,
+          analysis: text,
+          usage: {
+            input: result.usage.input_tokens,
+            output: result.usage.output_tokens
+          }
+        });
+      }
 
       // Check NO_LOSS first (more specific, avoids substring collision with KNOWLEDGE_LOSS)
       const has_losses = !text.includes('NO_LOSS');
@@ -99,15 +127,27 @@ ${new_doc}`;
       const model = use_opus ? 'claude-opus-4-5-20251101' : 'claude-sonnet-4-20250514';
 
       // Prompt Library: "Knowledge Diff - Appendix" — update library if this changes
-      const prompt = `Knowledge is being lost when replacing an old document with a new version. Write a concise appendix that preserves the missing knowledge.
+      const prompt = `Write an appendix ONLY for facts that are VERIFIED missing from NEW.
 
-WHAT'S MISSING:
-${analysis}
+Input is VERIFIED_LOSSES. Each item must include:
+- LABEL
+- SECTION
+- OLD_QUOTE (exact)
+- ABSENT_CHECK (string not found in NEW)
 
-SOURCE (old document with the original content):
-${old_doc}
+If VERIFIED_LOSSES is empty, output exactly:
+NO_LOSS
 
-Write only the appendix content, ready to paste at the end of the new document. Preserve all specific details — exact commands, URLs, config values, procedures. Be concise but complete.`;
+Otherwise:
+Write only the appendix content, ready to paste at end of NEW.
+Rules:
+- Include ONLY items from VERIFIED_LOSSES
+- Preserve exact details (URLs, file paths, IPs, commands, procedures)
+- Do NOT invent or guess
+- Do NOT restate content already present in NEW
+
+VERIFIED_LOSSES:
+${analysis}`;
 
       const result = await client.messages.create({
         model,
