@@ -242,6 +242,19 @@ export default function ArchivePage() {
                   {month.slice(0, 3)}
                 </a>
               ))}
+              <button
+                className="month-nav-link today-btn"
+                onClick={() => {
+                  const months = [
+                    'january', 'february', 'march', 'april', 'may', 'june',
+                    'july', 'august', 'september', 'october', 'november', 'december'
+                  ];
+                  const el = document.getElementById(`month-${months[new Date().getMonth()]}`);
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+              >
+                Today
+              </button>
             </nav>
           )}
 
@@ -365,6 +378,7 @@ const base_styles = `
 
   .month-section {
     margin-bottom: 40px;
+    scroll-margin-top: 60px;
   }
 
   .month-title {
@@ -488,6 +502,11 @@ const base_styles = `
     justify-content: center;
     gap: 6px;
     margin-bottom: 36px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: linear-gradient(180deg, #faf8f5 0%, #f5f0e8 100%);
+    padding: 12px 0;
   }
 
   .month-nav-link {
@@ -504,6 +523,20 @@ const base_styles = `
     border-color: #c4704b;
     color: #c4704b;
     background: #c4704b10;
+  }
+
+  .today-btn {
+    background: #c4704b;
+    border-color: #c4704b;
+    color: white;
+    cursor: pointer;
+    font-weight: 500;
+  }
+
+  .today-btn:hover {
+    background: #b35f3d;
+    border-color: #b35f3d;
+    color: white;
   }
 
   .toast {
