@@ -67,6 +67,8 @@ export default function ArchivePage() {
   const [deleting, set_deleting] = useState<string | null>(null);
   const [sort_order, set_sort_order] = useState<SortOrder>('date_asc');
 
+  const [has_scrolled, set_has_scrolled] = useState(false);
+
   useEffect(() => {
     document.title = '8i11 | Archive';
     fetch_stories();
@@ -84,6 +86,21 @@ export default function ArchivePage() {
     }
     set_loading(false);
   };
+
+  // Auto-scroll to current month on first load
+  useEffect(() => {
+    if (has_scrolled || loading || stories.length === 0 || !sort_order.startsWith('date_')) return;
+    const months = [
+      'january', 'february', 'march', 'april', 'may', 'june',
+      'july', 'august', 'september', 'october', 'november', 'december'
+    ];
+    const current_month = months[new Date().getMonth()];
+    const el = document.getElementById(`month-${current_month}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      set_has_scrolled(true);
+    }
+  }, [loading, stories, sort_order, has_scrolled]);
 
   const sorted_stories = useMemo(() => {
     const sorted = [...stories];
