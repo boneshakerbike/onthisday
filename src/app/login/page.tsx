@@ -14,6 +14,7 @@ function LoginForm() {
   const [loading, set_loading] = useState(false);
   const search_params = useSearchParams();
   const callback_url = search_params.get('callbackUrl') ?? '/';
+  const oauth_error = search_params.get('error');
 
   const handle_pin_submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,12 +64,31 @@ function LoginForm() {
       <p
         style={{
           color: '#888',
-          marginBottom: '32px',
+          marginBottom: oauth_error ? '16px' : '32px',
           fontSize: '14px',
         }}
       >
         Sign in to continue
       </p>
+
+      {oauth_error && (
+        <p
+          style={{
+            color: '#ff6b6b',
+            fontSize: '13px',
+            marginBottom: '24px',
+            padding: '10px 16px',
+            backgroundColor: 'rgba(255, 107, 107, 0.1)',
+            borderRadius: '6px',
+          }}
+        >
+          Sign-in failed. Try opening{' '}
+          <a href="https://8i11.vercel.app" style={{ color: '#00d9ff', textDecoration: 'none' }}>
+            8i11.vercel.app
+          </a>
+          {' '}directly in your browser.
+        </p>
+      )}
 
       <button
         onClick={handle_github}
