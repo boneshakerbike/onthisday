@@ -14,6 +14,7 @@ import {
   get_suggestions,
   create_suggestion,
   update_suggestion,
+  update_suggestion_tags,
   update_suggestion_content,
   delete_suggestion,
   Suggestion
@@ -81,8 +82,9 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || undefined;
+    const tag = searchParams.get('tag') || undefined;
 
-    const suggestions = await get_suggestions(status);
+    const suggestions = await get_suggestions(status, tag);
 
     return NextResponse.json({
       success: true,
@@ -108,7 +110,7 @@ export async function POST(request: NextRequest) {
   if (auth_error) return auth_error;
 
   try {
-    const { content } = await request.json();
+    const { content, tags } = await request.json();
 
     if (!content || typeof content !== 'string' || content.trim().length === 0) {
       return NextResponse.json(
@@ -124,7 +126,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const id = await create_suggestion(content.trim());
+    const id = await create_suggestion(content.trim(), tags || undefined);
 
     return NextResponse.json({
       success: true,
@@ -150,13 +152,28 @@ export async function PATCH(request: NextRequest) {
   if (auth_error) return auth_error;
 
   try {
-    const { id, status, outcome, content } = await request.json();
+    const { id, status, outcome, content, tags } = await request.json();
 
     if (!id) {
       return NextResponse.json(
         { error: 'Suggestion ID is required' },
         { status: 400 }
       );
+    }
+
+    // Tags-only update
+    if (tags !== undefined && !status && content === undefined) {
+      const updated = await update_suggestion_tags(id, tags || null);
+      if (!updated) {
+        return NextResponse.json(
+          { error: 'Suggestion not found' },
+          { status: 404 }
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        message: 'Suggestion tags updated'
+      }, { headers: cors_headers() });
     }
 
     // Content-only edit (no status change)

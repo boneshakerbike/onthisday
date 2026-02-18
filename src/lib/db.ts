@@ -692,6 +692,7 @@ export interface Suggestion {
   created_at: string;
   resolved_at: string | null;
   outcome: string | null;
+  tags: string | null;
 }
 
 /**
@@ -707,9 +708,17 @@ async function init_suggestions_schema(): Promise<void> {
       status TEXT DEFAULT 'pending',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       resolved_at TEXT,
-      outcome TEXT
+      outcome TEXT,
+      tags TEXT
     )
   `);
+
+  // Migration: add tags column for existing tables
+  try {
+    await db.execute(`ALTER TABLE suggestions ADD COLUMN tags TEXT`);
+  } catch {
+    // Column already exists
+  }
 }
 
 // Track if suggestions schema is initialized
@@ -736,37 +745,44 @@ function generate_suggestion_id(): string {
 /**
  * Create a new suggestion
  */
-export async function create_suggestion(content: string): Promise<string> {
+export async function create_suggestion(content: string, tags?: string): Promise<string> {
   await ensure_suggestions_schema();
   const db = get_client();
 
   const id = generate_suggestion_id();
   await db.execute({
-    sql: `INSERT INTO suggestions (id, content) VALUES (?, ?)`,
-    args: [id, content]
+    sql: `INSERT INTO suggestions (id, content, tags) VALUES (?, ?, ?)`,
+    args: [id, content, tags || null]
   });
 
   return id;
 }
 
 /**
- * Get all suggestions, optionally filtered by status
+ * Get all suggestions, optionally filtered by status and/or tag
  */
-export async function get_suggestions(status?: string): Promise<Suggestion[]> {
+export async function get_suggestions(status?: string, tag?: string): Promise<Suggestion[]> {
   await ensure_suggestions_schema();
   const db = get_client();
 
-  let result;
+  let sql = 'SELECT * FROM suggestions';
+  const args: (string)[] = [];
+  const conditions: string[] = [];
+
   if (status) {
-    result = await db.execute({
-      sql: 'SELECT * FROM suggestions WHERE status = ? ORDER BY created_at DESC',
-      args: [status]
-    });
-  } else {
-    result = await db.execute(
-      'SELECT * FROM suggestions ORDER BY created_at DESC'
-    );
+    conditions.push('status = ?');
+    args.push(status);
   }
+  if (tag) {
+    conditions.push("(',' || tags || ',' LIKE ?)")
+    args.push(`%,${tag},%`);
+  }
+  if (conditions.length > 0) {
+    sql += ' WHERE ' + conditions.join(' AND ');
+  }
+  sql += ' ORDER BY created_at DESC';
+
+  const result = await db.execute({ sql, args });
 
   return result.rows.map(row => ({
     id: row.id as string,
@@ -774,7 +790,8 @@ export async function get_suggestions(status?: string): Promise<Suggestion[]> {
     status: row.status as Suggestion['status'],
     created_at: row.created_at as string,
     resolved_at: (row.resolved_at as string) || null,
-    outcome: (row.outcome as string) || null
+    outcome: (row.outcome as string) || null,
+    tags: (row.tags as string) || null
   }));
 }
 
@@ -799,7 +816,8 @@ export async function get_suggestion(id: string): Promise<Suggestion | null> {
     status: row.status as Suggestion['status'],
     created_at: row.created_at as string,
     resolved_at: (row.resolved_at as string) || null,
-    outcome: (row.outcome as string) || null
+    outcome: (row.outcome as string) || null,
+    tags: (row.tags as string) || null
   };
 }
 
@@ -825,6 +843,24 @@ export async function update_suggestion(
       WHERE id = ?
     `,
     args: [status, outcome || null, resolved_at, id]
+  });
+
+  return result.rowsAffected > 0;
+}
+
+/**
+ * Update suggestion tags
+ */
+export async function update_suggestion_tags(
+  id: string,
+  tags: string | null
+): Promise<boolean> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: `UPDATE suggestions SET tags = ? WHERE id = ?`,
+    args: [tags, id]
   });
 
   return result.rowsAffected > 0;
