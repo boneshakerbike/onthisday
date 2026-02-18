@@ -258,6 +258,15 @@ export default function ChipboardPage() {
               {s.status === 'considering' && (
                 <>
                   <button
+                    onClick={() => {
+                      set_editing_content_id(s.id);
+                      set_edit_content(s.content);
+                    }}
+                    className="px-2 py-1 text-xs bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/30 transition-all"
+                  >
+                    Edit
+                  </button>
+                  <button
                     onClick={() => update_status(s.id, 'pending')}
                     className="px-2 py-1 text-xs bg-yellow-500/20 text-yellow-400 rounded hover:bg-yellow-500/30 transition-all"
                   >
