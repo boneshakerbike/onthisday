@@ -31,7 +31,7 @@ async function require_auth(request: NextRequest): Promise<NextResponse | null> 
     if (valid_pins.includes(pin_header)) return null;
   }
 
-  return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+  return NextResponse.json({ error: 'Authentication required' }, { status: 401, headers: cors_headers() });
 }
 
 // Proxy mutations to production when running locally

@@ -19,6 +19,7 @@ import {
   delete_suggestion,
   assign_suggestion,
   set_suggestion_blocked,
+  release_stale_assignments,
   Suggestion
 } from '@/lib/db';
 
@@ -82,6 +83,9 @@ export async function OPTIONS(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    // Release stale claims on every GET (lightweight, no-op if none expired)
+    await release_stale_assignments();
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || undefined;
     const tag = searchParams.get('tag') || undefined;

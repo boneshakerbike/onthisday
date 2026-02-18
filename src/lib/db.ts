@@ -811,9 +811,10 @@ export async function assign_suggestion(id: string, agent: string | null): Promi
   await ensure_suggestions_schema();
   const db = get_client();
 
+  const now = new Date().toISOString();
   const result = await db.execute({
-    sql: `UPDATE suggestions SET assigned_to = ?, last_context_at = CURRENT_TIMESTAMP WHERE id = ?`,
-    args: [agent, id]
+    sql: `UPDATE suggestions SET assigned_to = ?, last_context_at = ? WHERE id = ?`,
+    args: [agent, now, id]
   });
 
   return result.rowsAffected > 0;
