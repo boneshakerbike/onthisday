@@ -5,9 +5,14 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import NavTabs from '@/components/nav_tabs';
+
+interface HealthData {
+  posts: { total: number };
+  stories: { total: number };
+}
 
 interface MiniLink {
   label: string;
@@ -24,7 +29,16 @@ interface Category {
 }
 
 export default function HomePage() {
+  const [health, set_health] = useState<HealthData | null>(null);
+
   useEffect(() => { document.title = '8i11 | Home'; }, []);
+
+  useEffect(() => {
+    fetch('/api/health')
+      .then(r => r.json())
+      .then(d => { if (d.status === 'ok') set_health(d); })
+      .catch(() => {});
+  }, []);
 
   const categories: Category[] = [
     {
@@ -125,6 +139,54 @@ export default function HomePage() {
               </div>
             );
           })}
+        </div>
+
+        {/* Services */}
+        <div className="mb-10">
+          <p className="text-xs uppercase tracking-widest text-gray-600 mb-4">Services</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+
+            {/* Vercel */}
+            <div className="p-4 rounded-xl border border-white/10 bg-white/5 text-xs">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-white font-medium">▲ Vercel</span>
+                <a href="https://vercel.com/boneshakerbikes-projects/~/usage" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-cyan-400 transition-colors">Usage →</a>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between"><span className="text-gray-500">Bandwidth</span><span className="text-gray-300">100 GB/mo</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Build minutes</span><span className="text-gray-300">6,000/mo</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Functions</span><span className="text-gray-300">100 GB-hr/mo</span></div>
+              </div>
+            </div>
+
+            {/* Turso */}
+            <div className="p-4 rounded-xl border border-green-400/20 bg-white/5 text-xs">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-green-400 font-medium">◉ Turso</span>
+                <a href="https://app.turso.tech" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-cyan-400 transition-colors">Dashboard →</a>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between"><span className="text-gray-500">Posts</span><span className="text-cyan-400 font-medium">{health ? health.posts.total.toLocaleString() : '—'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Stories</span><span className="text-cyan-400 font-medium">{health ? health.stories.total.toLocaleString() : '—'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Storage limit</span><span className="text-gray-300">9 GB</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Row reads</span><span className="text-gray-300">500M/mo</span></div>
+              </div>
+            </div>
+
+            {/* Anthropic */}
+            <div className="p-4 rounded-xl border border-purple-400/20 bg-white/5 text-xs">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-purple-400 font-medium">◆ Anthropic</span>
+                <a href="https://console.anthropic.com/settings/cost" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-cyan-400 transition-colors">Usage →</a>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between"><span className="text-gray-500">Plan</span><span className="text-gray-300">Pay-as-you-go</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Story gen</span><span className="text-gray-300">~17¢/story</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Stories made</span><span className="text-cyan-400 font-medium">{health ? health.stories.total.toLocaleString() : '—'}</span></div>
+              </div>
+            </div>
+
+          </div>
         </div>
 
         <footer className="text-center text-xs text-gray-600 border-t border-white/10 pt-6 pb-4">
