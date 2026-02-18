@@ -17,6 +17,8 @@ import {
   update_suggestion_tags,
   update_suggestion_content,
   delete_suggestion,
+  assign_suggestion,
+  set_suggestion_blocked,
   Suggestion
 } from '@/lib/db';
 
@@ -83,8 +85,24 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || undefined;
     const tag = searchParams.get('tag') || undefined;
+    const is_public = searchParams.get('public') === 'true';
 
     const suggestions = await get_suggestions(status, tag);
+
+    // Public mode: filtered fields only (safe for unauthenticated agent boot)
+    if (is_public) {
+      const filtered = suggestions.map(s => ({
+        id: s.id,
+        slug: s.slug,
+        status: s.status,
+        assigned_to: s.assigned_to,
+        blocked_reason: s.blocked_reason,
+        tags: s.tags,
+        context_preview: s.context ? s.context.split('\n')[0] : null,
+        last_context_at: s.last_context_at,
+      }));
+      return NextResponse.json({ success: true, suggestions: filtered, count: filtered.length }, { headers: cors_headers() });
+    }
 
     return NextResponse.json({
       success: true,
@@ -152,13 +170,27 @@ export async function PATCH(request: NextRequest) {
   if (auth_error) return auth_error;
 
   try {
-    const { id, status, outcome, content, tags } = await request.json();
+    const { id, status, outcome, content, tags, assigned_to, blocked_reason } = await request.json();
 
     if (!id) {
       return NextResponse.json(
         { error: 'Suggestion ID is required' },
         { status: 400 }
       );
+    }
+
+    // assigned_to update
+    if (assigned_to !== undefined && !status && content === undefined && tags === undefined) {
+      const updated = await assign_suggestion(id, assigned_to || null);
+      if (!updated) return NextResponse.json({ error: 'Suggestion not found' }, { status: 404 });
+      return NextResponse.json({ success: true, message: 'Assignment updated' }, { headers: cors_headers() });
+    }
+
+    // blocked_reason update
+    if (blocked_reason !== undefined && !status && content === undefined && tags === undefined) {
+      const updated = await set_suggestion_blocked(id, blocked_reason || null);
+      if (!updated) return NextResponse.json({ error: 'Suggestion not found' }, { status: 404 });
+      return NextResponse.json({ success: true, message: 'Blocked reason updated' }, { headers: cors_headers() });
     }
 
     // Tags-only update

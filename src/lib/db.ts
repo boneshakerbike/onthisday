@@ -687,12 +687,17 @@ export async function get_adjacent_stories(date_key: string): Promise<{
 
 export interface Suggestion {
   id: string;
+  slug: string;
   content: string;
   status: 'pending' | 'considering' | 'done' | 'rejected';
   created_at: string;
   resolved_at: string | null;
   outcome: string | null;
   tags: string | null;
+  assigned_to: string | null;
+  blocked_reason: string | null;
+  context: string | null;
+  last_context_at: string | null;
 }
 
 /**
@@ -719,6 +724,21 @@ async function init_suggestions_schema(): Promise<void> {
   } catch {
     // Column already exists
   }
+
+  // Migration: agent context fields (slug, assigned_to, blocked_reason, context, last_context_at)
+  const context_migrations = [
+    `ALTER TABLE suggestions ADD COLUMN slug TEXT`,
+    `ALTER TABLE suggestions ADD COLUMN assigned_to TEXT`,
+    `ALTER TABLE suggestions ADD COLUMN blocked_reason TEXT`,
+    `ALTER TABLE suggestions ADD COLUMN context TEXT`,
+    `ALTER TABLE suggestions ADD COLUMN last_context_at TEXT`,
+  ];
+  for (const sql of context_migrations) {
+    try { await db.execute(sql); } catch { /* column already exists */ }
+  }
+
+  // Backfill: slug = id for existing rows that have no slug
+  await db.execute(`UPDATE suggestions SET slug = id WHERE slug IS NULL`);
 }
 
 // Track if suggestions schema is initialized
@@ -743,7 +763,7 @@ function generate_suggestion_id(): string {
 }
 
 /**
- * Create a new suggestion
+ * Create a new suggestion (slug defaults to id)
  */
 export async function create_suggestion(content: string, tags?: string): Promise<string> {
   await ensure_suggestions_schema();
@@ -751,11 +771,86 @@ export async function create_suggestion(content: string, tags?: string): Promise
 
   const id = generate_suggestion_id();
   await db.execute({
-    sql: `INSERT INTO suggestions (id, content, tags) VALUES (?, ?, ?)`,
-    args: [id, content, tags || null]
+    sql: `INSERT INTO suggestions (id, slug, content, tags) VALUES (?, ?, ?, ?)`,
+    args: [id, id, content, tags || null]
   });
 
   return id;
+}
+
+/**
+ * Append a context entry to a suggestion (server-side, append-only, no overwrites)
+ * Updates last_context_at for claim expiry tracking
+ */
+export async function append_suggestion_context(
+  id: string,
+  agent: string,
+  entry: string
+): Promise<boolean> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  const timestamp = new Date().toISOString();
+  const formatted_entry = `[${agent} | ${timestamp}]\n${entry}`;
+
+  const result = await db.execute({
+    sql: `UPDATE suggestions
+          SET context = CASE WHEN context IS NULL THEN ? ELSE context || '\n\n' || ? END,
+              last_context_at = ?
+          WHERE id = ?`,
+    args: [formatted_entry, formatted_entry, timestamp, id]
+  });
+
+  return result.rowsAffected > 0;
+}
+
+/**
+ * Update assigned_to field (claim an item)
+ */
+export async function assign_suggestion(id: string, agent: string | null): Promise<boolean> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: `UPDATE suggestions SET assigned_to = ?, last_context_at = CURRENT_TIMESTAMP WHERE id = ?`,
+    args: [agent, id]
+  });
+
+  return result.rowsAffected > 0;
+}
+
+/**
+ * Set or clear blocked_reason
+ */
+export async function set_suggestion_blocked(id: string, reason: string | null): Promise<boolean> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: `UPDATE suggestions SET blocked_reason = ? WHERE id = ?`,
+    args: [reason, id]
+  });
+
+  return result.rowsAffected > 0;
+}
+
+/**
+ * Auto-unassign stale claims: items assigned but last_context_at older than 48 hours
+ */
+export async function release_stale_assignments(): Promise<number> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+
+  const result = await db.execute({
+    sql: `UPDATE suggestions SET assigned_to = NULL
+          WHERE assigned_to IS NOT NULL
+            AND (last_context_at IS NULL OR last_context_at < ?)`,
+    args: [cutoff]
+  });
+
+  return result.rowsAffected;
 }
 
 /**
@@ -786,12 +881,17 @@ export async function get_suggestions(status?: string, tag?: string): Promise<Su
 
   return result.rows.map(row => ({
     id: row.id as string,
+    slug: (row.slug as string) || (row.id as string),
     content: row.content as string,
     status: row.status as Suggestion['status'],
     created_at: row.created_at as string,
     resolved_at: (row.resolved_at as string) || null,
     outcome: (row.outcome as string) || null,
-    tags: (row.tags as string) || null
+    tags: (row.tags as string) || null,
+    assigned_to: (row.assigned_to as string) || null,
+    blocked_reason: (row.blocked_reason as string) || null,
+    context: (row.context as string) || null,
+    last_context_at: (row.last_context_at as string) || null,
   }));
 }
 
@@ -812,12 +912,17 @@ export async function get_suggestion(id: string): Promise<Suggestion | null> {
   const row = result.rows[0];
   return {
     id: row.id as string,
+    slug: (row.slug as string) || (row.id as string),
     content: row.content as string,
     status: row.status as Suggestion['status'],
     created_at: row.created_at as string,
     resolved_at: (row.resolved_at as string) || null,
     outcome: (row.outcome as string) || null,
-    tags: (row.tags as string) || null
+    tags: (row.tags as string) || null,
+    assigned_to: (row.assigned_to as string) || null,
+    blocked_reason: (row.blocked_reason as string) || null,
+    context: (row.context as string) || null,
+    last_context_at: (row.last_context_at as string) || null,
   };
 }
 
