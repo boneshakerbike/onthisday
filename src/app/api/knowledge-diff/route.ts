@@ -54,9 +54,11 @@ INPUT_TRUNCATION_OR_WRONG_DOC
 and stop.
 
 Rules:
-- NOT a loss: reorganized content still present, updated values, completed tasks, additions in NEW
-- IS a loss: facts present in OLD that do not exist anywhere in NEW
+- NOT a loss: reorganized content still present (even if moved to an appendix or different section), updated values, completed tasks, additions in NEW
+- IS a loss: facts present in OLD that do not exist anywhere in NEW — including appendices, footnotes, and end-of-document sections
+- Content at the END of NEW (appendices, addendums) counts as present. Search the ENTIRE document.
 - No "appears to be" reasoning. Only diff and search based claims.
+- Check for SEMANTIC equivalence, not just exact wording. If the same fact is expressed differently, it is NOT lost.
 
 If nothing meaningful is lost:
 NO_LOSS
@@ -68,7 +70,7 @@ For each item include:
 - LABEL: short description
 - SECTION: the header where it came from in OLD
 - OLD_QUOTE: (1 to 3 exact lines from OLD)
-- ABSENT_CHECK: exact string searched in NEW and "not found"
+- ABSENT_CHECK: key fact or detail searched for in NEW (semantic, not just exact string) and "not found"
 - RECOVERY_NOTE: how to re-add it (1 sentence)
 
 OLD DOCUMENT:
@@ -133,7 +135,7 @@ Input is VERIFIED_LOSSES. Each item must include:
 - LABEL
 - SECTION
 - OLD_QUOTE (exact)
-- ABSENT_CHECK (string not found in NEW)
+- ABSENT_CHECK (detail not found in NEW)
 
 If VERIFIED_LOSSES is empty, output exactly:
 NO_LOSS
@@ -142,9 +144,11 @@ Otherwise:
 Write only the appendix content, ready to paste at end of NEW.
 Rules:
 - Include ONLY items from VERIFIED_LOSSES
+- Use the EXACT original wording from OLD_QUOTE whenever possible — copy the original text, do not rephrase it
 - Preserve exact details (URLs, file paths, IPs, commands, procedures)
 - Do NOT invent or guess
 - Do NOT restate content already present in NEW
+- Organize under a "## Appendix" header with brief sub-headers for each recovered item
 
 VERIFIED_LOSSES:
 ${analysis}`;
