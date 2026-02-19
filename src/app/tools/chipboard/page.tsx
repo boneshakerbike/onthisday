@@ -10,11 +10,17 @@ import NavTabs from '@/components/nav_tabs';
 
 interface Suggestion {
   id: string;
+  slug: string;
   content: string;
   status: 'pending' | 'considering' | 'done' | 'rejected';
   created_at: string;
   resolved_at: string | null;
   outcome: string | null;
+  tags: string | null;
+  assigned_to: string | null;
+  blocked_reason: string | null;
+  context: string | null;
+  last_context_at: string | null;
 }
 
 type GroupKey = 'pending' | 'considering' | 'completed';
@@ -28,6 +34,9 @@ export default function ChipboardPage() {
   const [edit_outcome, set_edit_outcome] = useState('');
   const [editing_content_id, set_editing_content_id] = useState<string | null>(null);
   const [edit_content, set_edit_content] = useState('');
+  const [context_open, set_context_open] = useState<string | null>(null);
+  const [context_entry, set_context_entry] = useState('');
+  const [context_submitting, set_context_submitting] = useState(false);
   const [collapsed, set_collapsed] = useState<Record<GroupKey, boolean>>({
     pending: false,
     considering: false,
@@ -132,6 +141,27 @@ export default function ChipboardPage() {
     }
   }
 
+  async function append_context(id: string) {
+    if (!context_entry.trim() || context_submitting) return;
+    set_context_submitting(true);
+    try {
+      const res = await fetch('/api/suggestions/context_append', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, agent: 'bill', entry: context_entry.trim() })
+      });
+      const data = await res.json();
+      if (data.success) {
+        set_context_entry('');
+        fetch_suggestions();
+      }
+    } catch (error) {
+      console.error('Failed to append context:', error);
+    } finally {
+      set_context_submitting(false);
+    }
+  }
+
   function format_date(date_str: string): string {
     const date = new Date(date_str);
     return date.toLocaleDateString('en-US', {
@@ -216,6 +246,31 @@ export default function ChipboardPage() {
                 Outcome: {s.outcome}
               </p>
             )}
+
+            {/* Tags */}
+            {s.tags && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {s.tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => (
+                  <span key={tag} className="px-1.5 py-0.5 text-xs bg-white/10 text-gray-400 rounded">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Assigned / Blocked */}
+            <div className="flex flex-wrap gap-2 mt-2">
+              {s.assigned_to && (
+                <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded">
+                  → {s.assigned_to}
+                </span>
+              )}
+              {s.blocked_reason && (
+                <span className="px-2 py-0.5 text-xs bg-red-500/20 text-red-400 border border-red-500/30 rounded" title={s.blocked_reason}>
+                  blocked: {s.blocked_reason.length > 40 ? s.blocked_reason.slice(0, 40) + '…' : s.blocked_reason}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Actions */}
@@ -294,6 +349,51 @@ export default function ChipboardPage() {
                 className="px-2 py-1 text-xs text-gray-500 hover:text-red-400 transition-all"
               >
                 Delete
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Context section */}
+        <div className="mt-3">
+          <button
+            onClick={() => {
+              set_context_open(context_open === s.id ? null : s.id);
+              set_context_entry('');
+            }}
+            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-all"
+          >
+            <svg className={`w-3 h-3 transition-transform ${context_open === s.id ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+            Context
+            {s.last_context_at && (
+              <span className="text-gray-600">· {format_date(s.last_context_at)}</span>
+            )}
+          </button>
+
+          {context_open === s.id && (
+            <div className="mt-2 p-3 bg-black/20 border border-white/10 rounded-lg">
+              {s.context ? (
+                <pre className="text-xs text-gray-400 whitespace-pre-wrap break-words font-mono mb-3 max-h-48 overflow-y-auto">
+                  {s.context}
+                </pre>
+              ) : (
+                <p className="text-xs text-gray-600 mb-3">No context yet.</p>
+              )}
+              <textarea
+                value={context_entry}
+                onChange={(e) => set_context_entry(e.target.value)}
+                placeholder="Append a context note… use [CORRECTION] prefix to correct prior entries"
+                rows={3}
+                className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-cyan-400/30 resize-y"
+              />
+              <button
+                onClick={() => append_context(s.id)}
+                disabled={!context_entry.trim() || context_submitting}
+                className="mt-2 px-3 py-1 text-xs bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 disabled:opacity-40 rounded transition-all"
+              >
+                {context_submitting ? 'Appending…' : 'Append'}
               </button>
             </div>
           )}
