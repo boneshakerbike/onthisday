@@ -5,6 +5,20 @@ Read this before starting work. Keep it current.
 
 ---
 
+## 0. Getting Started (Fresh Machine)
+
+```bash
+# Clone the repo
+git clone https://github.com/boneshakerbike/onthisday.git
+cd onthisday
+
+# Read this file, then CLAUDE.md for project knowledge
+```
+
+**PIN:** Write operations require `X-Guest-Pin`. If `.env.local` isn't available, ask Bill for the PIN.
+
+---
+
 ## 1. Boot Sequence
 
 On every session start:
@@ -32,7 +46,7 @@ If Chipboard is down, the app is down — same operational risk, nothing new.
 | `id` | Stable item ID |
 | `slug` | Human-readable ID (defaults to `id` for existing items) |
 | `status` | `pending` / `considering` / `done` / `rejected` |
-| `tags` | Comma-separated: ownership (`chip`, `hex`, `codex`), priority (`high`, `low`), type (`feature`, `bug`, `research`) |
+| `tags` | Comma-separated string, e.g. `"chip,feature,high"`. Categories: ownership (`chip`, `hex`, `codex`), priority (`high`, `low`), type (`feature`, `bug`, `research`) |
 | `assigned_to` | Agent currently working this item. Null = available. |
 | `blocked_reason` | Why work is stalled. Null = not blocked. |
 | `context` | Append-only log of agent notes and decisions |
@@ -113,8 +127,9 @@ POST /api/suggestions/context_append              # Append context entry (auth r
 ```
 
 Auth: session cookie (browser) or `X-Guest-Pin` header (CLI/agents).
-Note: GET is intentionally public — full payload is acceptable because Chipboard contains
-no secrets (enforced by policy) and the web UI is protected by the app's auth proxy.
+Note: GET /api/suggestions is intentionally public and returns full payload. This is safe
+because Chipboard items must never contain secrets (policy). The Chipboard web UI at
+/tools/chipboard is auth-protected — only the raw API endpoint is open.
 
 ---
 
