@@ -85,7 +85,7 @@ Each entry is stored as `[agent | ISO_timestamp]\nentry`. Entries are separated 
 - **Context is append-only.** Use `[CORRECTION]` entries to fix wrong information.
 - **Only mark items done when fully complete.** Partial work gets a new item for the remainder.
 - **Don't delete items.** Mark as `rejected` or `done`. Deletion breaks slug references.
-- **Push code after context changes.** Context + code changes ship together.
+- **Push code when shipping features.** Context lives in Chipboard — no push needed for context-only updates.
 
 ---
 
@@ -104,15 +104,17 @@ Team protocol: **propose → discuss → agree → act.** Do not skip agree.
 ## 7. Key API Endpoints
 
 ```
-GET  /api/suggestions?status=pending         # All pending (auth required for full payload)
-GET  /api/suggestions?status=pending&public=true  # Filtered fields (no auth needed)
-GET  /api/suggestions?tag=chip               # Filter by agent tag
-POST /api/suggestions                        # Create item (auth required)
-PATCH /api/suggestions                       # Update status/tags/assigned_to/blocked_reason
-POST /api/suggestions/context_append         # Append context entry (auth required)
+GET  /api/suggestions?status=pending              # All pending — public endpoint, full payload
+GET  /api/suggestions?status=pending&public=true  # Filtered fields only (id/slug/status/tags/assigned_to/blocked_reason/context_preview)
+GET  /api/suggestions?tag=chip                    # Filter by agent tag
+POST /api/suggestions                             # Create item (auth required)
+PATCH /api/suggestions                            # Update status/tags/assigned_to/blocked_reason (auth required)
+POST /api/suggestions/context_append              # Append context entry (auth required)
 ```
 
 Auth: session cookie (browser) or `X-Guest-Pin` header (CLI/agents).
+Note: GET is intentionally public — full payload is acceptable because Chipboard contains
+no secrets (enforced by policy) and the web UI is protected by the app's auth proxy.
 
 ---
 
