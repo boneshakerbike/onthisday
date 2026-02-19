@@ -59,6 +59,7 @@ export default function HomePage() {
       links: [
         { label: 'Chipboard', href: '/tools/chipboard' },
         { label: 'Markdown', href: '/tools/markdown' },
+        { label: 'Instruction Stripper', href: '/tools/instruction-stripper' },
         { label: 'Knowledge Diff', href: '/tools/knowledge-diff' },
         { label: 'Prompt Library', href: '/tools/prompt-library' },
         { label: 'Admin', href: '/tools/admin' },

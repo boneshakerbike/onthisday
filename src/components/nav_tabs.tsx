@@ -286,6 +286,13 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
           Markdown Converter
         </Link>
         <Link
+          href="/tools/instruction-stripper"
+          onClick={() => set_tools_open(false)}
+          className={dropdown_item_class}
+        >
+          Instruction Stripper
+        </Link>
+        <Link
           href="/tools/chipboard"
           onClick={() => set_tools_open(false)}
           className={dropdown_item_class}
