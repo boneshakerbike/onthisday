@@ -1,5 +1,8 @@
 # CLAUDE.md - On This Day
 
+> **Agent boot protocol:** Read `AGENTS.md` in this directory before starting work.
+> It contains the Chipboard boot sequence, context system rules, and operational policy.
+
 ## Project Overview
 
 **On This Day** is a Next.js web application that allows users to discover Substack posts published on any given date across multiple years. It serves as a personal archive explorer with AI-powered "looking back" reflections using the Claude API.
