@@ -37,8 +37,9 @@ export default function ChipboardPage() {
   const [context_open, set_context_open] = useState<string | null>(null);
   const [context_entry, set_context_entry] = useState('');
   const [context_submitting, set_context_submitting] = useState(false);
-  const [assignee_filter, set_assignee_filter] = useState<string>('all');
-  const [status_filter, set_status_filter] = useState<string>('all');
+  const [section_filters, set_section_filters] = useState<Record<GroupKey, string>>({
+    inbox: 'all', todo: 'all', inwork: 'all', completed: 'all',
+  });
   const [cleaning_up, set_cleaning_up] = useState<Set<string>>(new Set());
   const [collapsed, set_collapsed] = useState<Record<GroupKey, boolean>>({
     inbox: false,
@@ -204,31 +205,25 @@ export default function ChipboardPage() {
     set_collapsed(prev => ({ ...prev, [group]: !prev[group] }));
   }
 
-  // Collect all unique assignees for the filter
-  const all_assignees = Array.from(new Set(
-    suggestions.map(s => s.assigned_to).filter(Boolean) as string[]
-  )).sort();
+  const grouped_raw = {
+    inbox:     suggestions.filter(s => s.status === 'inbox'),
+    todo:      suggestions.filter(s => s.status === 'todo'),
+    inwork:    suggestions.filter(s => s.status === 'inwork'),
+    completed: suggestions.filter(s => s.status === 'done' || s.status === 'rejected'),
+  };
 
-  // Apply filters
-  let visible = assignee_filter === 'all'
-    ? suggestions
-    : assignee_filter === 'unassigned'
-      ? suggestions.filter(s => !s.assigned_to)
-      : suggestions.filter(s => s.assigned_to === assignee_filter);
-
-  if (status_filter !== 'all') {
-    if (status_filter === 'done') {
-      visible = visible.filter(s => s.status === 'done' || s.status === 'rejected');
-    } else {
-      visible = visible.filter(s => s.status === status_filter);
-    }
+  function apply_section_filter(items: Suggestion[], key: GroupKey): Suggestion[] {
+    const f = section_filters[key];
+    if (f === 'all') return items;
+    if (f === 'unassigned') return items.filter(s => !s.assigned_to);
+    return items.filter(s => s.assigned_to === f);
   }
 
   const grouped = {
-    inbox: visible.filter(s => s.status === 'inbox'),
-    todo: visible.filter(s => s.status === 'todo'),
-    inwork: visible.filter(s => s.status === 'inwork'),
-    completed: visible.filter(s => s.status === 'done' || s.status === 'rejected'),
+    inbox:     apply_section_filter(grouped_raw.inbox,     'inbox'),
+    todo:      apply_section_filter(grouped_raw.todo,      'todo'),
+    inwork:    apply_section_filter(grouped_raw.inwork,    'inwork'),
+    completed: apply_section_filter(grouped_raw.completed, 'completed'),
   };
 
   type ColorKey = 'orange' | 'yellow' | 'cyan' | 'gray';
@@ -494,49 +489,6 @@ export default function ChipboardPage() {
           </div>
         </form>
 
-        {/* Filters */}
-        <div className="mb-6 flex flex-col gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-gray-500 w-14">Status:</span>
-            {[
-              { value: 'all',    label: 'All' },
-              { value: 'inbox',  label: 'Inbox' },
-              { value: 'todo',   label: 'To Do' },
-              { value: 'inwork', label: 'In Work' },
-              { value: 'done',   label: 'Done' },
-            ].map(({ value, label }) => (
-              <button
-                key={value}
-                onClick={() => set_status_filter(value)}
-                className={`px-2 py-1 text-xs rounded transition-all ${
-                  status_filter === value
-                    ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50'
-                    : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/20'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {all_assignees.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs text-gray-500 w-14">Assigned:</span>
-              {['all', 'unassigned', ...all_assignees].map(a => (
-                <button
-                  key={a}
-                  onClick={() => set_assignee_filter(a)}
-                  className={`px-2 py-1 text-xs rounded transition-all ${
-                    assignee_filter === a
-                      ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
-                      : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/20'
-                  }`}
-                >
-                  {a === 'all' ? 'All' : a === 'unassigned' ? 'Unassigned' : a}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
 
         {/* Loading */}
         {loading ? (
@@ -577,12 +529,37 @@ export default function ChipboardPage() {
                   </button>
 
                   {!is_collapsed && (
-                    <div className="mt-3 space-y-3 pl-2 border-l-2 border-white/10 ml-2">
-                      {count === 0 ? (
-                        <p className="text-gray-500 text-sm py-3 pl-4">{emptyText}</p>
-                      ) : (
-                        items.map(render_suggestion)
-                      )}
+                    <div className="mt-3 pl-2 border-l-2 border-white/10 ml-2">
+                      {/* Per-section assignee filter */}
+                      {(() => {
+                        const section_assignees = Array.from(new Set(
+                          grouped_raw[key].map(s => s.assigned_to).filter(Boolean) as string[]
+                        )).sort();
+                        return section_assignees.length > 0 ? (
+                          <div className="flex items-center gap-1.5 flex-wrap px-1 pb-3">
+                            {['all', 'unassigned', ...section_assignees].map(a => (
+                              <button
+                                key={a}
+                                onClick={() => set_section_filters(prev => ({ ...prev, [key]: a }))}
+                                className={`px-2 py-0.5 text-xs rounded transition-all ${
+                                  section_filters[key] === a
+                                    ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
+                                    : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/20'
+                                }`}
+                              >
+                                {a === 'all' ? 'All' : a === 'unassigned' ? 'Unassigned' : a}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null;
+                      })()}
+                      <div className="space-y-3">
+                        {count === 0 ? (
+                          <p className="text-gray-500 text-sm py-3 pl-4">{emptyText}</p>
+                        ) : (
+                          items.map(render_suggestion)
+                        )}
+                      </div>
                     </div>
                   )}
                 </section>
