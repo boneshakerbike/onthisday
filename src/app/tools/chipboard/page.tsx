@@ -53,6 +53,19 @@ export default function ChipboardPage() {
     fetch_suggestions();
   }, []);
 
+  // Auto-expand the relevant section when a status filter is selected
+  useEffect(() => {
+    if (status_filter === 'done') {
+      set_collapsed(prev => ({ ...prev, completed: false }));
+    } else if (status_filter === 'inbox') {
+      set_collapsed(prev => ({ ...prev, inbox: false }));
+    } else if (status_filter === 'todo') {
+      set_collapsed(prev => ({ ...prev, todo: false }));
+    } else if (status_filter === 'inwork') {
+      set_collapsed(prev => ({ ...prev, inwork: false }));
+    }
+  }, [status_filter]);
+
   function api_base() {
     return window.location.hostname === 'localhost' ? 'https://8i11.vercel.app' : '';
   }
@@ -540,6 +553,9 @@ export default function ChipboardPage() {
                 cyan:   'bg-cyan-500/20 text-cyan-400',
                 gray:   'bg-gray-500/20 text-gray-400',
               };
+
+              // Hide empty sections when a status filter is active
+              if (status_filter !== 'all' && count === 0) return null;
 
               return (
                 <section key={key}>
