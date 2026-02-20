@@ -105,19 +105,19 @@ export async function GET(request: NextRequest) {
         context_preview: s.context ? s.context.split('\n')[0] : null,
         last_context_at: s.last_context_at,
       }));
-      return NextResponse.json({ success: true, suggestions: filtered, count: filtered.length }, { headers: cors_headers() });
+      return NextResponse.json({ success: true, suggestions: filtered, count: filtered.length }, { headers: cors_headers(request.headers.get('origin')) });
     }
 
     return NextResponse.json({
       success: true,
       suggestions,
       count: suggestions.length
-    }, { headers: cors_headers() });
+    }, { headers: cors_headers(request.headers.get('origin')) });
   } catch (error) {
     console.error('GET suggestions error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch suggestions' },
-      { status: 500, headers: cors_headers() }
+      { status: 500, headers: cors_headers(request.headers.get('origin')) }
     );
   }
 }
