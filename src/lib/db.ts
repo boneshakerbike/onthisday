@@ -689,7 +689,7 @@ export interface Suggestion {
   id: string;
   slug: string;
   content: string;
-  status: 'pending' | 'considering' | 'done' | 'rejected';
+  status: 'inbox' | 'todo' | 'inwork' | 'done' | 'rejected';
   created_at: string;
   resolved_at: string | null;
   outcome: string | null;
@@ -739,6 +739,9 @@ async function init_suggestions_schema(): Promise<void> {
 
   // Backfill: slug = id for existing rows that have no slug
   await db.execute(`UPDATE suggestions SET slug = id WHERE slug IS NULL`);
+
+  // Migration: rename old statuses to new ones (inbox/todo/inwork)
+  await db.execute(`UPDATE suggestions SET status = 'inbox' WHERE status IN ('pending', 'considering')`);
 }
 
 // Track if suggestions schema is initialized

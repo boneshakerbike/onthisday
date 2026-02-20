@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import Anthropic from '@anthropic-ai/sdk';
 import {
   get_suggestions,
   create_suggestion,
@@ -148,13 +149,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const id = await create_suggestion(content.trim(), tags || undefined);
+    // AI cleanup: run Haiku to clean up voice-to-text rambling before saving
+    let cleaned = content.trim();
+    const api_key = process.env.ANTHROPIC_API_KEY;
+    if (api_key) {
+      try {
+        const client = new Anthropic({ apiKey: api_key });
+        const result = await client.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 1024,
+          messages: [{
+            role: 'user',
+            content: `Clean up this task board entry. Fix punctuation, capitalization, and grammar. Remove filler words and false starts. Make it clear and concise. Preserve ALL original intent and details — don't remove any information or change the meaning. Output ONLY the cleaned text, nothing else.\n\nENTRY:\n${content.trim()}`
+          }]
+        });
+        if (result.content[0].type === 'text') {
+          cleaned = result.content[0].text.trim();
+        }
+      } catch {
+        // If AI cleanup fails, save original — don't block the user
+      }
+    }
+
+    const id = await create_suggestion(cleaned, tags || undefined);
 
     return NextResponse.json({
       success: true,
       id,
       message: 'Suggestion created'
-    }, { headers: cors_headers() });
+    }, { headers: cors_headers(request.headers.get('origin')) });
   } catch (error) {
     console.error('POST suggestions error:', error);
     return NextResponse.json(
@@ -233,10 +256,10 @@ export async function PATCH(request: NextRequest) {
       }, { headers: cors_headers() });
     }
 
-    const valid_statuses: Suggestion['status'][] = ['pending', 'considering', 'done', 'rejected'];
+    const valid_statuses: Suggestion['status'][] = ['inbox', 'todo', 'inwork', 'done', 'rejected'];
     if (!status || !valid_statuses.includes(status)) {
       return NextResponse.json(
-        { error: 'Valid status is required: pending, considering, done, rejected' },
+        { error: 'Valid status is required: inbox, todo, inwork, done, rejected' },
         { status: 400 }
       );
     }

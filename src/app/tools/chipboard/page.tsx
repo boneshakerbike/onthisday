@@ -1,6 +1,6 @@
 /**
  * Chipboard - Bugs, ideas, and everything in between
- * Organized by status groups: Pending, Considering, Done/Rejected
+ * Statuses: Inbox → To Do → In Work → Done / Rejected
  */
 
 'use client';
@@ -12,18 +12,17 @@ interface Suggestion {
   id: string;
   slug: string;
   content: string;
-  status: 'pending' | 'considering' | 'done' | 'rejected';
+  status: 'inbox' | 'todo' | 'inwork' | 'done' | 'rejected';
   created_at: string;
   resolved_at: string | null;
   outcome: string | null;
   tags: string | null;
   assigned_to: string | null;
-  blocked_reason: string | null;
   context: string | null;
   last_context_at: string | null;
 }
 
-type GroupKey = 'pending' | 'considering' | 'completed';
+type GroupKey = 'inbox' | 'todo' | 'inwork' | 'completed';
 
 export default function ChipboardPage() {
   const [suggestions, set_suggestions] = useState<Suggestion[]>([]);
@@ -37,10 +36,12 @@ export default function ChipboardPage() {
   const [context_open, set_context_open] = useState<string | null>(null);
   const [context_entry, set_context_entry] = useState('');
   const [context_submitting, set_context_submitting] = useState(false);
+  const [assignee_filter, set_assignee_filter] = useState<string>('all');
   const [collapsed, set_collapsed] = useState<Record<GroupKey, boolean>>({
-    pending: false,
-    considering: false,
-    completed: true, // Start collapsed
+    inbox: false,
+    todo: false,
+    inwork: false,
+    completed: true,
   });
 
   useEffect(() => {
@@ -125,17 +126,25 @@ export default function ChipboardPage() {
     }
   }
 
-  async function delete_suggestion(id: string) {
-    if (!confirm('Delete this suggestion?')) return;
-
+  async function save_assignee(id: string, value: string) {
     try {
-      const res = await fetch(`/api/suggestions?id=${id}`, {
-        method: 'DELETE'
+      await fetch('/api/suggestions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, assigned_to: value || null })
       });
+      fetch_suggestions();
+    } catch (error) {
+      console.error('Failed to update assignee:', error);
+    }
+  }
+
+  async function delete_suggestion(id: string) {
+    if (!confirm('Delete this item?')) return;
+    try {
+      const res = await fetch(`/api/suggestions?id=${id}`, { method: 'DELETE' });
       const data = await res.json();
-      if (data.success) {
-        fetch_suggestions();
-      }
+      if (data.success) fetch_suggestions();
     } catch (error) {
       console.error('Failed to delete suggestion:', error);
     }
@@ -164,212 +173,189 @@ export default function ChipboardPage() {
 
   function format_date(date_str: string): string {
     const date = new Date(date_str);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
   function toggle_group(group: GroupKey) {
     set_collapsed(prev => ({ ...prev, [group]: !prev[group] }));
   }
 
-  // Group suggestions by status
+  // Collect all unique assignees for the filter
+  const all_assignees = Array.from(new Set(
+    suggestions.map(s => s.assigned_to).filter(Boolean) as string[]
+  )).sort();
+
+  // Apply assignee filter
+  const visible = assignee_filter === 'all'
+    ? suggestions
+    : assignee_filter === 'unassigned'
+      ? suggestions.filter(s => !s.assigned_to)
+      : suggestions.filter(s => s.assigned_to === assignee_filter);
+
   const grouped = {
-    pending: suggestions.filter(s => s.status === 'pending'),
-    considering: suggestions.filter(s => s.status === 'considering'),
-    completed: suggestions.filter(s => s.status === 'done' || s.status === 'rejected'),
+    inbox: visible.filter(s => s.status === 'inbox'),
+    todo: visible.filter(s => s.status === 'todo'),
+    inwork: visible.filter(s => s.status === 'inwork'),
+    completed: visible.filter(s => s.status === 'done' || s.status === 'rejected'),
   };
 
-  type ColorKey = 'yellow' | 'blue' | 'gray';
+  type ColorKey = 'orange' | 'yellow' | 'cyan' | 'gray';
 
   const group_config: { key: GroupKey; title: string; color: ColorKey; emptyText: string }[] = [
-    { key: 'pending', title: 'Pending', color: 'yellow', emptyText: 'No pending items' },
-    { key: 'considering', title: 'Considering', color: 'blue', emptyText: 'Nothing under consideration' },
+    { key: 'inbox',     title: 'Inbox',       color: 'orange', emptyText: 'Inbox is empty' },
+    { key: 'todo',      title: 'To Do',       color: 'yellow', emptyText: 'Nothing queued up' },
+    { key: 'inwork',    title: 'In Work',     color: 'cyan',   emptyText: 'Nothing in progress' },
     { key: 'completed', title: 'Done / Rejected', color: 'gray', emptyText: 'No completed items' },
   ];
 
   function render_suggestion(s: Suggestion) {
     const status_colors = {
-      pending: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-      considering: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      done: 'bg-green-500/20 text-green-400 border-green-500/30',
-      rejected: 'bg-red-500/20 text-red-400 border-red-500/30'
+      inbox:    'bg-orange-500/20 text-orange-400 border-orange-500/30',
+      todo:     'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+      inwork:   'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+      done:     'bg-green-500/20 text-green-400 border-green-500/30',
+      rejected: 'bg-red-500/20 text-red-400 border-red-500/30',
+    };
+
+    const status_labels = {
+      inbox: 'Inbox', todo: 'To Do', inwork: 'In Work', done: 'Done', rejected: 'Rejected'
     };
 
     return (
-      <div
-        key={s.id}
-        className="p-4 bg-white/5 border border-white/10 rounded-lg hover:border-white/20 transition-all"
-      >
+      <div key={s.id} className="p-4 bg-white/5 border border-white/10 rounded-lg hover:border-white/20 transition-all">
         <div className="flex flex-col gap-3">
-          <div className="w-full">
-            <div className="flex items-center gap-3 mb-2 flex-wrap">
-              <span className={`px-2 py-0.5 text-xs rounded border ${status_colors[s.status]}`}>
-                {s.status}
-              </span>
-              <span className="text-xs text-gray-500">
-                {format_date(s.created_at)}
-              </span>
-            </div>
-            {editing_content_id === s.id ? (
-              <div className="flex flex-col gap-2">
-                <textarea
-                  value={edit_content}
-                  onChange={(e) => set_edit_content(e.target.value)}
-                  rows={4}
-                  className="w-full bg-white/5 border border-cyan-400/50 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none resize-y min-h-[80px]"
-                  autoFocus
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => save_content(s.id)}
-                    disabled={!edit_content.trim()}
-                    className="px-3 py-1 text-xs bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 rounded transition-all"
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={() => { set_editing_content_id(null); set_edit_content(''); }}
-                    className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20 rounded transition-all"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <p className="text-gray-200 break-words">{s.content}</p>
-            )}
-            {s.outcome && (
-              <p className="mt-2 text-sm text-gray-400 italic break-words">
-                Outcome: {s.outcome}
-              </p>
-            )}
 
-            {/* Tags */}
-            {s.tags && (
-              <div className="flex flex-wrap gap-1 mt-2">
-                {s.tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => (
-                  <span key={tag} className="px-1.5 py-0.5 text-xs bg-white/10 text-gray-400 rounded">
-                    {tag}
-                  </span>
-                ))}
-              </div>
+          {/* Header row: status badge + date + assignee */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`px-2 py-0.5 text-xs rounded border ${status_colors[s.status]}`}>
+              {status_labels[s.status]}
+            </span>
+            <span className="text-xs text-gray-500">{format_date(s.created_at)}</span>
+            {s.assigned_to && (
+              <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded">
+                {s.assigned_to}
+              </span>
             )}
-
-            {/* Assigned / Blocked */}
-            <div className="flex flex-wrap gap-2 mt-2">
-              {s.assigned_to && (
-                <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded">
-                  → {s.assigned_to}
-                </span>
-              )}
-              {s.blocked_reason && (
-                <span className="px-2 py-0.5 text-xs bg-red-500/20 text-red-400 border border-red-500/30 rounded" title={s.blocked_reason}>
-                  blocked: {s.blocked_reason.length > 40 ? s.blocked_reason.slice(0, 40) + '…' : s.blocked_reason}
-                </span>
-              )}
-            </div>
           </div>
 
-          {/* Actions */}
-          {(
-            <div className="flex items-center gap-2 flex-wrap">
-              {s.status === 'pending' && (
-                <>
-                  <button
-                    onClick={() => {
-                      set_editing_content_id(s.id);
-                      set_edit_content(s.content);
-                    }}
-                    className="px-2 py-1 text-xs bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/30 transition-all"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => update_status(s.id, 'considering')}
-                    className="px-2 py-1 text-xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-all"
-                  >
-                    Consider
-                  </button>
-                  <button
-                    onClick={() => {
-                      set_editing_id(s.id);
-                      set_edit_outcome('');
-                    }}
-                    className="px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-all"
-                  >
-                    Done
-                  </button>
-                  <button
-                    onClick={() => update_status(s.id, 'rejected')}
-                    className="px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-all"
-                  >
-                    Reject
-                  </button>
-                </>
-              )}
-              {s.status === 'considering' && (
-                <>
-                  <button
-                    onClick={() => {
-                      set_editing_content_id(s.id);
-                      set_edit_content(s.content);
-                    }}
-                    className="px-2 py-1 text-xs bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/30 transition-all"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => update_status(s.id, 'pending')}
-                    className="px-2 py-1 text-xs bg-yellow-500/20 text-yellow-400 rounded hover:bg-yellow-500/30 transition-all"
-                  >
-                    Pending
-                  </button>
-                  <button
-                    onClick={() => {
-                      set_editing_id(s.id);
-                      set_edit_outcome('');
-                    }}
-                    className="px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-all"
-                  >
-                    Done
-                  </button>
-                  <button
-                    onClick={() => update_status(s.id, 'rejected')}
-                    className="px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-all"
-                  >
-                    Reject
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => delete_suggestion(s.id)}
-                className="px-2 py-1 text-xs text-gray-500 hover:text-red-400 transition-all"
-              >
-                Delete
-              </button>
+          {/* Content */}
+          {editing_content_id === s.id ? (
+            <div className="flex flex-col gap-2">
+              <textarea
+                value={edit_content}
+                onChange={(e) => set_edit_content(e.target.value)}
+                rows={4}
+                className="w-full bg-white/5 border border-cyan-400/50 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none resize-y min-h-[80px]"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button onClick={() => save_content(s.id)} disabled={!edit_content.trim()}
+                  className="px-3 py-1 text-xs bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 rounded transition-all">
+                  Save
+                </button>
+                <button onClick={() => { set_editing_content_id(null); set_edit_content(''); }}
+                  className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20 rounded transition-all">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-gray-200 break-words">{s.content}</p>
+          )}
+
+          {s.outcome && (
+            <p className="text-sm text-gray-400 italic break-words">Outcome: {s.outcome}</p>
+          )}
+
+          {/* Tags */}
+          {s.tags && (
+            <div className="flex flex-wrap gap-1">
+              {s.tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => (
+                <span key={tag} className="px-1.5 py-0.5 text-xs bg-white/10 text-gray-400 rounded">{tag}</span>
+              ))}
             </div>
           )}
+
+          {/* Actions */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Edit content */}
+            <button onClick={() => { set_editing_content_id(s.id); set_edit_content(s.content); }}
+              className="px-2 py-1 text-xs bg-white/10 text-gray-300 rounded hover:bg-white/20 transition-all">
+              Edit
+            </button>
+
+            {/* Status progression */}
+            {s.status === 'inbox' && (
+              <>
+                <button onClick={() => update_status(s.id, 'todo')}
+                  className="px-2 py-1 text-xs bg-yellow-500/20 text-yellow-400 rounded hover:bg-yellow-500/30 transition-all">
+                  → To Do
+                </button>
+                <button onClick={() => update_status(s.id, 'rejected')}
+                  className="px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-all">
+                  Reject
+                </button>
+              </>
+            )}
+            {s.status === 'todo' && (
+              <>
+                <button onClick={() => update_status(s.id, 'inwork')}
+                  className="px-2 py-1 text-xs bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/30 transition-all">
+                  → In Work
+                </button>
+                <button onClick={() => update_status(s.id, 'inbox')}
+                  className="px-2 py-1 text-xs bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition-all">
+                  ← Inbox
+                </button>
+                <button onClick={() => update_status(s.id, 'rejected')}
+                  className="px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 transition-all">
+                  Reject
+                </button>
+              </>
+            )}
+            {s.status === 'inwork' && (
+              <>
+                <button onClick={() => { set_editing_id(s.id); set_edit_outcome(''); }}
+                  className="px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-all">
+                  Done
+                </button>
+                <button onClick={() => update_status(s.id, 'todo')}
+                  className="px-2 py-1 text-xs bg-yellow-500/20 text-yellow-400 rounded hover:bg-yellow-500/30 transition-all">
+                  ← To Do
+                </button>
+              </>
+            )}
+
+            {/* Assign to */}
+            <select
+              value={s.assigned_to || ''}
+              onChange={(e) => save_assignee(s.id, e.target.value)}
+              className="px-2 py-1 text-xs bg-white/5 border border-white/10 text-gray-400 rounded focus:outline-none focus:border-purple-400/50 cursor-pointer"
+            >
+              <option value="">Unassigned</option>
+              <option value="Chip">Chip</option>
+              <option value="Hex">Hex</option>
+              <option value="Bill">Bill</option>
+            </select>
+
+            <button onClick={() => delete_suggestion(s.id)}
+              className="px-2 py-1 text-xs text-gray-500 hover:text-red-400 transition-all ml-auto">
+              Delete
+            </button>
+          </div>
         </div>
 
         {/* Context section */}
         <div className="mt-3">
           <button
-            onClick={() => {
-              set_context_open(context_open === s.id ? null : s.id);
-              set_context_entry('');
-            }}
+            onClick={() => { set_context_open(context_open === s.id ? null : s.id); set_context_entry(''); }}
             className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-all"
           >
             <svg className={`w-3 h-3 transition-transform ${context_open === s.id ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
             Context
-            {s.last_context_at && (
-              <span className="text-gray-600">· {format_date(s.last_context_at)}</span>
-            )}
+            {s.last_context_at && <span className="text-gray-600">· {format_date(s.last_context_at)}</span>}
           </button>
 
           {context_open === s.id && (
@@ -384,7 +370,7 @@ export default function ChipboardPage() {
               <textarea
                 value={context_entry}
                 onChange={(e) => set_context_entry(e.target.value)}
-                placeholder="Append a context note… use [CORRECTION] prefix to correct prior entries"
+                placeholder="Append a context note…"
                 rows={3}
                 className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-cyan-400/30 resize-y"
               />
@@ -399,33 +385,24 @@ export default function ChipboardPage() {
           )}
         </div>
 
-        {/* Outcome input modal */}
+        {/* Done outcome modal */}
         {editing_id === s.id && (
           <div className="mt-4 p-3 bg-white/5 border border-white/10 rounded-lg">
-            <label className="block text-sm text-gray-400 mb-2">
-              What was the outcome? (optional)
-            </label>
+            <label className="block text-sm text-gray-400 mb-2">What was the outcome? (optional)</label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={edit_outcome}
                 onChange={(e) => set_edit_outcome(e.target.value)}
-                placeholder="e.g., Implemented in session 14"
+                placeholder="e.g., Shipped in session 40"
                 className="flex-1 bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400/50"
               />
-              <button
-                onClick={() => update_status(s.id, 'done', edit_outcome)}
-                className="px-4 py-2 text-sm bg-green-500 hover:bg-green-600 rounded transition-all"
-              >
+              <button onClick={() => update_status(s.id, 'done', edit_outcome)}
+                className="px-4 py-2 text-sm bg-green-500 hover:bg-green-600 rounded transition-all">
                 Save
               </button>
-              <button
-                onClick={() => {
-                  set_editing_id(null);
-                  set_edit_outcome('');
-                }}
-                className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 rounded transition-all"
-              >
+              <button onClick={() => { set_editing_id(null); set_edit_outcome(''); }}
+                className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 rounded transition-all">
                 Cancel
               </button>
             </div>
@@ -441,44 +418,60 @@ export default function ChipboardPage() {
         <NavTabs />
 
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-cyan-400 mb-2">
-            Chipboard
-          </h1>
-          <p className="text-gray-400 text-sm">
-            Bugs, ideas, and everything in between. Chip checks for new items at session start.
-          </p>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-cyan-400 mb-1">Chipboard</h1>
+          <p className="text-gray-400 text-sm">Bugs, ideas, and everything in between.</p>
         </div>
 
-        {/* New suggestion form */}
-        <form onSubmit={handle_submit} className="mb-8">
+        {/* New item form */}
+        <form onSubmit={handle_submit} className="mb-6">
           <div className="flex flex-col gap-3">
             <textarea
               value={new_content}
               onChange={(e) => set_new_content(e.target.value)}
-              placeholder="What's on your mind? Bugs, ideas, anything..."
+              placeholder="What's on your mind? AI will clean it up before saving."
               rows={3}
               className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400/50 resize-y min-h-[80px]"
             />
-            <button
-              type="submit"
-              disabled={!new_content.trim() || submitting}
-              className="self-end px-6 py-3 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-medium transition-all"
-            >
-              {submitting ? 'Adding...' : 'Add'}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="submit"
+                disabled={!new_content.trim() || submitting}
+                className="px-6 py-3 bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed rounded-lg font-medium transition-all"
+              >
+                {submitting ? 'Cleaning up & saving…' : 'Add to Inbox'}
+              </button>
+              {submitting && (
+                <span className="text-xs text-gray-500">AI is cleaning up your entry…</span>
+              )}
+            </div>
           </div>
         </form>
 
-        {/* Loading state */}
-        {loading ? (
-          <div className="text-center text-gray-500 py-12">Loading...</div>
-        ) : suggestions.length === 0 ? (
-          <div className="text-center text-gray-500 py-12 border border-white/10 rounded-lg">
-            Nothing on the board yet. Add something above!
+        {/* Assignee filter */}
+        {all_assignees.length > 0 && (
+          <div className="mb-6 flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-gray-500">Filter:</span>
+            {['all', 'unassigned', ...all_assignees].map(a => (
+              <button
+                key={a}
+                onClick={() => set_assignee_filter(a)}
+                className={`px-2 py-1 text-xs rounded transition-all ${
+                  assignee_filter === a
+                    ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
+                    : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/20'
+                }`}
+              >
+                {a === 'all' ? 'All' : a === 'unassigned' ? 'Unassigned' : a}
+              </button>
+            ))}
           </div>
+        )}
+
+        {/* Loading */}
+        {loading ? (
+          <div className="text-center text-gray-500 py-12">Loading…</div>
         ) : (
-          /* Grouped sections */
           <div className="space-y-6">
             {group_config.map(({ key, title, color, emptyText }) => {
               const items = grouped[key];
@@ -486,41 +479,33 @@ export default function ChipboardPage() {
               const is_collapsed = collapsed[key];
 
               const header_colors = {
+                orange: 'border-orange-500/30 text-orange-400',
                 yellow: 'border-yellow-500/30 text-yellow-400',
-                blue: 'border-blue-500/30 text-blue-400',
-                gray: 'border-gray-500/30 text-gray-400',
+                cyan:   'border-cyan-500/30 text-cyan-400',
+                gray:   'border-gray-500/30 text-gray-400',
               };
-
               const count_colors = {
+                orange: 'bg-orange-500/20 text-orange-400',
                 yellow: 'bg-yellow-500/20 text-yellow-400',
-                blue: 'bg-blue-500/20 text-blue-400',
-                gray: 'bg-gray-500/20 text-gray-400',
+                cyan:   'bg-cyan-500/20 text-cyan-400',
+                gray:   'bg-gray-500/20 text-gray-400',
               };
 
               return (
                 <section key={key}>
-                  {/* Section header */}
                   <button
                     onClick={() => toggle_group(key)}
                     className={`w-full flex items-center justify-between p-3 rounded-lg border bg-white/5 hover:bg-white/10 transition-all ${header_colors[color]}`}
                   >
                     <div className="flex items-center gap-3">
-                      <svg
-                        className={`w-4 h-4 transition-transform ${is_collapsed ? '' : 'rotate-90'}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
+                      <svg className={`w-4 h-4 transition-transform ${is_collapsed ? '' : 'rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
                       <span className="font-medium">{title}</span>
                     </div>
-                    <span className={`px-2 py-0.5 text-xs rounded ${count_colors[color]}`}>
-                      {count}
-                    </span>
+                    <span className={`px-2 py-0.5 text-xs rounded ${count_colors[color]}`}>{count}</span>
                   </button>
 
-                  {/* Section content */}
                   {!is_collapsed && (
                     <div className="mt-3 space-y-3 pl-2 border-l-2 border-white/10 ml-2">
                       {count === 0 ? (
@@ -536,15 +521,11 @@ export default function ChipboardPage() {
           </div>
         )}
 
-        {/* API info for Claude */}
+        {/* API info for agents */}
         <div className="mt-12 p-4 bg-white/5 border border-white/10 rounded-lg">
-          <h3 className="text-sm font-medium text-gray-400 mb-2">For Chip (Claude Code)</h3>
-          <code className="text-xs text-cyan-400">
-            GET /api/suggestions?status=pending
-          </code>
-          <p className="text-xs text-gray-500 mt-1">
-            Chip checks this endpoint at session start for new items to discuss.
-          </p>
+          <h3 className="text-sm font-medium text-gray-400 mb-2">For Chip / Hex</h3>
+          <code className="text-xs text-cyan-400">GET /api/suggestions?status=inbox</code>
+          <p className="text-xs text-gray-500 mt-1">Statuses: inbox → todo → inwork → done / rejected</p>
         </div>
       </div>
     </main>
