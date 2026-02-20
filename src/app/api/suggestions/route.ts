@@ -26,6 +26,8 @@ import {
   Suggestion
 } from '@/lib/db';
 
+export const maxDuration = 30;
+
 // CORS headers for cross-origin requests (production + localhost dev)
 const ALLOWED_ORIGINS = ['https://8i11.vercel.app', 'http://localhost:3000'];
 
@@ -183,12 +185,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // AI cleanup: generate title + clean content
-    const cleanup = await ai_cleanup(content);
-    const cleaned_content = cleanup?.content ?? content.trim();
-    const cleaned_title = cleanup?.title ?? null;
+    // Save immediately so the item always lands even if Haiku is slow
+    const id = await create_suggestion(content.trim(), null, tags || undefined);
 
-    const id = await create_suggestion(cleaned_content, cleaned_title, tags || undefined);
+    // AI cleanup: best-effort, 8s timeout — updates title + content if it succeeds
+    const cleanup = await Promise.race([
+      ai_cleanup(content),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 8000))
+    ]);
+    if (cleanup) {
+      await update_suggestion_title_and_content(id, cleanup.title, cleanup.content);
+    }
 
     return NextResponse.json({
       success: true,
