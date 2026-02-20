@@ -82,7 +82,10 @@ ${raw.trim()}`
       }]
     });
     if (result.content[0].type === 'text') {
-      const parsed = JSON.parse(result.content[0].text.trim());
+      // Strip markdown code fences if Haiku wraps the JSON anyway
+      const raw_text = result.content[0].text.trim()
+        .replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+      const parsed = JSON.parse(raw_text);
       if (parsed.title && parsed.content) return parsed;
     }
   } catch { /* fall through */ }

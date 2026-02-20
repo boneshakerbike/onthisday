@@ -40,6 +40,7 @@ export default function ChipboardPage() {
   const [section_filters, set_section_filters] = useState<Record<GroupKey, string>>({
     inbox: 'all', todo: 'all', inwork: 'all', completed: 'all',
   });
+  const [status_filter, set_status_filter] = useState<string>('all');
   const [cleaning_up, set_cleaning_up] = useState<Set<string>>(new Set());
   const [collapsed, set_collapsed] = useState<Record<GroupKey, boolean>>({
     inbox: false,
@@ -205,11 +206,15 @@ export default function ChipboardPage() {
     set_collapsed(prev => ({ ...prev, [group]: !prev[group] }));
   }
 
+  const status_filtered = status_filter === 'all' ? suggestions
+    : status_filter === 'done' ? suggestions.filter(s => s.status === 'done' || s.status === 'rejected')
+    : suggestions.filter(s => s.status === status_filter);
+
   const grouped_raw = {
-    inbox:     suggestions.filter(s => s.status === 'inbox'),
-    todo:      suggestions.filter(s => s.status === 'todo'),
-    inwork:    suggestions.filter(s => s.status === 'inwork'),
-    completed: suggestions.filter(s => s.status === 'done' || s.status === 'rejected'),
+    inbox:     status_filtered.filter(s => s.status === 'inbox'),
+    todo:      status_filtered.filter(s => s.status === 'todo'),
+    inwork:    status_filtered.filter(s => s.status === 'inwork'),
+    completed: status_filtered.filter(s => s.status === 'done' || s.status === 'rejected'),
   };
 
   function apply_section_filter(items: Suggestion[], key: GroupKey): Suggestion[] {
@@ -489,6 +494,29 @@ export default function ChipboardPage() {
           </div>
         </form>
 
+
+        {/* Status filter */}
+        <div className="flex items-center gap-2 flex-wrap mb-4">
+          {[
+            { value: 'all',    label: 'All' },
+            { value: 'inbox',  label: 'Inbox' },
+            { value: 'todo',   label: 'To Do' },
+            { value: 'inwork', label: 'In Work' },
+            { value: 'done',   label: 'Done' },
+          ].map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => set_status_filter(value)}
+              className={`px-3 py-1 text-xs rounded-full transition-all ${
+                status_filter === value
+                  ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50'
+                  : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/20'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
         {/* Loading */}
         {loading ? (
