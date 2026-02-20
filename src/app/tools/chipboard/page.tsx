@@ -11,6 +11,7 @@ import NavTabs from '@/components/nav_tabs';
 interface Suggestion {
   id: string;
   slug: string;
+  title: string | null;
   content: string;
   status: 'inbox' | 'todo' | 'inwork' | 'done' | 'rejected';
   created_at: string;
@@ -37,6 +38,8 @@ export default function ChipboardPage() {
   const [context_entry, set_context_entry] = useState('');
   const [context_submitting, set_context_submitting] = useState(false);
   const [assignee_filter, set_assignee_filter] = useState<string>('all');
+  const [status_filter, set_status_filter] = useState<string>('all');
+  const [cleaning_up, set_cleaning_up] = useState<Set<string>>(new Set());
   const [collapsed, set_collapsed] = useState<Record<GroupKey, boolean>>({
     inbox: false,
     todo: false,
@@ -126,6 +129,23 @@ export default function ChipboardPage() {
     }
   }
 
+  async function run_cleanup(id: string) {
+    set_cleaning_up(prev => new Set(prev).add(id));
+    try {
+      const res = await fetch('/api/suggestions', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, cleanup: true })
+      });
+      const data = await res.json();
+      if (data.success) fetch_suggestions();
+    } catch (error) {
+      console.error('Cleanup failed:', error);
+    } finally {
+      set_cleaning_up(prev => { const s = new Set(prev); s.delete(id); return s; });
+    }
+  }
+
   async function save_assignee(id: string, value: string) {
     try {
       await fetch('/api/suggestions', {
@@ -189,12 +209,20 @@ export default function ChipboardPage() {
     suggestions.map(s => s.assigned_to).filter(Boolean) as string[]
   )).sort();
 
-  // Apply assignee filter
-  const visible = assignee_filter === 'all'
+  // Apply filters
+  let visible = assignee_filter === 'all'
     ? suggestions
     : assignee_filter === 'unassigned'
       ? suggestions.filter(s => !s.assigned_to)
       : suggestions.filter(s => s.assigned_to === assignee_filter);
+
+  if (status_filter !== 'all') {
+    if (status_filter === 'done') {
+      visible = visible.filter(s => s.status === 'done' || s.status === 'rejected');
+    } else {
+      visible = visible.filter(s => s.status === status_filter);
+    }
+  }
 
   const grouped = {
     inbox: visible.filter(s => s.status === 'inbox'),
@@ -242,7 +270,7 @@ export default function ChipboardPage() {
             )}
           </div>
 
-          {/* Content */}
+          {/* Title + Content */}
           {editing_content_id === s.id ? (
             <div className="flex flex-col gap-2">
               <textarea
@@ -264,7 +292,12 @@ export default function ChipboardPage() {
               </div>
             </div>
           ) : (
-            <p className="text-gray-200 break-words">{s.content}</p>
+            <>
+              {s.title && (
+                <p className="text-white font-semibold break-words">{s.title}</p>
+              )}
+              <p className={`break-words ${s.title ? 'text-sm text-gray-400' : 'text-gray-200'}`}>{s.content}</p>
+            </>
           )}
 
           {s.outcome && (
@@ -286,6 +319,15 @@ export default function ChipboardPage() {
             <button onClick={() => { set_editing_content_id(s.id); set_edit_content(s.content); }}
               className="px-2 py-1 text-xs bg-white/10 text-gray-300 rounded hover:bg-white/20 transition-all">
               Edit
+            </button>
+
+            {/* AI cleanup */}
+            <button
+              onClick={() => run_cleanup(s.id)}
+              disabled={cleaning_up.has(s.id)}
+              className="px-2 py-1 text-xs bg-purple-500/20 text-purple-400 rounded hover:bg-purple-500/30 disabled:opacity-40 transition-all"
+            >
+              {cleaning_up.has(s.id) ? 'Cleaning…' : 'Clean up'}
             </button>
 
             {/* Status progression */}
@@ -452,25 +494,49 @@ export default function ChipboardPage() {
           </div>
         </form>
 
-        {/* Assignee filter */}
-        {all_assignees.length > 0 && (
-          <div className="mb-6 flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-gray-500">Filter:</span>
-            {['all', 'unassigned', ...all_assignees].map(a => (
+        {/* Filters */}
+        <div className="mb-6 flex flex-col gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-gray-500 w-14">Status:</span>
+            {[
+              { value: 'all',    label: 'All' },
+              { value: 'inbox',  label: 'Inbox' },
+              { value: 'todo',   label: 'To Do' },
+              { value: 'inwork', label: 'In Work' },
+              { value: 'done',   label: 'Done' },
+            ].map(({ value, label }) => (
               <button
-                key={a}
-                onClick={() => set_assignee_filter(a)}
+                key={value}
+                onClick={() => set_status_filter(value)}
                 className={`px-2 py-1 text-xs rounded transition-all ${
-                  assignee_filter === a
-                    ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
+                  status_filter === value
+                    ? 'bg-cyan-500/30 text-cyan-300 border border-cyan-500/50'
                     : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/20'
                 }`}
               >
-                {a === 'all' ? 'All' : a === 'unassigned' ? 'Unassigned' : a}
+                {label}
               </button>
             ))}
           </div>
-        )}
+          {all_assignees.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-gray-500 w-14">Assigned:</span>
+              {['all', 'unassigned', ...all_assignees].map(a => (
+                <button
+                  key={a}
+                  onClick={() => set_assignee_filter(a)}
+                  className={`px-2 py-1 text-xs rounded transition-all ${
+                    assignee_filter === a
+                      ? 'bg-purple-500/30 text-purple-300 border border-purple-500/50'
+                      : 'bg-white/5 text-gray-400 border border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  {a === 'all' ? 'All' : a === 'unassigned' ? 'Unassigned' : a}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Loading */}
         {loading ? (

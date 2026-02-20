@@ -13,10 +13,12 @@ import { getToken } from 'next-auth/jwt';
 import Anthropic from '@anthropic-ai/sdk';
 import {
   get_suggestions,
+  get_suggestion,
   create_suggestion,
   update_suggestion,
   update_suggestion_tags,
   update_suggestion_content,
+  update_suggestion_title_and_content,
   delete_suggestion,
   assign_suggestion,
   set_suggestion_blocked,
@@ -56,6 +58,35 @@ async function require_auth(request: NextRequest): Promise<NextResponse | null> 
     { error: 'Authentication required' },
     { status: 401, headers: cors_headers() }
   );
+}
+
+// Run Haiku to generate a short title + cleaned content from raw text
+async function ai_cleanup(raw: string): Promise<{ title: string; content: string } | null> {
+  const api_key = process.env.ANTHROPIC_API_KEY;
+  if (!api_key) return null;
+  try {
+    const client = new Anthropic({ apiKey: api_key });
+    const result = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: `You are a task board editor. Given a task entry (often voice-to-text), return ONLY valid JSON with two fields:
+- "title": 5-8 word title, imperative or noun phrase, no period at end
+- "content": full entry cleaned up — fix grammar/punctuation, remove filler words, preserve ALL details and intent
+
+Respond with raw JSON only, no markdown, no code fences.
+
+ENTRY:
+${raw.trim()}`
+      }]
+    });
+    if (result.content[0].type === 'text') {
+      const parsed = JSON.parse(result.content[0].text.trim());
+      if (parsed.title && parsed.content) return parsed;
+    }
+  } catch { /* fall through */ }
+  return null;
 }
 
 // When running locally, proxy mutations to production
@@ -149,29 +180,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // AI cleanup: run Haiku to clean up voice-to-text rambling before saving
-    let cleaned = content.trim();
-    const api_key = process.env.ANTHROPIC_API_KEY;
-    if (api_key) {
-      try {
-        const client = new Anthropic({ apiKey: api_key });
-        const result = await client.messages.create({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1024,
-          messages: [{
-            role: 'user',
-            content: `Clean up this task board entry. Fix punctuation, capitalization, and grammar. Remove filler words and false starts. Make it clear and concise. Preserve ALL original intent and details — don't remove any information or change the meaning. Output ONLY the cleaned text, nothing else.\n\nENTRY:\n${content.trim()}`
-          }]
-        });
-        if (result.content[0].type === 'text') {
-          cleaned = result.content[0].text.trim();
-        }
-      } catch {
-        // If AI cleanup fails, save original — don't block the user
-      }
-    }
+    // AI cleanup: generate title + clean content
+    const cleanup = await ai_cleanup(content);
+    const cleaned_content = cleanup?.content ?? content.trim();
+    const cleaned_title = cleanup?.title ?? null;
 
-    const id = await create_suggestion(cleaned, tags || undefined);
+    const id = await create_suggestion(cleaned_content, cleaned_title, tags || undefined);
 
     return NextResponse.json({
       success: true,
@@ -197,13 +211,23 @@ export async function PATCH(request: NextRequest) {
   if (auth_error) return auth_error;
 
   try {
-    const { id, status, outcome, content, tags, assigned_to, blocked_reason } = await request.json();
+    const { id, status, outcome, content, tags, assigned_to, blocked_reason, cleanup } = await request.json();
 
     if (!id) {
       return NextResponse.json(
         { error: 'Suggestion ID is required' },
         { status: 400 }
       );
+    }
+
+    // AI cleanup: regenerate title + clean content for an existing item
+    if (cleanup === true) {
+      const existing = await get_suggestion(id);
+      if (!existing) return NextResponse.json({ error: 'Suggestion not found' }, { status: 404 });
+      const result = await ai_cleanup(existing.content);
+      if (!result) return NextResponse.json({ error: 'AI cleanup unavailable' }, { status: 503 });
+      await update_suggestion_title_and_content(id, result.title, result.content);
+      return NextResponse.json({ success: true, message: 'Cleaned up' }, { headers: cors_headers(request.headers.get('origin')) });
     }
 
     // assigned_to update
