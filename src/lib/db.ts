@@ -780,7 +780,7 @@ export async function create_suggestion(content: string, title?: string | null, 
 
   const id = generate_suggestion_id();
   await db.execute({
-    sql: `INSERT INTO suggestions (id, slug, content, title, tags) VALUES (?, ?, ?, ?, ?)`,
+    sql: `INSERT INTO suggestions (id, slug, content, title, tags, status) VALUES (?, ?, ?, ?, ?, 'inbox')`,
     args: [id, id, content, title || null, tags || null]
   });
 
