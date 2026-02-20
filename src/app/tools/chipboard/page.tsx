@@ -523,7 +523,7 @@ export default function ChipboardPage() {
 
         {/* API info for agents */}
         <div className="mt-12 p-4 bg-white/5 border border-white/10 rounded-lg">
-          <h3 className="text-sm font-medium text-gray-400 mb-2">For Chip / Hex</h3>
+          <h3 className="text-sm font-medium text-gray-400 mb-2">API</h3>
           <code className="text-xs text-cyan-400">GET /api/suggestions?status=inbox</code>
           <p className="text-xs text-gray-500 mt-1">Statuses: inbox → todo → inwork → done / rejected</p>
         </div>
