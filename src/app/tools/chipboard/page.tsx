@@ -270,12 +270,13 @@ export default function ChipboardPage() {
       <div key={s.id} className="p-4 bg-white/5 border border-white/10 rounded-lg hover:border-white/20 transition-all">
         <div className="flex flex-col gap-3">
 
-          {/* Header row: status badge + date + assignee */}
+          {/* Header row: status badge + date + id + assignee */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className={`px-2 py-0.5 text-xs rounded border ${status_colors[s.status]}`}>
               {status_labels[s.status]}
             </span>
             <span className="text-xs text-gray-500">{format_date(s.created_at)}</span>
+            <span className="text-xs text-gray-600 font-mono">{s.id}</span>
             {s.assigned_to && (
               <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded">
                 {s.assigned_to}
