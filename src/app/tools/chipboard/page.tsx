@@ -172,7 +172,11 @@ export default function ChipboardPage() {
   }
 
   function format_date(date_str: string): string {
-    const date = new Date(date_str);
+    // SQLite CURRENT_TIMESTAMP has no timezone suffix — normalize to UTC before parsing
+    const normalized = date_str.includes('T') || date_str.endsWith('Z')
+      ? date_str
+      : date_str.replace(' ', 'T') + 'Z';
+    const date = new Date(normalized);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
