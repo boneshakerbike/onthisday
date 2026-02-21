@@ -2,6 +2,9 @@
 
 > **Agent boot protocol:** Read `AGENTS.md` in this directory before starting work.
 > It contains the Chipboard boot sequence, context system rules, and operational policy.
+>
+> **Worklog:** On session start, read Worklog (last 3 entries). On session end, write Worklog.
+> See AGENTS.md sections 1, 6, and 7 for details.
 
 ## Project Overview
 
@@ -32,29 +35,29 @@
 
 ```
 src/
-├── app/                          # Next.js App Router
-│   ├── page.tsx                  # Main dashboard (client component)
-│   ├── layout.tsx                # Root layout with session provider
-│   ├── globals.css               # Global Tailwind CSS
-│   ├── login/page.tsx            # Login page with OAuth & PIN auth
-│   ├── story/[id]/
-│   │   ├── page.tsx              # Public shareable story page
-│   │   └── share_button.tsx      # Client-side share component
-│   └── api/
-│       ├── posts/route.ts        # GET: fetch posts by date
-│       ├── upload/route.ts       # POST: batch upload archives
-│       ├── generate/route.ts     # POST: AI story generation
-│       ├── story/route.ts        # GET: fetch story by date
-│       ├── sync/route.ts         # GET: RSS feed sync
-│       ├── health/route.ts       # GET/POST: health check & cleanup
-│       ├── config/route.ts       # GET: configuration status
-│       └── auth/[...nextauth]/   # NextAuth handler
-├── components/
-│   └── session_provider.tsx      # NextAuth SessionProvider wrapper
-├── lib/
-│   ├── db.ts                     # Database abstraction & queries
-│   └── auth.ts                   # NextAuth configuration
-└── proxy.ts                      # Route protection (Next.js 16+)
++-- app/                          # Next.js App Router
+|   +-- page.tsx                  # Main dashboard (client component)
+|   +-- layout.tsx                # Root layout with session provider
+|   +-- globals.css               # Global Tailwind CSS
+|   +-- login/page.tsx            # Login page with OAuth & PIN auth
+|   +-- story/[id]/
+|   |   +-- page.tsx              # Public shareable story page
+|   |   +-- share_button.tsx      # Client-side share component
+|   +-- api/
+|       +-- posts/route.ts        # GET: fetch posts by date
+|       +-- upload/route.ts       # POST: batch upload archives
+|       +-- generate/route.ts     # POST: AI story generation
+|       +-- story/route.ts        # GET: fetch story by date
+|       +-- sync/route.ts         # GET: RSS feed sync
+|       +-- health/route.ts       # GET/POST: health check & cleanup
+|       +-- config/route.ts       # GET: configuration status
+|       +-- auth/[...nextauth]/   # NextAuth handler
++-- components/
+|   +-- session_provider.tsx      # NextAuth SessionProvider wrapper
++-- lib/
+|   +-- db.ts                     # Database abstraction & queries
+|   +-- auth.ts                   # NextAuth configuration
++-- proxy.ts                      # Route protection (Next.js 16+)
 ```
 
 ## Database Schema
