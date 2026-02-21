@@ -136,6 +136,9 @@ Status values: `info` (normal), `warning` (something needs attention), `blocked`
 
 Write only on session end. Not mid-session.
 
+If POST fails with 401/400 on penguin, check for CRLF in `~/.profile` and normalize
+line endings: `sed -i 's/\r$//' ~/.profile && source ~/.profile`
+
 ---
 
 ## 7. Truth Hierarchy
