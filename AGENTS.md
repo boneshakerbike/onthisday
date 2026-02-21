@@ -1,4 +1,4 @@
-# AGENTS.md — 8i11 Agent Boot Protocol
+# AGENTS.md -- 8i11 Agent Boot Protocol
 
 Canonical boot sequence for any agent working on this repo (Chip, Hex, Codex, or other).
 Read this before starting work. Keep it current.
@@ -24,18 +24,28 @@ cd onthisday
 On every session start:
 
 ```bash
-# Check pending tasks assigned to you (replace TAG with chip/hex/codex)
-curl -s "https://8i11.vercel.app/api/suggestions?status=pending&tag=TAG"
+# 1. Read last 3 worklog entries (what happened while you were away)
+curl -s "https://8i11.vercel.app/api/worklog?limit=3"
 
-# Or check all pending
-curl -s "https://8i11.vercel.app/api/suggestions?status=pending"
+# 2. Check tasks by status (replace TAG with chip/hex/codex)
+curl -s "https://8i11.vercel.app/api/suggestions?status=inbox&tag=TAG"
+curl -s "https://8i11.vercel.app/api/suggestions?status=todo&tag=TAG"
+curl -s "https://8i11.vercel.app/api/suggestions?status=inwork&tag=TAG"
 
-# Public read (no auth required) — for fresh environments
-curl -s "https://8i11.vercel.app/api/suggestions?status=pending&public=true"
+# Or check all non-resolved items (inbox + todo + inwork)
+curl -s "https://8i11.vercel.app/api/suggestions?status=inbox"
+curl -s "https://8i11.vercel.app/api/suggestions?status=todo"
+curl -s "https://8i11.vercel.app/api/suggestions?status=inwork"
+
+# Public read (no auth required) -- for fresh environments
+curl -s "https://8i11.vercel.app/api/suggestions?status=inbox&public=true"
 ```
 
+Summarize what changed while you were away and ask Bill for clarifications on any
+items you're assigned.
+
 Chipboard is the single source of truth for tasks and context. No local state files.
-If Chipboard is down, the app is down — same operational risk, nothing new.
+If Chipboard is down, the app is down -- same operational risk, nothing new.
 
 ---
 
@@ -45,7 +55,7 @@ If Chipboard is down, the app is down — same operational risk, nothing new.
 |-------|---------|
 | `id` | Stable item ID |
 | `slug` | Human-readable ID (defaults to `id` for existing items) |
-| `status` | `pending` / `considering` / `done` / `rejected` |
+| `status` | `inbox` / `todo` / `inwork` / `done` / `rejected` |
 | `tags` | Comma-separated string, e.g. `"chip,feature,high"`. Categories: ownership (`chip`, `hex`, `codex`), priority (`high`, `low`), type (`feature`, `bug`, `research`) |
 | `assigned_to` | Agent currently working this item. Null = available. |
 | `blocked_reason` | Why work is stalled. Null = not blocked. |
@@ -95,50 +105,91 @@ Each entry is stored as `[agent | ISO_timestamp]\nentry`. Entries are separated 
 
 ## 5. Operational Policy
 
-- **No secrets in Chipboard items.** No tokens, PINs, API keys, or credentials — ever.
+- **No secrets in Chipboard items.** No tokens, PINs, API keys, or credentials -- ever.
 - **Context is append-only.** Use `[CORRECTION]` entries to fix wrong information.
 - **Only mark items done when fully complete.** Partial work gets a new item for the remainder.
 - **Don't delete items.** Mark as `rejected` or `done`. Deletion breaks slug references.
-- **Push code when shipping features.** Context lives in Chipboard — no push needed for context-only updates.
+- **Push code when shipping features.** Context lives in Chipboard -- no push needed for context-only updates.
 
 ---
 
-## 6. Agent Roles
+## 6. Session End Protocol
+
+On every session end, POST one worklog entry:
+
+```bash
+curl -X POST https://8i11.vercel.app/api/worklog \
+  -H "Content-Type: application/json" \
+  -H "X-Worklog-Key: $(powershell -Command \"[System.Environment]::GetEnvironmentVariable('WORKLOG_API_KEY', 'User')\")" \
+  -d '{
+    "agent_id": "YOUR_AGENT",
+    "machine_id": "YOUR_MACHINE",
+    "session_id": "UUID_FROM_BOOT",
+    "summary": "Did: ...\nChanged: ...\nOpen: ...\nNeed: ...",
+    "tasks_touched": ["id1", "id2"],
+    "status": "info",
+    "tags": []
+  }'
+```
+
+Status values: `info` (normal), `warning` (something needs attention), `blocked` (cannot proceed), `done` (project milestone complete).
+
+Write only on session end. Not mid-session.
+
+---
+
+## 7. Truth Hierarchy
+
+1. **Chipboard task state** = authoritative
+2. **Worklog** = authoritative for agent activity
+3. **Local memory** = advisory only (preferences/config, never tasks)
+
+**No-stale rule:** If task status in memory conflicts with Chipboard, Chipboard wins.
+Memory never overwrites Chipboard state.
+
+---
+
+## 8. Agent Roles
 
 | Agent | Machine | Lane |
 |-------|---------|------|
 | **Chip** | penguin (Chromebook) | Implementation, deploys, architecture. Owns Chipboard triage. |
-| **Hex** | della (Windows PC) | Research, drafts, analysis. Writes to `shared-workspace/`. Does not push code. |
+| **Hex** | della (Windows PC) | Research, drafts, analysis, implementation. Has git push access to GitHub. |
 | **Codex** | della (Windows PC) | Security audits, system design, independent review. |
 
-Team protocol: **propose → discuss → agree → act.** Do not skip agree.
+Team protocol: **propose -> discuss -> agree -> act.** Do not skip agree.
 
 ---
 
-## 7. Key API Endpoints
+## 9. Key API Endpoints
 
 ```
-GET  /api/suggestions?status=pending              # All pending — public endpoint, full payload
+GET  /api/suggestions?status=pending              # All pending -- public endpoint, full payload
 GET  /api/suggestions?status=pending&public=true  # Filtered fields only (id/slug/status/tags/assigned_to/blocked_reason/context_preview)
 GET  /api/suggestions?tag=chip                    # Filter by agent tag
 POST /api/suggestions                             # Create item (auth required)
 PATCH /api/suggestions                            # Update status/tags/assigned_to/blocked_reason (auth required)
 POST /api/suggestions/context_append              # Append context entry (auth required)
+GET  /api/worklog?limit=3                         # Recent worklog entries -- public
+GET  /api/worklog?agent_id=hex                    # Filter by agent -- public
+POST /api/worklog                                 # Write worklog entry (X-Worklog-Key required)
 ```
 
-Auth: session cookie (browser) or `X-Guest-Pin` header (CLI/agents).
-Note: GET /api/suggestions is intentionally public and returns full payload. This is safe
+Auth for Chipboard: session cookie (browser) or `X-Guest-Pin` header (CLI/agents).
+Auth for Worklog: `X-Worklog-Key` header only. No guest PIN fallback.
+
+Note: GET endpoints for suggestions and worklog are intentionally public. This is safe
 because Chipboard items must never contain secrets (policy). The Chipboard web UI at
-/tools/chipboard is auth-protected — only the raw API endpoint is open.
+/tools/chipboard is auth-protected -- only the raw API endpoints are open.
 
 ---
 
-## 8. Disaster Recovery
+## 10. Disaster Recovery
 
 If local environment is lost:
 1. Clone the repo from GitHub
 2. Check Chipboard for current tasks and context
 3. Read `AGENTS.md` (this file) and `CLAUDE.md` for project knowledge
-4. Resume — no local state needed
+4. Resume -- no local state needed
 
 Chipboard + GitHub repo = complete recoverable state.
