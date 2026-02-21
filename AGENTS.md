@@ -1,21 +1,34 @@
 # AGENTS.md -- 8i11 Agent Boot Protocol
 
-Canonical boot sequence for any agent working on this repo (Chip, Hex, Codex, or other).
-Read this before starting work. Keep it current.
+This is the boot doc for any agent working on this repo (Chip, Hex, Codex, or other).
+Read this before starting work. Keep it current. No separate WELCOME.md needed.
 
 ---
 
-## 0. Getting Started (Fresh Machine)
+## 0. New Machine / New Agent Setup
 
-```bash
-# Clone the repo
-git clone https://github.com/boneshakerbike/onthisday.git
-cd onthisday
+Checklist for getting a new machine or agent operational:
 
-# Read this file, then CLAUDE.md for project knowledge
-```
-
-**PIN:** Write operations require `X-Guest-Pin`. If `.env.local` isn't available, ask Bill for the PIN.
+1. **Clone the repo**
+   ```bash
+   git clone https://github.com/boneshakerbike/onthisday.git
+   cd onthisday
+   ```
+2. **Read this file**, then `CLAUDE.md` for project knowledge
+3. **Get credentials from Bill:**
+   - `X-Guest-Pin` for Chipboard write operations
+   - `WORKLOG_API_KEY` for worklog write operations
+4. **Store WORKLOG_API_KEY as an env var** (never in code or conversation):
+   - Windows: `setx WORKLOG_API_KEY "key"` (in a separate terminal)
+   - Linux: add `export WORKLOG_API_KEY="key"` to `~/.profile`
+   - Linux: run `sed -i 's/\r$//' ~/.profile` if key was piped from Windows
+5. **Verify network access:**
+   ```bash
+   curl -s https://8i11.vercel.app/api/worklog?limit=1
+   curl -s https://8i11.vercel.app/api/suggestions?status=inbox&public=true
+   ```
+6. **Verify worklog write access** (POST should return 200)
+7. **Run the Boot Sequence** (section 1) once to confirm end-to-end
 
 ---
 
