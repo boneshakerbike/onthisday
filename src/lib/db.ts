@@ -1816,3 +1816,139 @@ export async function is_wellness_cached(date: string): Promise<boolean> {
 
   return result.rows.length > 0;
 }
+
+// ============================================================================
+// Worklog (Agent Session Summaries)
+// ============================================================================
+
+export interface WorklogEntry {
+  id: string;
+  created_at: string;
+  agent_id: string;
+  machine_id: string;
+  session_id: string;
+  summary: string;
+  tasks_touched: string[];
+  status: 'info' | 'warning' | 'blocked' | 'done';
+  tags: string[];
+}
+
+async function init_worklog_schema(): Promise<void> {
+  const db = get_client();
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS worklog (
+      id TEXT PRIMARY KEY,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      agent_id TEXT NOT NULL,
+      machine_id TEXT NOT NULL,
+      session_id TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      tasks_touched TEXT DEFAULT '[]',
+      status TEXT DEFAULT 'info',
+      tags TEXT DEFAULT '[]'
+    )
+  `);
+
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS idx_worklog_created_at ON worklog(created_at DESC)
+  `);
+
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS idx_worklog_agent_id ON worklog(agent_id)
+  `);
+}
+
+let worklog_schema_initialized = false;
+async function ensure_worklog_schema(): Promise<void> {
+  if (!worklog_schema_initialized) {
+    await init_worklog_schema();
+    worklog_schema_initialized = true;
+  }
+}
+
+/**
+ * Create a new worklog entry
+ */
+export async function create_worklog_entry(
+  agent_id: string,
+  machine_id: string,
+  session_id: string,
+  summary: string,
+  tasks_touched: string[],
+  status: WorklogEntry['status'],
+  tags: string[]
+): Promise<string> {
+  await ensure_worklog_schema();
+  const db = get_client();
+
+  const id = crypto.randomUUID();
+  await db.execute({
+    sql: `INSERT INTO worklog (id, agent_id, machine_id, session_id, summary, tasks_touched, status, tags)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [id, agent_id, machine_id, session_id, summary, JSON.stringify(tasks_touched), status, JSON.stringify(tags)]
+  });
+
+  return id;
+}
+
+/**
+ * Get recent worklog entries, optionally filtered by agent_id
+ */
+export async function get_worklog_entries(limit: number = 3, agent_id?: string): Promise<WorklogEntry[]> {
+  await ensure_worklog_schema();
+  const db = get_client();
+
+  let sql = 'SELECT * FROM worklog';
+  const args: (string | number)[] = [];
+
+  if (agent_id) {
+    sql += ' WHERE agent_id = ?';
+    args.push(agent_id);
+  }
+
+  sql += ' ORDER BY created_at DESC LIMIT ?';
+  args.push(limit);
+
+  const result = await db.execute({ sql, args });
+
+  return result.rows.map(row => ({
+    id: row.id as string,
+    created_at: row.created_at as string,
+    agent_id: row.agent_id as string,
+    machine_id: row.machine_id as string,
+    session_id: row.session_id as string,
+    summary: row.summary as string,
+    tasks_touched: JSON.parse((row.tasks_touched as string) || '[]') as string[],
+    status: row.status as WorklogEntry['status'],
+    tags: JSON.parse((row.tags as string) || '[]') as string[],
+  }));
+}
+
+/**
+ * Get a single worklog entry by ID
+ */
+export async function get_worklog_entry(id: string): Promise<WorklogEntry | null> {
+  await ensure_worklog_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'SELECT * FROM worklog WHERE id = ?',
+    args: [id]
+  });
+
+  if (result.rows.length === 0) return null;
+
+  const row = result.rows[0];
+  return {
+    id: row.id as string,
+    created_at: row.created_at as string,
+    agent_id: row.agent_id as string,
+    machine_id: row.machine_id as string,
+    session_id: row.session_id as string,
+    summary: row.summary as string,
+    tasks_touched: JSON.parse((row.tasks_touched as string) || '[]') as string[],
+    status: row.status as WorklogEntry['status'],
+    tags: JSON.parse((row.tags as string) || '[]') as string[],
+  };
+}
