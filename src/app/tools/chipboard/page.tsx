@@ -41,6 +41,7 @@ export default function ChipboardPage() {
     inbox: 'all', todo: 'all', inwork: 'all', completed: 'all',
   });
   const [status_filter, set_status_filter] = useState<string>('all');
+  const [keyword_query, set_keyword_query] = useState<string>('');
   const [cleaning_up, set_cleaning_up] = useState<Set<string>>(new Set());
   const [collapsed, set_collapsed] = useState<Record<GroupKey, boolean>>({
     inbox: false,
@@ -65,6 +66,13 @@ export default function ChipboardPage() {
       set_collapsed(prev => ({ ...prev, inwork: false }));
     }
   }, [status_filter]);
+
+  // Auto-expand all sections when a keyword search is active
+  useEffect(() => {
+    if (keyword_query.trim()) {
+      set_collapsed({ inbox: false, todo: false, inwork: false, completed: false });
+    }
+  }, [keyword_query]);
 
   function api_base() {
     return window.location.hostname === 'localhost' ? 'https://8i11.vercel.app' : '';
@@ -223,11 +231,24 @@ export default function ChipboardPage() {
     : status_filter === 'done' ? suggestions.filter(s => s.status === 'done' || s.status === 'rejected')
     : suggestions.filter(s => s.status === status_filter);
 
+  const keyword_filtered = keyword_query.trim()
+    ? status_filtered.filter(s => {
+        const q = keyword_query.toLowerCase();
+        return (
+          s.title?.toLowerCase().includes(q) ||
+          s.content.toLowerCase().includes(q) ||
+          s.tags?.toLowerCase().includes(q) ||
+          s.assigned_to?.toLowerCase().includes(q) ||
+          s.id.toLowerCase().includes(q)
+        );
+      })
+    : status_filtered;
+
   const grouped_raw = {
-    inbox:     status_filtered.filter(s => s.status === 'inbox'),
-    todo:      status_filtered.filter(s => s.status === 'todo'),
-    inwork:    status_filtered.filter(s => s.status === 'inwork'),
-    completed: status_filtered.filter(s => s.status === 'done' || s.status === 'rejected'),
+    inbox:     keyword_filtered.filter(s => s.status === 'inbox'),
+    todo:      keyword_filtered.filter(s => s.status === 'todo'),
+    inwork:    keyword_filtered.filter(s => s.status === 'inwork'),
+    completed: keyword_filtered.filter(s => s.status === 'done' || s.status === 'rejected'),
   };
 
   function apply_section_filter(items: Suggestion[], key: GroupKey): Suggestion[] {
@@ -508,6 +529,28 @@ export default function ChipboardPage() {
           </div>
         </form>
 
+
+        {/* Keyword search */}
+        <div className="relative mb-3">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
+          </svg>
+          <input
+            type="text"
+            value={keyword_query}
+            onChange={(e) => set_keyword_query(e.target.value)}
+            placeholder="Filter by keyword…"
+            className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400/50"
+          />
+          {keyword_query && (
+            <button
+              onClick={() => set_keyword_query('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-all"
+            >
+              ×
+            </button>
+          )}
+        </div>
 
         {/* Status filter */}
         <div className="flex items-center gap-2 flex-wrap mb-4">
