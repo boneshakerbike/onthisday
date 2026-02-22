@@ -2,7 +2,7 @@
  * API route: /api/worklog
  * Agent session worklog - the drift-prevention system
  *
- * GET  - Read recent worklog entries (optional ?limit=N&agent_id=X) - PUBLIC
+ * GET  - Read recent worklog entries (optional ?limit=N&agent_id=X) - REQUIRES X-Worklog-Key
  * POST - Write a worklog entry on session end - REQUIRES API KEY
  */
 
@@ -50,6 +50,9 @@ export async function OPTIONS(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const auth_error = require_worklog_key(request);
+  if (auth_error) return auth_error;
+
   try {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '3', 10) || 3, 50);

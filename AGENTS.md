@@ -24,8 +24,8 @@ Checklist for getting a new machine or agent operational:
    - Linux: run `sed -i 's/\r$//' ~/.profile` if key was piped from Windows
 5. **Verify network access:**
    ```bash
-   curl -s https://8i11.vercel.app/api/worklog?limit=1
-   curl -s https://8i11.vercel.app/api/suggestions?status=inbox&public=true
+   curl -s https://8i11.vercel.app/api/worklog?limit=1 -H "X-Worklog-Key: YOUR_WORKLOG_KEY"
+   curl -s https://8i11.vercel.app/api/suggestions?status=inbox -H "X-Guest-Pin: YOUR_PIN"
    ```
 6. **Verify worklog write access** (POST should return 200)
 7. **Run the Boot Sequence** (section 1) once to confirm end-to-end
@@ -38,20 +38,19 @@ On every session start:
 
 ```bash
 # 1. Read last 3 worklog entries (what happened while you were away)
-curl -s "https://8i11.vercel.app/api/worklog?limit=3"
+# Requires X-Worklog-Key header (same key used for POST)
+curl -s "https://8i11.vercel.app/api/worklog?limit=3" -H "X-Worklog-Key: YOUR_WORKLOG_KEY"
 
 # 2. Check tasks by status (replace TAG with chip/hex/codex)
-curl -s "https://8i11.vercel.app/api/suggestions?status=inbox&tag=TAG"
-curl -s "https://8i11.vercel.app/api/suggestions?status=todo&tag=TAG"
-curl -s "https://8i11.vercel.app/api/suggestions?status=inwork&tag=TAG"
+# Requires X-Guest-Pin header (or X-Chipboard-Key for reviewer read-only access)
+curl -s "https://8i11.vercel.app/api/suggestions?status=inbox&tag=TAG" -H "X-Guest-Pin: YOUR_PIN"
+curl -s "https://8i11.vercel.app/api/suggestions?status=todo&tag=TAG" -H "X-Guest-Pin: YOUR_PIN"
+curl -s "https://8i11.vercel.app/api/suggestions?status=inwork&tag=TAG" -H "X-Guest-Pin: YOUR_PIN"
 
 # Or check all non-resolved items (inbox + todo + inwork)
-curl -s "https://8i11.vercel.app/api/suggestions?status=inbox"
-curl -s "https://8i11.vercel.app/api/suggestions?status=todo"
-curl -s "https://8i11.vercel.app/api/suggestions?status=inwork"
-
-# Public read (no auth required) -- for fresh environments
-curl -s "https://8i11.vercel.app/api/suggestions?status=inbox&public=true"
+curl -s "https://8i11.vercel.app/api/suggestions?status=inbox" -H "X-Guest-Pin: YOUR_PIN"
+curl -s "https://8i11.vercel.app/api/suggestions?status=todo" -H "X-Guest-Pin: YOUR_PIN"
+curl -s "https://8i11.vercel.app/api/suggestions?status=inwork" -H "X-Guest-Pin: YOUR_PIN"
 ```
 
 Summarize what changed while you were away and ask Bill for clarifications on any
@@ -68,7 +67,7 @@ If Chipboard is down, the app is down -- same operational risk, nothing new.
 |-------|---------|
 | `id` | Stable item ID |
 | `slug` | Human-readable ID (defaults to `id` for existing items) |
-| `status` | `inbox` / `todo` / `inwork` / `done` / `rejected` |
+| `status` | `inbox` / `todo` / `inwork` / `testing` / `done` / `rejected` |
 | `tags` | Comma-separated string, e.g. `"chip,feature,high"`. Categories: ownership (`chip`, `hex`, `codex`), priority (`high`, `low`), type (`feature`, `bug`, `research`) |
 | `assigned_to` | Agent currently working this item. Null = available. |
 | `blocked_reason` | Why work is stalled. Null = not blocked. |
@@ -180,23 +179,29 @@ Team protocol: **propose -> discuss -> agree -> act.** Do not skip agree.
 ## 9. Key API Endpoints
 
 ```
-GET  /api/suggestions?status=pending              # All pending -- public endpoint, full payload
-GET  /api/suggestions?status=pending&public=true  # Filtered fields only (id/slug/status/tags/assigned_to/blocked_reason/context_preview)
-GET  /api/suggestions?tag=chip                    # Filter by agent tag
-POST /api/suggestions                             # Create item (auth required)
+GET  /api/suggestions?status=STATUS               # List items by status -- REQUIRES AUTH (see below)
+GET  /api/suggestions?tag=chip                    # Filter by agent tag -- REQUIRES AUTH
+POST /api/suggestions                             # Create item (X-Guest-Pin or session required)
 PATCH /api/suggestions                            # Update status/tags/assigned_to/blocked_reason (auth required)
 POST /api/suggestions/context_append              # Append context entry (auth required)
-GET  /api/worklog?limit=3                         # Recent worklog entries -- public
-GET  /api/worklog?agent_id=hex                    # Filter by agent -- public
+GET  /api/worklog?limit=3                         # Recent worklog entries -- X-Worklog-Key required
+GET  /api/worklog?agent_id=hex                    # Filter by agent -- X-Worklog-Key required
 POST /api/worklog                                 # Write worklog entry (X-Worklog-Key required)
 ```
 
-Auth for Chipboard: session cookie (browser) or `X-Guest-Pin` header (CLI/agents).
-Auth for Worklog: `X-Worklog-Key` header only. No guest PIN fallback.
+**Auth for Chipboard GET** (three tiers, any one sufficient):
+| Caller | Header | Access |
+|--------|--------|--------|
+| Reviewer agent | `X-Chipboard-Key: <key>` (from `CHIPBOARD_READ_KEYS` env var) | Read-only (GET only) |
+| Chip / Hex | `X-Guest-Pin: <pin>` | Full agent access |
+| Browser session | GitHub OAuth or Guest PIN session cookie | Full access |
+| No auth | — | 401 |
 
-Note: GET endpoints for suggestions and worklog are intentionally public. This is safe
-because Chipboard items must never contain secrets (policy). The Chipboard web UI at
-/tools/chipboard is auth-protected -- only the raw API endpoints are open.
+**Auth for Chipboard write** (POST / PATCH): `X-Guest-Pin` or valid session. Same as before.
+**Auth for Worklog** (GET and POST): `X-Worklog-Key` header only. No guest PIN fallback.
+
+`CHIPBOARD_READ_KEYS` is a comma-separated list of keys in the Vercel environment. Comma-separated
+so individual reviewer keys can be issued and revoked without rotating the shared guest PIN.
 
 ---
 

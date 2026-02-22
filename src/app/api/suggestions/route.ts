@@ -2,7 +2,7 @@
  * API route: /api/suggestions
  * Manage feature suggestions and ideas
  *
- * GET - List suggestions (optional ?status=pending filter) - PUBLIC
+ * GET - List suggestions (optional ?status=pending filter) - REQUIRES AUTH
  * POST - Create new suggestion - REQUIRES AUTH
  * PATCH - Update suggestion status - REQUIRES AUTH
  * DELETE - Remove suggestion - REQUIRES AUTH
@@ -37,7 +37,7 @@ function cors_headers(origin?: string | null) {
   return {
     'Access-Control-Allow-Origin': allowed,
     'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Guest-Pin',
+    'Access-Control-Allow-Headers': 'Content-Type, X-Guest-Pin, X-Chipboard-Key',
   };
 }
 
@@ -55,6 +55,29 @@ async function require_auth(request: NextRequest): Promise<NextResponse | null> 
     if (valid_pins.includes(pin_header)) {
       return null;
     }
+  }
+
+  return NextResponse.json(
+    { error: 'Authentication required' },
+    { status: 401, headers: cors_headers() }
+  );
+}
+
+// Read-only auth: session, X-Guest-Pin (full agent access), or X-Chipboard-Key (reviewer read-only)
+async function require_read_auth(request: NextRequest): Promise<NextResponse | null> {
+  const token = await getToken({ req: request });
+  if (token) return null;
+
+  const pin_header = request.headers.get('X-Guest-Pin');
+  if (pin_header) {
+    const valid_pins = (process.env.GUEST_PINS || process.env.GUEST_PIN || '').split(',').map(p => p.trim()).filter(Boolean);
+    if (valid_pins.includes(pin_header)) return null;
+  }
+
+  const chipboard_key = request.headers.get('X-Chipboard-Key');
+  if (chipboard_key) {
+    const valid_keys = (process.env.CHIPBOARD_READ_KEYS || '').split(',').map(k => k.trim()).filter(Boolean);
+    if (valid_keys.length > 0 && valid_keys.includes(chipboard_key)) return null;
   }
 
   return NextResponse.json(
@@ -125,6 +148,9 @@ export async function OPTIONS(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const auth_error = await require_read_auth(request);
+  if (auth_error) return auth_error;
+
   try {
     // Release stale claims on every GET (lightweight, no-op if none expired)
     await release_stale_assignments();
@@ -132,24 +158,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || undefined;
     const tag = searchParams.get('tag') || undefined;
-    const is_public = searchParams.get('public') === 'true';
 
     const suggestions = await get_suggestions(status, tag);
-
-    // Public mode: filtered fields only (safe for unauthenticated agent boot)
-    if (is_public) {
-      const filtered = suggestions.map(s => ({
-        id: s.id,
-        slug: s.slug,
-        status: s.status,
-        assigned_to: s.assigned_to,
-        blocked_reason: s.blocked_reason,
-        tags: s.tags,
-        context_preview: s.context ? s.context.split('\n')[0] : null,
-        last_context_at: s.last_context_at,
-      }));
-      return NextResponse.json({ success: true, suggestions: filtered, count: filtered.length }, { headers: cors_headers(request.headers.get('origin')) });
-    }
 
     return NextResponse.json({
       success: true,
