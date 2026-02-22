@@ -94,7 +94,9 @@ export default function AdminPage() {
             Then in curl commands the agent uses <code className="bg-white/10 px-1 rounded">$CHIPBOARD_READ_KEY</code> — the shell expands it at runtime, value never appears in logs or history.
           </p>
           <div className="mt-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded text-sm">
-            <strong className="text-blue-400">Where to find the value:</strong> Vercel → onthisday → Settings → Environment Variables → <code className="bg-white/10 px-1 rounded">CHIPBOARD_READ_KEYS</code>. That's the source of truth. If a key is lost, generate a new one and swap it in — read-only key, low stakes.
+            <strong className="text-blue-400">Where to find the value:</strong>{' '}
+            <a href="https://vercel.com/boneshakerbike/onthisday/settings/environment-variables" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline">Vercel → Environment Variables</a>
+            {' '}→ <code className="bg-white/10 px-1 rounded">CHIPBOARD_READ_KEYS</code>. That's the source of truth. If a key is lost, generate a new one and swap it in — read-only key, low stakes.
           </div>
 
           <h4 className="font-medium text-cyan-400 mt-4 mb-2">What reviewer keys can do:</h4>
