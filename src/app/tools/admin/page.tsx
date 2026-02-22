@@ -86,12 +86,15 @@ export default function AdminPage() {
 
           <h4 className="font-medium text-cyan-400 mt-4 mb-2">Storing the key on an agent machine:</h4>
           <p className="text-gray-300 mb-2">
-            Add it to the agent's shell profile (<code className="bg-white/10 px-1 rounded">~/.profile</code> or <code className="bg-white/10 px-1 rounded">~/.bashrc</code>) — never in a markdown file or git repo.
+            Store it as an environment variable — never in a markdown file or git repo.
             The agent reads it from the environment at startup.
           </p>
-          <code className="bg-white/10 px-2 py-1 rounded text-xs block mb-2">export CHIPBOARD_READ_KEY="paste-value-here"</code>
+          <p className="text-gray-400 text-sm mb-1">Linux / Mac (add to <code className="bg-white/10 px-1 rounded">~/.profile</code> or <code className="bg-white/10 px-1 rounded">~/.bashrc</code>):</p>
+          <code className="bg-white/10 px-2 py-1 rounded text-xs block mb-3">export CHIPBOARD_READ_KEY="paste-value-here"</code>
+          <p className="text-gray-400 text-sm mb-1">Windows (run in a regular terminal, then restart it):</p>
+          <code className="bg-white/10 px-2 py-1 rounded text-xs block mb-3">setx CHIPBOARD_READ_KEY "paste-value-here"</code>
           <p className="text-gray-300 mb-2">
-            Then in curl commands the agent uses <code className="bg-white/10 px-1 rounded">$CHIPBOARD_READ_KEY</code> — the shell expands it at runtime, value never appears in logs or history.
+            In curl commands the agent uses <code className="bg-white/10 px-1 rounded">$CHIPBOARD_READ_KEY</code> (Linux) or <code className="bg-white/10 px-1 rounded">%CHIPBOARD_READ_KEY%</code> (Windows cmd) — the shell expands it at runtime, value never appears in logs or history.
           </p>
           <div className="mt-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded text-sm">
             <strong className="text-blue-400">Where to find the value:</strong>{' '}
