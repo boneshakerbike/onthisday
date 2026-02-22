@@ -59,6 +59,39 @@ export default function AdminPage() {
           </ol>
         </Section>
 
+        {/* Reviewer Agent Keys */}
+        <Section title="Reviewer Agent Keys (Chipboard Read-Only)">
+          <p className="mb-3">
+            Reviewer agents (e.g. Codex, Gemini, a fresh Claude instance) can read Chipboard
+            without having the guest PIN. They get a separate read-only key via the
+            <code className="bg-white/10 px-1 rounded mx-1">CHIPBOARD_READ_KEYS</code> env var.
+            Write operations still require the guest PIN or a session.
+          </p>
+
+          <h4 className="font-medium text-cyan-400 mt-4 mb-2">To issue a key to a reviewer agent:</h4>
+          <ol className="list-decimal list-inside space-y-2 text-gray-300">
+            <li>Generate a random key — any strong string works (e.g. <code className="bg-white/10 px-1 rounded">python3 -c &quot;import secrets; print(secrets.token_urlsafe(32))&quot;</code>)</li>
+            <li>Go to <a href="https://vercel.com/boneshakerbike/onthisday/settings/environment-variables" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline">Vercel Environment Variables</a></li>
+            <li>Find <code className="bg-white/10 px-1 rounded">CHIPBOARD_READ_KEYS</code> and append the new key (comma-separated)</li>
+            <li>Save and redeploy</li>
+            <li>Give the key to the reviewer — they use it as:<br />
+              <code className="bg-white/10 px-1 rounded text-xs mt-1 block">X-Chipboard-Key: &lt;key&gt;</code>
+            </li>
+          </ol>
+
+          <h4 className="font-medium text-cyan-400 mt-4 mb-2">To revoke a key:</h4>
+          <p className="text-gray-300">
+            Remove it from <code className="bg-white/10 px-1 rounded">CHIPBOARD_READ_KEYS</code> and redeploy. Other keys keep working.
+          </p>
+
+          <h4 className="font-medium text-cyan-400 mt-4 mb-2">What reviewer keys can do:</h4>
+          <ul className="list-disc list-inside space-y-1 text-gray-300">
+            <li><strong>GET</strong> <code className="bg-white/10 px-1 rounded">/api/suggestions</code> — read Chipboard items in full</li>
+            <li><strong>Cannot</strong> POST, PATCH, DELETE, or append context</li>
+            <li><strong>Cannot</strong> access <code className="bg-white/10 px-1 rounded">/api/worklog</code> — worklog requires its own key</li>
+          </ul>
+        </Section>
+
         {/* Quick Links */}
         <Section title="Quick Links">
           <ul className="space-y-2">
@@ -97,20 +130,23 @@ export default function AdminPage() {
               </thead>
               <tbody className="text-gray-300">
                 <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4 font-medium text-gray-400 pt-4" colSpan={2}>Auth</td>
+                </tr>
+                <tr className="border-b border-white/5">
                   <td className="py-2 pr-4"><code className="text-cyan-400">GUEST_PINS</code></td>
-                  <td className="py-2">Comma-separated guest PINs</td>
+                  <td className="py-2">Comma-separated guest PINs (agent + human access)</td>
                 </tr>
                 <tr className="border-b border-white/5">
                   <td className="py-2 pr-4"><code className="text-cyan-400">GUEST_PIN</code></td>
                   <td className="py-2">Legacy single PIN (still works)</td>
                 </tr>
                 <tr className="border-b border-white/5">
-                  <td className="py-2 pr-4"><code className="text-cyan-400">ALLOWED_GITHUB_USERS</code></td>
-                  <td className="py-2">Comma-separated GitHub usernames</td>
+                  <td className="py-2 pr-4"><code className="text-cyan-400">CHIPBOARD_READ_KEYS</code></td>
+                  <td className="py-2">Comma-separated read-only keys for reviewer agents (Chipboard GET only)</td>
                 </tr>
                 <tr className="border-b border-white/5">
-                  <td className="py-2 pr-4"><code className="text-cyan-400">ANTHROPIC_API_KEY</code></td>
-                  <td className="py-2">Claude API key for story generation</td>
+                  <td className="py-2 pr-4"><code className="text-cyan-400">ALLOWED_GITHUB_USERS</code></td>
+                  <td className="py-2">Comma-separated GitHub login names allowed to authenticate</td>
                 </tr>
                 <tr className="border-b border-white/5">
                   <td className="py-2 pr-4"><code className="text-cyan-400">GITHUB_CLIENT_ID</code></td>
@@ -120,9 +156,42 @@ export default function AdminPage() {
                   <td className="py-2 pr-4"><code className="text-cyan-400">GITHUB_CLIENT_SECRET</code></td>
                   <td className="py-2">GitHub OAuth app secret</td>
                 </tr>
-                <tr>
+                <tr className="border-b border-white/5">
                   <td className="py-2 pr-4"><code className="text-cyan-400">NEXTAUTH_SECRET</code></td>
                   <td className="py-2">Session encryption key</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4 font-medium text-gray-400 pt-4" colSpan={2}>Database</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4"><code className="text-cyan-400">TURSO_DATABASE_URL</code></td>
+                  <td className="py-2">Production Turso (libSQL) database URL</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4"><code className="text-cyan-400">TURSO_AUTH_TOKEN</code></td>
+                  <td className="py-2">Production Turso auth token</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4 font-medium text-gray-400 pt-4" colSpan={2}>AI &amp; Integrations</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4"><code className="text-cyan-400">ANTHROPIC_API_KEY</code></td>
+                  <td className="py-2">Claude API key (stories, intro copy, prompt review, knowledge diff, Chipboard AI cleanup)</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4"><code className="text-cyan-400">OURA_CLIENT_ID</code></td>
+                  <td className="py-2">Oura Ring OAuth app ID</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4"><code className="text-cyan-400">OURA_CLIENT_SECRET</code></td>
+                  <td className="py-2">Oura Ring OAuth app secret</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4 font-medium text-gray-400 pt-4" colSpan={2}>Agents</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4"><code className="text-cyan-400">WORKLOG_API_KEY</code></td>
+                  <td className="py-2">API key for agent worklog read and write (<code className="bg-white/10 px-1 rounded">X-Worklog-Key</code> header)</td>
                 </tr>
               </tbody>
             </table>
