@@ -434,12 +434,10 @@ export default function ChipboardPage() {
             )}
             {s.status === 'testing' && (
               <>
-                {is_bill && (
-                  <button onClick={() => { set_editing_id(s.id); set_edit_outcome(''); }}
-                    className="px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-all">
-                    ✓ Done
-                  </button>
-                )}
+                <button onClick={() => { set_editing_id(s.id); set_edit_outcome(''); }}
+                  className="px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-all">
+                  ✓ Done
+                </button>
                 <button onClick={() => update_status(s.id, 'inwork')}
                   className="px-2 py-1 text-xs bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/30 transition-all">
                   ← In Work
