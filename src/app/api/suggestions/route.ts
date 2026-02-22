@@ -148,6 +148,14 @@ export async function OPTIONS(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  if (is_local) {
+    const { searchParams } = new URL(request.url);
+    const params = new URLSearchParams();
+    if (searchParams.get('status')) params.set('status', searchParams.get('status')!);
+    if (searchParams.get('tag')) params.set('tag', searchParams.get('tag')!);
+    return proxy_to_prod('GET', undefined, params.toString() || undefined);
+  }
+
   const auth_error = await require_read_auth(request);
   if (auth_error) return auth_error;
 

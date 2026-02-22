@@ -88,7 +88,7 @@ export default function ChipboardPage() {
 
   async function fetch_suggestions() {
     try {
-      const res = await fetch(`${api_base()}/api/suggestions`);
+      const res = await fetch('/api/suggestions');
       const data = await res.json();
       if (data.success) {
         set_suggestions(data.suggestions);
