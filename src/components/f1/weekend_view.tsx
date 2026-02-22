@@ -1,0 +1,204 @@
+'use client';
+
+import type { F1RaceSchedule, F1Driver, SessionType, F1DriverResult } from '@/lib/f1/types';
+import PredictionForm from './prediction_form';
+import ResultsReveal from './results_reveal';
+
+interface SessionInfo {
+  session_type: SessionType;
+  state: string; // 'predicting' | 'watching' | 'revealed' | 'locked'
+  prediction: { p1: string; p2: string; p3: string; fastest_lap: string | null } | null;
+  score: { perfect_match: number; podium_lock: number; almost: number; fastest_lap: number; total: number } | null;
+}
+
+interface RevealData {
+  results: F1DriverResult[];
+  fastest_lap_driver_id: string | null;
+  prediction: { p1: string; p2: string; p3: string; fastest_lap: string | null } | null;
+  score: { perfect_match: number; podium_lock: number; almost: number; fastest_lap: number; total: number } | null;
+}
+
+interface WeekendViewProps {
+  race: F1RaceSchedule;
+  sessions: SessionInfo[];
+  drivers: F1Driver[];
+  revealed_data: Record<string, RevealData>;
+  active_form: string | null; // session_type being predicted
+  on_predict_click: (session_type: SessionType) => void;
+  on_predict_cancel: () => void;
+  on_predict_submit: (session_type: SessionType, p1: string, p2: string, p3: string, fastest_lap: string | null) => void;
+  on_reveal: (session_type: SessionType) => void;
+  submitting: boolean;
+  revealing: string | null;
+  on_back: () => void;
+}
+
+const session_labels: Record<string, string> = {
+  sprint: 'Sprint Race',
+  qualifying: 'Qualifying',
+  race: 'Grand Prix',
+};
+
+function format_date(date_str: string): string {
+  const d = new Date(date_str + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+export default function WeekendView({
+  race, sessions, drivers, revealed_data, active_form,
+  on_predict_click, on_predict_cancel, on_predict_submit,
+  on_reveal, submitting, revealing, on_back,
+}: WeekendViewProps) {
+  return (
+    <div>
+      <button
+        onClick={on_back}
+        style={{
+          background: 'none',
+          border: 'none',
+          color: '#00d9ff',
+          cursor: 'pointer',
+          fontSize: '0.85rem',
+          marginBottom: '1rem',
+          padding: 0,
+        }}
+      >
+        &larr; Back to calendar
+      </button>
+
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h2 style={{ color: '#00d9ff', fontSize: '1.25rem', marginBottom: '0.25rem' }}>
+          R{race.round} {race.race_name}
+        </h2>
+        <div style={{ color: '#888', fontSize: '0.85rem' }}>
+          {race.circuit_name} &middot; {race.locality}, {race.country} &middot; {format_date(race.race_date)}
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        {sessions.map(session => {
+          const reveal = revealed_data[session.session_type];
+          const is_locked = session.state === 'locked';
+          const is_predicting = session.state === 'predicting';
+          const is_watching = session.state === 'watching';
+          const is_revealed = session.state === 'revealed';
+          const show_form = active_form === session.session_type;
+
+          return (
+            <div key={session.session_type} style={{
+              background: is_locked ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)',
+              border: `1px solid ${is_locked ? '#333' : is_revealed ? 'rgba(0,255,136,0.3)' : 'rgba(0,217,255,0.2)'}`,
+              borderRadius: '10px',
+              padding: '1rem',
+              opacity: is_locked ? 0.5 : 1,
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: show_form || is_revealed ? '0.5rem' : 0,
+              }}>
+                <div>
+                  <span style={{
+                    color: is_revealed ? '#00ff88' : is_locked ? '#555' : '#e0e0e0',
+                    fontWeight: 600,
+                    fontSize: '0.95rem',
+                  }}>
+                    {session_labels[session.session_type] || session.session_type}
+                  </span>
+                  {is_revealed && session.score && (
+                    <span style={{ color: '#00d9ff', marginLeft: '0.75rem', fontWeight: 700, fontSize: '0.85rem' }}>
+                      {session.score.total} pts
+                    </span>
+                  )}
+                </div>
+
+                <div>
+                  {is_locked && (
+                    <span style={{ color: '#555', fontSize: '0.75rem' }}>
+                      Complete previous session first
+                    </span>
+                  )}
+                  {is_predicting && !show_form && (
+                    <button
+                      onClick={() => on_predict_click(session.session_type)}
+                      style={{
+                        background: '#00d9ff',
+                        color: '#1a1a2e',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '0.4rem 0.75rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        fontSize: '0.8rem',
+                      }}
+                    >
+                      Make Prediction
+                    </button>
+                  )}
+                  {is_watching && (
+                    <button
+                      onClick={() => on_reveal(session.session_type)}
+                      disabled={revealing === session.session_type}
+                      style={{
+                        background: revealing === session.session_type ? '#444' : '#ff6b35',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '0.4rem 0.75rem',
+                        fontWeight: 700,
+                        cursor: revealing === session.session_type ? 'wait' : 'pointer',
+                        fontSize: '0.8rem',
+                      }}
+                    >
+                      {revealing === session.session_type ? 'Fetching...' : 'Reveal Results'}
+                    </button>
+                  )}
+                  {is_revealed && (
+                    <span style={{ color: '#00ff88', fontSize: '0.75rem' }}>Revealed</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Prediction form (inline) */}
+              {show_form && (
+                <PredictionForm
+                  drivers={drivers}
+                  session_type={session.session_type}
+                  on_submit={(p1, p2, p3, fl) => on_predict_submit(session.session_type, p1, p2, p3, fl)}
+                  on_cancel={on_predict_cancel}
+                  submitting={submitting}
+                />
+              )}
+
+              {/* Revealed results */}
+              {is_revealed && reveal && (
+                <ResultsReveal
+                  results={reveal.results}
+                  prediction={reveal.prediction || session.prediction}
+                  score={reveal.score || session.score}
+                  fastest_lap_driver_id={reveal.fastest_lap_driver_id}
+                  session_type={session.session_type}
+                />
+              )}
+
+              {/* Watching state - show locked prediction */}
+              {is_watching && session.prediction && (
+                <div style={{
+                  marginTop: '0.5rem',
+                  padding: '0.5rem',
+                  background: 'rgba(255,255,255,0.03)',
+                  borderRadius: '6px',
+                  color: '#888',
+                  fontSize: '0.8rem',
+                }}>
+                  Prediction locked. Watch the session, then click Reveal when ready.
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

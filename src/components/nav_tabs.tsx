@@ -362,6 +362,13 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
         >
           Breakout
         </Link>
+        <Link
+          href="/games/f1"
+          onClick={() => set_games_open(false)}
+          className={dropdown_item_class}
+        >
+          F1 Predictions
+        </Link>
       </div>
     )}
     </>
