@@ -690,7 +690,7 @@ export interface Suggestion {
   slug: string;
   content: string;
   title: string | null;
-  status: 'inbox' | 'todo' | 'inwork' | 'done' | 'rejected';
+  status: 'inbox' | 'todo' | 'inwork' | 'testing' | 'done' | 'rejected';
   created_at: string;
   resolved_at: string | null;
   outcome: string | null;
@@ -801,6 +801,24 @@ export async function update_suggestion_title_and_content(
   const result = await db.execute({
     sql: `UPDATE suggestions SET title = ?, content = ? WHERE id = ?`,
     args: [title, content, id]
+  });
+
+  return result.rowsAffected > 0;
+}
+
+/**
+ * Update a suggestion's title only
+ */
+export async function update_suggestion_title(
+  id: string,
+  title: string
+): Promise<boolean> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: `UPDATE suggestions SET title = ? WHERE id = ?`,
+    args: [title, id]
   });
 
   return result.rowsAffected > 0;

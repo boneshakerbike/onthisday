@@ -1,11 +1,12 @@
 /**
  * Chipboard - Bugs, ideas, and everything in between
- * Statuses: Inbox → To Do → In Work → Done / Rejected
+ * Statuses: Inbox → To Do → In Work → Testing → Done / Rejected
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import NavTabs from '@/components/nav_tabs';
 
 interface Suggestion {
@@ -13,7 +14,7 @@ interface Suggestion {
   slug: string;
   title: string | null;
   content: string;
-  status: 'inbox' | 'todo' | 'inwork' | 'done' | 'rejected';
+  status: 'inbox' | 'todo' | 'inwork' | 'testing' | 'done' | 'rejected';
   created_at: string;
   resolved_at: string | null;
   outcome: string | null;
@@ -23,9 +24,12 @@ interface Suggestion {
   last_context_at: string | null;
 }
 
-type GroupKey = 'inbox' | 'todo' | 'inwork' | 'completed';
+type GroupKey = 'inbox' | 'todo' | 'inwork' | 'testing' | 'completed';
 
 export default function ChipboardPage() {
+  const { data: session } = useSession();
+  const is_bill = !!(session?.user && (session.user as {id?: string}).id !== 'guest');
+
   const [suggestions, set_suggestions] = useState<Suggestion[]>([]);
   const [new_content, set_new_content] = useState('');
   const [loading, set_loading] = useState(true);
@@ -34,11 +38,12 @@ export default function ChipboardPage() {
   const [edit_outcome, set_edit_outcome] = useState('');
   const [editing_content_id, set_editing_content_id] = useState<string | null>(null);
   const [edit_content, set_edit_content] = useState('');
+  const [edit_title, set_edit_title] = useState('');
   const [context_open, set_context_open] = useState<string | null>(null);
   const [context_entry, set_context_entry] = useState('');
   const [context_submitting, set_context_submitting] = useState(false);
   const [section_filters, set_section_filters] = useState<Record<GroupKey, string>>({
-    inbox: 'all', todo: 'all', inwork: 'all', completed: 'all',
+    inbox: 'all', todo: 'all', inwork: 'all', testing: 'all', completed: 'all',
   });
   const [status_filter, set_status_filter] = useState<string>('all');
   const [keyword_query, set_keyword_query] = useState<string>('');
@@ -47,6 +52,7 @@ export default function ChipboardPage() {
     inbox: false,
     todo: false,
     inwork: false,
+    testing: false,
     completed: true,
   });
 
@@ -64,13 +70,15 @@ export default function ChipboardPage() {
       set_collapsed(prev => ({ ...prev, todo: false }));
     } else if (status_filter === 'inwork') {
       set_collapsed(prev => ({ ...prev, inwork: false }));
+    } else if (status_filter === 'testing') {
+      set_collapsed(prev => ({ ...prev, testing: false }));
     }
   }, [status_filter]);
 
   // Auto-expand all sections when a keyword search is active
   useEffect(() => {
     if (keyword_query.trim()) {
-      set_collapsed({ inbox: false, todo: false, inwork: false, completed: false });
+      set_collapsed({ inbox: false, todo: false, inwork: false, testing: false, completed: false });
     }
   }, [keyword_query]);
 
@@ -136,15 +144,18 @@ export default function ChipboardPage() {
   async function save_content(id: string) {
     if (!edit_content.trim()) return;
     try {
+      const body: Record<string, string> = { id, content: edit_content.trim() };
+      if (edit_title.trim()) body.title = edit_title.trim();
       const res = await fetch('/api/suggestions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, content: edit_content.trim() })
+        body: JSON.stringify(body)
       });
       const data = await res.json();
       if (data.success) {
         set_editing_content_id(null);
         set_edit_content('');
+        set_edit_title('');
         fetch_suggestions();
       }
     } catch (error) {
@@ -248,6 +259,7 @@ export default function ChipboardPage() {
     inbox:     keyword_filtered.filter(s => s.status === 'inbox'),
     todo:      keyword_filtered.filter(s => s.status === 'todo'),
     inwork:    keyword_filtered.filter(s => s.status === 'inwork'),
+    testing:   keyword_filtered.filter(s => s.status === 'testing'),
     completed: keyword_filtered.filter(s => s.status === 'done' || s.status === 'rejected'),
   };
 
@@ -262,16 +274,18 @@ export default function ChipboardPage() {
     inbox:     apply_section_filter(grouped_raw.inbox,     'inbox'),
     todo:      apply_section_filter(grouped_raw.todo,      'todo'),
     inwork:    apply_section_filter(grouped_raw.inwork,    'inwork'),
+    testing:   apply_section_filter(grouped_raw.testing,   'testing'),
     completed: apply_section_filter(grouped_raw.completed, 'completed'),
   };
 
-  type ColorKey = 'orange' | 'yellow' | 'cyan' | 'gray';
+  type ColorKey = 'orange' | 'yellow' | 'cyan' | 'amber' | 'gray';
 
   const group_config: { key: GroupKey; title: string; color: ColorKey; emptyText: string }[] = [
-    { key: 'inbox',     title: 'Inbox',       color: 'orange', emptyText: 'Inbox is empty' },
-    { key: 'todo',      title: 'To Do',       color: 'yellow', emptyText: 'Nothing queued up' },
-    { key: 'inwork',    title: 'In Work',     color: 'cyan',   emptyText: 'Nothing in progress' },
-    { key: 'completed', title: 'Done / Rejected', color: 'gray', emptyText: 'No completed items' },
+    { key: 'inbox',     title: 'Inbox',           color: 'orange', emptyText: 'Inbox is empty' },
+    { key: 'todo',      title: 'To Do',           color: 'yellow', emptyText: 'Nothing queued up' },
+    { key: 'inwork',    title: 'In Work',         color: 'cyan',   emptyText: 'Nothing in progress' },
+    { key: 'testing',   title: 'Testing',         color: 'amber',  emptyText: 'Nothing in testing' },
+    { key: 'completed', title: 'Done / Rejected', color: 'gray',   emptyText: 'No completed items' },
   ];
 
   function render_suggestion(s: Suggestion) {
@@ -279,12 +293,13 @@ export default function ChipboardPage() {
       inbox:    'bg-orange-500/20 text-orange-400 border-orange-500/30',
       todo:     'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
       inwork:   'bg-cyan-500/20 text-cyan-400 border-cyan-500/30',
+      testing:  'bg-amber-500/20 text-amber-400 border-amber-500/30',
       done:     'bg-green-500/20 text-green-400 border-green-500/30',
       rejected: 'bg-red-500/20 text-red-400 border-red-500/30',
     };
 
     const status_labels = {
-      inbox: 'Inbox', todo: 'To Do', inwork: 'In Work', done: 'Done', rejected: 'Rejected'
+      inbox: 'Inbox', todo: 'To Do', inwork: 'In Work', testing: 'Testing', done: 'Done', rejected: 'Rejected'
     };
 
     return (
@@ -308,6 +323,13 @@ export default function ChipboardPage() {
           {/* Title + Content */}
           {editing_content_id === s.id ? (
             <div className="flex flex-col gap-2">
+              <input
+                type="text"
+                value={edit_title}
+                onChange={(e) => set_edit_title(e.target.value)}
+                placeholder="Title (optional)"
+                className="w-full bg-white/5 border border-cyan-400/30 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none"
+              />
               <textarea
                 value={edit_content}
                 onChange={(e) => set_edit_content(e.target.value)}
@@ -320,7 +342,7 @@ export default function ChipboardPage() {
                   className="px-3 py-1 text-xs bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 rounded transition-all">
                   Save
                 </button>
-                <button onClick={() => { set_editing_content_id(null); set_edit_content(''); }}
+                <button onClick={() => { set_editing_content_id(null); set_edit_content(''); set_edit_title(''); }}
                   className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20 rounded transition-all">
                   Cancel
                 </button>
@@ -351,7 +373,7 @@ export default function ChipboardPage() {
           {/* Actions */}
           <div className="flex items-center gap-2 flex-wrap">
             {/* Edit content */}
-            <button onClick={() => { set_editing_content_id(s.id); set_edit_content(s.content); }}
+            <button onClick={() => { set_editing_content_id(s.id); set_edit_content(s.content); set_edit_title(s.title || ''); }}
               className="px-2 py-1 text-xs bg-white/10 text-gray-300 rounded hover:bg-white/20 transition-all">
               Edit
             </button>
@@ -384,6 +406,10 @@ export default function ChipboardPage() {
                   className="px-2 py-1 text-xs bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/30 transition-all">
                   → In Work
                 </button>
+                <button onClick={() => update_status(s.id, 'testing')}
+                  className="px-2 py-1 text-xs bg-amber-500/20 text-amber-400 rounded hover:bg-amber-500/30 transition-all">
+                  → Testing
+                </button>
                 <button onClick={() => update_status(s.id, 'inbox')}
                   className="px-2 py-1 text-xs bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition-all">
                   ← Inbox
@@ -396,13 +422,27 @@ export default function ChipboardPage() {
             )}
             {s.status === 'inwork' && (
               <>
-                <button onClick={() => { set_editing_id(s.id); set_edit_outcome(''); }}
-                  className="px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-all">
-                  Done
+                <button onClick={() => update_status(s.id, 'testing')}
+                  className="px-2 py-1 text-xs bg-amber-500/20 text-amber-400 rounded hover:bg-amber-500/30 transition-all">
+                  → Testing
                 </button>
                 <button onClick={() => update_status(s.id, 'todo')}
                   className="px-2 py-1 text-xs bg-yellow-500/20 text-yellow-400 rounded hover:bg-yellow-500/30 transition-all">
                   ← To Do
+                </button>
+              </>
+            )}
+            {s.status === 'testing' && (
+              <>
+                {is_bill && (
+                  <button onClick={() => { set_editing_id(s.id); set_edit_outcome(''); }}
+                    className="px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-all">
+                    ✓ Done
+                  </button>
+                )}
+                <button onClick={() => update_status(s.id, 'inwork')}
+                  className="px-2 py-1 text-xs bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/30 transition-all">
+                  ← In Work
                 </button>
               </>
             )}
@@ -419,10 +459,12 @@ export default function ChipboardPage() {
               <option value="Bill">Bill</option>
             </select>
 
-            <button onClick={() => delete_suggestion(s.id)}
-              className="px-2 py-1 text-xs text-gray-500 hover:text-red-400 transition-all ml-auto">
-              Delete
-            </button>
+            {is_bill && (
+              <button onClick={() => delete_suggestion(s.id)}
+                className="px-2 py-1 text-xs text-gray-500 hover:text-red-400 transition-all ml-auto">
+                Delete
+              </button>
+            )}
           </div>
         </div>
 
@@ -555,11 +597,12 @@ export default function ChipboardPage() {
         {/* Status filter */}
         <div className="flex items-center gap-2 flex-wrap mb-4">
           {[
-            { value: 'all',    label: 'All' },
-            { value: 'inbox',  label: 'Inbox' },
-            { value: 'todo',   label: 'To Do' },
-            { value: 'inwork', label: 'In Work' },
-            { value: 'done',   label: 'Done' },
+            { value: 'all',     label: 'All' },
+            { value: 'inbox',   label: 'Inbox' },
+            { value: 'todo',    label: 'To Do' },
+            { value: 'inwork',  label: 'In Work' },
+            { value: 'testing', label: 'Testing' },
+            { value: 'done',    label: 'Done' },
           ].map(({ value, label }) => (
             <button
               key={value}
@@ -589,12 +632,14 @@ export default function ChipboardPage() {
                 orange: 'border-orange-500/30 text-orange-400',
                 yellow: 'border-yellow-500/30 text-yellow-400',
                 cyan:   'border-cyan-500/30 text-cyan-400',
+                amber:  'border-amber-500/30 text-amber-400',
                 gray:   'border-gray-500/30 text-gray-400',
               };
               const count_colors = {
                 orange: 'bg-orange-500/20 text-orange-400',
                 yellow: 'bg-yellow-500/20 text-yellow-400',
                 cyan:   'bg-cyan-500/20 text-cyan-400',
+                amber:  'bg-amber-500/20 text-amber-400',
                 gray:   'bg-gray-500/20 text-gray-400',
               };
 
@@ -660,7 +705,7 @@ export default function ChipboardPage() {
         <div className="mt-12 p-4 bg-white/5 border border-white/10 rounded-lg">
           <h3 className="text-sm font-medium text-gray-400 mb-2">API</h3>
           <code className="text-xs text-cyan-400">GET /api/suggestions?status=inbox</code>
-          <p className="text-xs text-gray-500 mt-1">Statuses: inbox → todo → inwork → done / rejected</p>
+          <p className="text-xs text-gray-500 mt-1">Statuses: inbox → todo → inwork → testing → done / rejected</p>
         </div>
       </div>
     </main>

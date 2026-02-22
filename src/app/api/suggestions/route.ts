@@ -18,6 +18,7 @@ import {
   update_suggestion,
   update_suggestion_tags,
   update_suggestion_content,
+  update_suggestion_title,
   update_suggestion_title_and_content,
   delete_suggestion,
   assign_suggestion,
@@ -60,6 +61,11 @@ async function require_auth(request: NextRequest): Promise<NextResponse | null> 
     { error: 'Authentication required' },
     { status: 401, headers: cors_headers() }
   );
+}
+
+async function is_bill_request(request: NextRequest): Promise<boolean> {
+  const token = await getToken({ req: request });
+  return !!token && token.sub !== 'guest';
 }
 
 // Run Haiku to generate a short title + cleaned content from raw text
@@ -221,7 +227,7 @@ export async function PATCH(request: NextRequest) {
   if (auth_error) return auth_error;
 
   try {
-    const { id, status, outcome, content, tags, assigned_to, blocked_reason, cleanup } = await request.json();
+    const { id, status, outcome, title, content, tags, assigned_to, blocked_reason, cleanup } = await request.json();
 
     if (!id) {
       return NextResponse.json(
@@ -269,15 +275,22 @@ export async function PATCH(request: NextRequest) {
       }, { headers: cors_headers() });
     }
 
-    // Content-only edit (no status change)
-    if (content !== undefined && !status) {
-      if (typeof content !== 'string' || content.trim().length === 0) {
+    // Title/content edit (no status change) — handles title-only, content-only, or both
+    if ((content !== undefined || title !== undefined) && !status) {
+      if (content !== undefined && (typeof content !== 'string' || content.trim().length === 0)) {
         return NextResponse.json(
           { error: 'Content cannot be empty' },
           { status: 400 }
         );
       }
-      const updated = await update_suggestion_content(id, content.trim());
+      let updated: boolean;
+      if (title !== undefined && content !== undefined) {
+        updated = await update_suggestion_title_and_content(id, title.trim(), content.trim());
+      } else if (title !== undefined) {
+        updated = await update_suggestion_title(id, title.trim());
+      } else {
+        updated = await update_suggestion_content(id, content!.trim());
+      }
       if (!updated) {
         return NextResponse.json(
           { error: 'Suggestion not found' },
@@ -286,15 +299,23 @@ export async function PATCH(request: NextRequest) {
       }
       return NextResponse.json({
         success: true,
-        message: 'Suggestion content updated'
+        message: 'Suggestion updated'
       }, { headers: cors_headers() });
     }
 
-    const valid_statuses: Suggestion['status'][] = ['inbox', 'todo', 'inwork', 'done', 'rejected'];
+    const valid_statuses: Suggestion['status'][] = ['inbox', 'todo', 'inwork', 'testing', 'done', 'rejected'];
     if (!status || !valid_statuses.includes(status)) {
       return NextResponse.json(
-        { error: 'Valid status is required: inbox, todo, inwork, done, rejected' },
+        { error: 'Valid status is required: inbox, todo, inwork, testing, done, rejected' },
         { status: 400 }
+      );
+    }
+
+    // Only Bill can mark items done
+    if (status === 'done' && !(await is_bill_request(request))) {
+      return NextResponse.json(
+        { error: 'Only Bill can mark items done' },
+        { status: 403, headers: cors_headers() }
       );
     }
 
@@ -328,6 +349,13 @@ export async function DELETE(request: NextRequest) {
 
   const auth_error = await require_auth(request);
   if (auth_error) return auth_error;
+
+  if (!(await is_bill_request(request))) {
+    return NextResponse.json(
+      { error: 'Only Bill can delete items' },
+      { status: 403, headers: cors_headers() }
+    );
+  }
 
   try {
     const { searchParams } = new URL(request.url);
