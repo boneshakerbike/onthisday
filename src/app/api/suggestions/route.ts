@@ -311,14 +311,6 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Only Bill can mark items done
-    if (status === 'done' && !(await is_bill_request(request))) {
-      return NextResponse.json(
-        { error: 'Only Bill can mark items done' },
-        { status: 403, headers: cors_headers() }
-      );
-    }
-
     const updated = await update_suggestion(id, status, outcome);
 
     if (!updated) {
