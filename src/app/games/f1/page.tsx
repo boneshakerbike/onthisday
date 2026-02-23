@@ -201,6 +201,8 @@ export default function F1Page() {
           padding: 1.5rem 1rem;
           min-height: 100vh;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          background: #15151e;
+          color: #e0e0e0;
         }
         .f1-header {
           text-align: center;
@@ -311,6 +313,7 @@ export default function F1Page() {
         }
       `}</style>
 
+      <div style={{ background: '#15151e', minHeight: '100vh' }}>
       <div className="f1-page">
         <div className="f1-header">
           <div className="f1-title">
@@ -427,6 +430,7 @@ export default function F1Page() {
             )}
           </>
         )}
+      </div>
       </div>
     </>
   );
