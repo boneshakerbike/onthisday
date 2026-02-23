@@ -457,6 +457,12 @@ export default function ChipboardPage() {
                 </button>
               </>
             )}
+            {(s.status === 'done' || s.status === 'rejected') && (
+              <button onClick={() => update_status(s.id, 'inbox')}
+                className="px-2 py-1 text-xs bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition-all">
+                ← Inbox
+              </button>
+            )}
 
             {/* Assign to */}
             <select

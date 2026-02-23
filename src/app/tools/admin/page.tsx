@@ -62,52 +62,24 @@ export default function AdminPage() {
         {/* Reviewer Agent Keys */}
         <Section title="Reviewer Agent Keys (Chipboard Read-Only)">
           <p className="mb-3">
-            Reviewer agents (e.g. Codex, Gemini, a fresh Claude instance) can read Chipboard
-            without having the guest PIN. They get a separate read-only key via the
-            <code className="bg-white/10 px-1 rounded mx-1">CHIPBOARD_READ_KEYS</code> env var.
-            Write operations still require the guest PIN or a session.
+            Read-only keys for reviewer agents (Codex, Gemini, etc). Grants <strong>GET</strong> access
+            to <code className="bg-white/10 px-1 rounded">/api/suggestions</code> only — no writes, no worklog.
           </p>
 
-          <h4 className="font-medium text-cyan-400 mt-4 mb-2">To issue a key to a reviewer agent:</h4>
+          <h4 className="font-medium text-cyan-400 mt-4 mb-2">Agent setup:</h4>
+          <p className="text-gray-300 mb-2">Set as env var, use in header:</p>
+          <code className="bg-white/10 px-2 py-1 rounded text-xs block mb-1">export CHIPBOARD_READ_KEY="&lt;key&gt;"</code>
+          <code className="bg-white/10 px-2 py-1 rounded text-xs block mb-3">curl -H "X-Chipboard-Key: $CHIPBOARD_READ_KEY" https://8i11.vercel.app/api/suggestions</code>
+
+          <h4 className="font-medium text-cyan-400 mt-4 mb-2">Admin: add/revoke keys</h4>
           <ol className="list-decimal list-inside space-y-2 text-gray-300">
-            <li>Generate a random key — any strong string works (e.g. <code className="bg-white/10 px-1 rounded">python3 -c &quot;import secrets; print(secrets.token_urlsafe(32))&quot;</code>)</li>
             <li>Go to <a href="https://vercel.com/boneshakerbike/onthisday/settings/environment-variables" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline">Vercel Environment Variables</a></li>
-            <li>Find <code className="bg-white/10 px-1 rounded">CHIPBOARD_READ_KEYS</code> and append the new key (comma-separated)</li>
+            <li>Edit <code className="bg-white/10 px-1 rounded">CHIPBOARD_READ_KEYS</code> — comma-separated list of keys</li>
             <li>Save and redeploy</li>
-            <li>Give the key to the reviewer — they use it as:<br />
-              <code className="bg-white/10 px-1 rounded text-xs mt-1 block">X-Chipboard-Key: &lt;key&gt;</code>
-            </li>
           </ol>
-
-          <h4 className="font-medium text-cyan-400 mt-4 mb-2">To revoke a key:</h4>
-          <p className="text-gray-300">
-            Remove it from <code className="bg-white/10 px-1 rounded">CHIPBOARD_READ_KEYS</code> and redeploy. Other keys keep working.
+          <p className="text-gray-400 text-sm mt-2">
+            Generate keys with: <code className="bg-white/10 px-1 rounded">python3 -c "import secrets; print(secrets.token_urlsafe(32))"</code>
           </p>
-
-          <h4 className="font-medium text-cyan-400 mt-4 mb-2">Storing the key on an agent machine:</h4>
-          <p className="text-gray-300 mb-2">
-            Store it as an environment variable — never in a markdown file or git repo.
-            The agent reads it from the environment at startup.
-          </p>
-          <p className="text-gray-400 text-sm mb-1">Linux / Mac (add to <code className="bg-white/10 px-1 rounded">~/.profile</code> or <code className="bg-white/10 px-1 rounded">~/.bashrc</code>):</p>
-          <code className="bg-white/10 px-2 py-1 rounded text-xs block mb-3">export CHIPBOARD_READ_KEY="paste-value-here"</code>
-          <p className="text-gray-400 text-sm mb-1">Windows (run in a regular terminal, then restart it):</p>
-          <code className="bg-white/10 px-2 py-1 rounded text-xs block mb-3">setx CHIPBOARD_READ_KEY "paste-value-here"</code>
-          <p className="text-gray-300 mb-2">
-            In curl commands the agent uses <code className="bg-white/10 px-1 rounded">$CHIPBOARD_READ_KEY</code> (Linux) or <code className="bg-white/10 px-1 rounded">%CHIPBOARD_READ_KEY%</code> (Windows cmd) — the shell expands it at runtime, value never appears in logs or history.
-          </p>
-          <div className="mt-2 p-3 bg-blue-500/10 border border-blue-500/30 rounded text-sm">
-            <strong className="text-blue-400">Where to find the value:</strong>{' '}
-            <a href="https://vercel.com/boneshakerbike/onthisday/settings/environment-variables" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline">Vercel → Environment Variables</a>
-            {' '}→ <code className="bg-white/10 px-1 rounded">CHIPBOARD_READ_KEYS</code>. That's the source of truth. If a key is lost, generate a new one and swap it in — read-only key, low stakes.
-          </div>
-
-          <h4 className="font-medium text-cyan-400 mt-4 mb-2">What reviewer keys can do:</h4>
-          <ul className="list-disc list-inside space-y-1 text-gray-300">
-            <li><strong>GET</strong> <code className="bg-white/10 px-1 rounded">/api/suggestions</code> — read Chipboard items in full</li>
-            <li><strong>Cannot</strong> POST, PATCH, DELETE, or append context</li>
-            <li><strong>Cannot</strong> access <code className="bg-white/10 px-1 rounded">/api/worklog</code> — worklog requires its own key</li>
-          </ul>
         </Section>
 
         {/* Quick Links */}
