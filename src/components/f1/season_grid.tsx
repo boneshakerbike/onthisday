@@ -32,12 +32,12 @@ function format_date(date_str: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export default function SeasonGrid({ races, season, on_select_round }: SeasonGridProps) {
+export default function SeasonGrid({ races, on_select_round }: SeasonGridProps) {
   return (
-    <div>
-      <h2 style={{ color: '#00d9ff', fontSize: '1.25rem', marginBottom: '1rem' }}>
-        {season} Season
-      </h2>
+    <div style={{ marginTop: '1.5rem' }}>
+      <h3 style={{ color: '#ffffff', fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>
+        Race Calendar
+      </h3>
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
@@ -48,8 +48,8 @@ export default function SeasonGrid({ races, season, on_select_round }: SeasonGri
             key={race.round}
             onClick={() => on_select_round(race.round)}
             style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(0,217,255,0.2)',
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.1)',
               borderRadius: '8px',
               padding: '0.75rem',
               cursor: 'pointer',
@@ -57,12 +57,12 @@ export default function SeasonGrid({ races, season, on_select_round }: SeasonGri
               transition: 'border-color 0.2s, background 0.2s',
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.borderColor = '#00d9ff';
-              e.currentTarget.style.background = 'rgba(0,217,255,0.08)';
+              e.currentTarget.style.borderColor = '#e10600';
+              e.currentTarget.style.background = 'rgba(225,6,0,0.08)';
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.borderColor = 'rgba(0,217,255,0.2)';
-              e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+              e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
             }}
           >
             <div style={{ fontSize: '0.7rem', color: '#888', marginBottom: '0.25rem' }}>
@@ -76,7 +76,7 @@ export default function SeasonGrid({ races, season, on_select_round }: SeasonGri
               {race.is_sprint_weekend && (
                 <span style={{
                   marginLeft: '0.4rem',
-                  background: '#ff6b35',
+                  background: '#e10600',
                   color: '#fff',
                   padding: '1px 4px',
                   borderRadius: '3px',

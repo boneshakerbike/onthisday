@@ -56,7 +56,7 @@ export default function WeekendView({
         style={{
           background: 'none',
           border: 'none',
-          color: '#00d9ff',
+          color: '#e10600',
           cursor: 'pointer',
           fontSize: '0.85rem',
           marginBottom: '1rem',
@@ -67,7 +67,7 @@ export default function WeekendView({
       </button>
 
       <div style={{ marginBottom: '1.5rem' }}>
-        <h2 style={{ color: '#00d9ff', fontSize: '1.25rem', marginBottom: '0.25rem' }}>
+        <h2 style={{ color: '#ffffff', fontSize: '1.25rem', marginBottom: '0.25rem' }}>
           R{race.round} {race.race_name}
         </h2>
         <div style={{ color: '#888', fontSize: '0.85rem' }}>
@@ -86,8 +86,8 @@ export default function WeekendView({
 
           return (
             <div key={session.session_type} style={{
-              background: is_locked ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)',
-              border: `1px solid ${is_locked ? '#333' : is_revealed ? 'rgba(0,255,136,0.3)' : 'rgba(0,217,255,0.2)'}`,
+              background: is_locked ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${is_locked ? '#333' : is_revealed ? 'rgba(0,255,136,0.3)' : 'rgba(255,255,255,0.1)'}`,
               borderRadius: '10px',
               padding: '1rem',
               opacity: is_locked ? 0.5 : 1,
@@ -107,7 +107,7 @@ export default function WeekendView({
                     {session_labels[session.session_type] || session.session_type}
                   </span>
                   {is_revealed && session.score && (
-                    <span style={{ color: '#00d9ff', marginLeft: '0.75rem', fontWeight: 700, fontSize: '0.85rem' }}>
+                    <span style={{ color: '#ffffff', marginLeft: '0.75rem', fontWeight: 700, fontSize: '0.85rem' }}>
                       {session.score.total} pts
                     </span>
                   )}
@@ -123,8 +123,8 @@ export default function WeekendView({
                     <button
                       onClick={() => on_predict_click(session.session_type)}
                       style={{
-                        background: '#00d9ff',
-                        color: '#1a1a2e',
+                        background: '#e10600',
+                        color: '#ffffff',
                         border: 'none',
                         borderRadius: '6px',
                         padding: '0.4rem 0.75rem',
@@ -141,8 +141,8 @@ export default function WeekendView({
                       onClick={() => on_reveal(session.session_type)}
                       disabled={revealing === session.session_type}
                       style={{
-                        background: revealing === session.session_type ? '#444' : '#ff6b35',
-                        color: '#fff',
+                        background: revealing === session.session_type ? '#444' : '#ffffff',
+                        color: revealing === session.session_type ? '#888' : '#15151e',
                         border: 'none',
                         borderRadius: '6px',
                         padding: '0.4rem 0.75rem',

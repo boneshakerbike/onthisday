@@ -21,7 +21,6 @@ export default function Leaderboard({ standings, season }: LeaderboardProps) {
         textAlign: 'center',
         color: '#666',
         fontSize: '0.85rem',
-        marginTop: '1.5rem',
       }}>
         No predictions yet for {season}. Be the first to play!
       </div>
@@ -29,9 +28,9 @@ export default function Leaderboard({ standings, season }: LeaderboardProps) {
   }
 
   return (
-    <div style={{ marginTop: '1.5rem' }}>
-      <h3 style={{ color: '#00d9ff', fontSize: '1rem', marginBottom: '0.75rem' }}>
-        {season} Championship Standings
+    <div>
+      <h3 style={{ color: '#ffffff', fontSize: '1rem', marginBottom: '0.75rem' }}>
+        Championship Standings
       </h3>
       <div style={{
         background: 'rgba(255,255,255,0.03)',
@@ -59,7 +58,7 @@ export default function Leaderboard({ standings, season }: LeaderboardProps) {
             gridTemplateColumns: '40px 1fr 80px 80px',
             padding: '0.6rem 0.75rem',
             borderBottom: i < standings.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none',
-            background: i === 0 ? 'rgba(0,217,255,0.05)' : 'transparent',
+            background: i === 0 ? 'rgba(225,6,0,0.08)' : 'transparent',
           }}>
             <div style={{
               color: i === 0 ? '#ffd700' : i === 1 ? '#c0c0c0' : i === 2 ? '#cd7f32' : '#888',
@@ -75,7 +74,7 @@ export default function Leaderboard({ standings, season }: LeaderboardProps) {
               {entry.sessions_played}
             </div>
             <div style={{
-              color: i === 0 ? '#00d9ff' : '#e0e0e0',
+              color: i === 0 ? '#ffffff' : '#e0e0e0',
               fontWeight: 700,
               fontSize: '0.9rem',
               textAlign: 'right',

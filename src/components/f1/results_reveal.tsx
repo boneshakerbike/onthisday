@@ -18,9 +18,9 @@ interface ResultsRevealProps {
 
 function score_color(pick: string, position: number, actual_podium: string[], actual_p4_p5: string[]): string {
   if (pick === actual_podium[position]) return '#00ff88'; // perfect match - green
-  if (actual_podium.includes(pick)) return '#00d9ff';     // podium lock - cyan
-  if (actual_p4_p5.includes(pick)) return '#ffaa00';      // almost - amber
-  return '#ff4466';                                        // miss - red
+  if (actual_podium.includes(pick)) return '#ffaa00';     // podium lock - amber/gold
+  if (actual_p4_p5.includes(pick)) return '#888';         // almost - gray
+  return '#e10600';                                        // miss - F1 red
 }
 
 function score_label(pick: string, position: number, actual_podium: string[], actual_p4_p5: string[]): string {
@@ -46,8 +46,8 @@ export default function ResultsReveal({
 
   return (
     <div style={{
-      background: 'rgba(0,217,255,0.05)',
-      border: '1px solid rgba(0,217,255,0.2)',
+      background: 'rgba(255,255,255,0.03)',
+      border: '1px solid rgba(255,255,255,0.1)',
       borderRadius: '10px',
       padding: '1.25rem',
       marginTop: '0.75rem',
@@ -105,7 +105,7 @@ export default function ResultsReveal({
           padding: '0.5rem',
           background: 'rgba(255,255,255,0.03)',
           borderRadius: '6px',
-          borderLeft: `3px solid ${prediction.fastest_lap === fastest_lap_driver_id ? '#ff00ff' : '#555'}`,
+          borderLeft: `3px solid ${prediction.fastest_lap === fastest_lap_driver_id ? '#a020f0' : '#555'}`,
           display: 'grid',
           gridTemplateColumns: '40px 1fr 1fr auto',
           gap: '0.5rem',
@@ -125,7 +125,7 @@ export default function ResultsReveal({
             </div>
           </div>
           <div style={{
-            color: prediction.fastest_lap === fastest_lap_driver_id ? '#ff00ff' : '#555',
+            color: prediction.fastest_lap === fastest_lap_driver_id ? '#a020f0' : '#555',
             fontWeight: 700,
             fontSize: '0.8rem',
             textAlign: 'right',
@@ -141,12 +141,12 @@ export default function ResultsReveal({
         <div style={{
           marginTop: '1rem',
           padding: '0.75rem',
-          background: 'rgba(0,217,255,0.1)',
+          background: 'rgba(225,6,0,0.1)',
           borderRadius: '8px',
           textAlign: 'center',
         }}>
           <div style={{ color: '#888', fontSize: '0.7rem', marginBottom: '0.25rem' }}>SESSION TOTAL</div>
-          <div style={{ color: '#00d9ff', fontSize: '2rem', fontWeight: 700 }}>
+          <div style={{ color: '#ffffff', fontSize: '2rem', fontWeight: 700 }}>
             {score.total} pts
           </div>
           <div style={{ color: '#888', fontSize: '0.7rem', marginTop: '0.25rem' }}>

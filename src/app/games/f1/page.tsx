@@ -207,35 +207,17 @@ export default function F1Page() {
           margin-bottom: 1.5rem;
         }
         .f1-title {
-          color: #00d9ff;
+          color: #ffffff;
           font-size: 1.5rem;
           font-weight: 700;
           margin-bottom: 0.25rem;
         }
+        .f1-title-year {
+          color: #e10600;
+        }
         .f1-subtitle {
           color: #888;
           font-size: 0.85rem;
-        }
-        .season-selector {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 0.75rem;
-          margin-bottom: 1.5rem;
-        }
-        .season-btn {
-          background: rgba(0,217,255,0.1);
-          border: 1px solid rgba(0,217,255,0.3);
-          color: #00d9ff;
-          border-radius: 6px;
-          padding: 0.3rem 0.6rem;
-          cursor: pointer;
-          font-size: 0.85rem;
-        }
-        .season-label {
-          color: #e0e0e0;
-          font-size: 1rem;
-          font-weight: 600;
         }
         .player-bar {
           display: flex;
@@ -253,7 +235,7 @@ export default function F1Page() {
         .change-name {
           background: none;
           border: none;
-          color: #00d9ff;
+          color: #e10600;
           cursor: pointer;
           font-size: 0.75rem;
         }
@@ -267,8 +249,8 @@ export default function F1Page() {
           z-index: 1000;
         }
         .name-modal {
-          background: #1a1a2e;
-          border: 1px solid rgba(0,217,255,0.3);
+          background: #1e1e28;
+          border: 1px solid rgba(225,6,0,0.4);
           border-radius: 12px;
           padding: 2rem;
           text-align: center;
@@ -277,18 +259,22 @@ export default function F1Page() {
         }
         .name-input {
           width: 100%;
-          background: #16213e;
+          background: #15151e;
           color: #e0e0e0;
-          border: 1px solid rgba(0,217,255,0.3);
+          border: 1px solid rgba(225,6,0,0.3);
           border-radius: 6px;
           padding: 0.6rem;
           font-size: 1rem;
           margin: 1rem 0;
           text-align: center;
         }
+        .name-input:focus {
+          outline: none;
+          border-color: #e10600;
+        }
         .name-submit {
-          background: #00d9ff;
-          color: #1a1a2e;
+          background: #e10600;
+          color: #ffffff;
           border: none;
           border-radius: 6px;
           padding: 0.5rem 1.5rem;
@@ -296,11 +282,40 @@ export default function F1Page() {
           cursor: pointer;
           font-size: 0.9rem;
         }
+        .other-years {
+          text-align: center;
+          margin-top: 2rem;
+          padding-top: 1.5rem;
+          border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .other-years-label {
+          color: #555;
+          font-size: 0.7rem;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: 0.5rem;
+        }
+        .year-btn {
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.08);
+          color: #666;
+          border-radius: 6px;
+          padding: 0.3rem 0.75rem;
+          cursor: pointer;
+          font-size: 0.8rem;
+          margin: 0 0.25rem;
+        }
+        .year-btn:hover {
+          color: #e10600;
+          border-color: rgba(225,6,0,0.3);
+        }
       `}</style>
 
       <div className="f1-page">
         <div className="f1-header">
-          <div className="f1-title">The Predictors&apos; Championship</div>
+          <div className="f1-title">
+            <span className="f1-title-year">{season}</span> Predictors&apos; Championship
+          </div>
           <div className="f1-subtitle">Predict the podium. Avoid spoilers. Settle the score.</div>
         </div>
 
@@ -308,7 +323,7 @@ export default function F1Page() {
         {show_name_prompt && (
           <div className="name-prompt">
             <div className="name-modal">
-              <div style={{ color: '#00d9ff', fontSize: '1.1rem', fontWeight: 700 }}>
+              <div style={{ color: '#e10600', fontSize: '1.1rem', fontWeight: 700 }}>
                 Enter Your Name
               </div>
               <div style={{ color: '#888', fontSize: '0.8rem', marginTop: '0.5rem' }}>
@@ -344,17 +359,6 @@ export default function F1Page() {
             </button>
           </div>
         )}
-
-        {/* Season selector */}
-        <div className="season-selector">
-          <button className="season-btn" onClick={() => { set_season(s => s - 1); set_selected_round(null); }}>
-            &larr;
-          </button>
-          <span className="season-label">{season}</span>
-          <button className="season-btn" onClick={() => { set_season(s => s + 1); set_selected_round(null); }}>
-            &rarr;
-          </button>
-        </div>
 
         {/* Loading / Error */}
         {loading && (
@@ -393,6 +397,7 @@ export default function F1Page() {
               />
             ) : (
               <>
+                <Leaderboard standings={standings} season={season} />
                 {races.length > 0 ? (
                   <SeasonGrid
                     races={races}
@@ -408,7 +413,16 @@ export default function F1Page() {
                     No races found for {season}. Try a different year.
                   </div>
                 )}
-                <Leaderboard standings={standings} season={season} />
+                {/* Other years - de-emphasized at bottom */}
+                <div className="other-years">
+                  <div className="other-years-label">Other Seasons</div>
+                  <button className="year-btn" onClick={() => { set_season(s => s - 1); set_selected_round(null); }}>
+                    &larr; {season - 1}
+                  </button>
+                  <button className="year-btn" onClick={() => { set_season(s => s + 1); set_selected_round(null); }}>
+                    {season + 1} &rarr;
+                  </button>
+                </div>
               </>
             )}
           </>

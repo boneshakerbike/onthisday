@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { F1Driver, SessionType } from '@/lib/f1/types';
 
 interface PredictionFormProps {
@@ -11,7 +11,7 @@ interface PredictionFormProps {
   submitting: boolean;
 }
 
-function DriverSelect({
+function DriverTypeAhead({
   label,
   value,
   drivers,
@@ -24,33 +24,109 @@ function DriverSelect({
   excluded: string[];
   on_change: (id: string) => void;
 }) {
+  const [query, set_query] = useState('');
+  const [open, set_open] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const selected = drivers.find(d => d.driver_id === value);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) set_open(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   const available = drivers.filter(d => !excluded.includes(d.driver_id) || d.driver_id === value);
+  const filtered = query
+    ? available.filter(d => {
+        const q = query.toLowerCase();
+        return d.family_name.toLowerCase().includes(q)
+          || d.given_name.toLowerCase().includes(q)
+          || d.code.toLowerCase().includes(q)
+          || d.constructor_name.toLowerCase().includes(q);
+      })
+    : available;
 
   return (
-    <div style={{ marginBottom: '0.75rem' }}>
-      <label style={{ color: '#888', fontSize: '0.75rem', display: 'block', marginBottom: '0.25rem' }}>
+    <div style={{ marginBottom: '0.75rem', position: 'relative' }} ref={ref}>
+      <label style={{ color: '#999', fontSize: '0.75rem', display: 'block', marginBottom: '0.25rem' }}>
         {label}
       </label>
-      <select
-        value={value}
-        onChange={e => on_change(e.target.value)}
+      <input
+        type="text"
+        value={open ? query : (selected ? `${selected.code} - ${selected.given_name} ${selected.family_name}` : '')}
+        placeholder="Type driver name..."
+        onChange={e => { set_query(e.target.value); set_open(true); }}
+        onFocus={() => { set_open(true); set_query(''); }}
         style={{
           width: '100%',
-          background: '#1a1a2e',
+          background: '#15151e',
           color: '#e0e0e0',
-          border: '1px solid rgba(0,217,255,0.3)',
+          border: `1px solid ${value ? 'rgba(225,6,0,0.5)' : 'rgba(255,255,255,0.15)'}`,
           borderRadius: '6px',
           padding: '0.5rem',
           fontSize: '0.9rem',
+          boxSizing: 'border-box',
         }}
-      >
-        <option value="">Select driver...</option>
-        {available.map(d => (
-          <option key={d.driver_id} value={d.driver_id}>
-            {d.code} - {d.given_name} {d.family_name} ({d.constructor_name})
-          </option>
-        ))}
-      </select>
+      />
+      {value && !open && (
+        <button
+          onClick={() => { on_change(''); set_query(''); set_open(true); }}
+          style={{
+            position: 'absolute', right: '8px', top: '26px',
+            background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: '0.8rem',
+          }}
+        >
+          x
+        </button>
+      )}
+      {open && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          right: 0,
+          background: '#1e1e28',
+          border: '1px solid rgba(255,255,255,0.15)',
+          borderRadius: '6px',
+          maxHeight: '200px',
+          overflowY: 'auto',
+          zIndex: 100,
+          marginTop: '2px',
+        }}>
+          {filtered.length === 0 ? (
+            <div style={{ padding: '0.5rem', color: '#666', fontSize: '0.85rem' }}>No matches</div>
+          ) : (
+            filtered.map(d => (
+              <button
+                key={d.driver_id}
+                onClick={() => { on_change(d.driver_id); set_open(false); set_query(''); }}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  textAlign: 'left',
+                  background: d.driver_id === value ? 'rgba(225,6,0,0.15)' : 'transparent',
+                  border: 'none',
+                  color: '#e0e0e0',
+                  padding: '0.4rem 0.5rem',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  borderBottom: '1px solid rgba(255,255,255,0.03)',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(225,6,0,0.1)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = d.driver_id === value ? 'rgba(225,6,0,0.15)' : 'transparent'; }}
+              >
+                <span style={{ color: '#e10600', fontWeight: 700, marginRight: '0.4rem' }}>{d.code}</span>
+                {d.given_name} {d.family_name}
+                <span style={{ color: '#666', marginLeft: '0.4rem', fontSize: '0.75rem' }}>({d.constructor_name})</span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -69,25 +145,25 @@ export default function PredictionForm({
 
   return (
     <div style={{
-      background: 'rgba(0,217,255,0.05)',
-      border: '1px solid rgba(0,217,255,0.3)',
+      background: 'rgba(225,6,0,0.05)',
+      border: '1px solid rgba(225,6,0,0.3)',
       borderRadius: '10px',
       padding: '1.25rem',
       marginTop: '0.75rem',
     }}>
-      <h3 style={{ color: '#00d9ff', fontSize: '1rem', marginBottom: '1rem' }}>
+      <h3 style={{ color: '#ffffff', fontSize: '1rem', marginBottom: '1rem' }}>
         Predict the Podium
       </h3>
 
-      <DriverSelect label="P1 - Winner" value={p1} drivers={drivers}
+      <DriverTypeAhead label="P1 - Winner" value={p1} drivers={drivers}
         excluded={selected.filter(s => s !== p1)} on_change={set_p1} />
-      <DriverSelect label="P2 - Second" value={p2} drivers={drivers}
+      <DriverTypeAhead label="P2 - Second" value={p2} drivers={drivers}
         excluded={selected.filter(s => s !== p2)} on_change={set_p2} />
-      <DriverSelect label="P3 - Third" value={p3} drivers={drivers}
+      <DriverTypeAhead label="P3 - Third" value={p3} drivers={drivers}
         excluded={selected.filter(s => s !== p3)} on_change={set_p3} />
 
       {is_race && (
-        <DriverSelect label="Fastest Lap (+3 bonus)" value={fastest_lap} drivers={drivers}
+        <DriverTypeAhead label="Fastest Lap (+3 bonus)" value={fastest_lap} drivers={drivers}
           excluded={[]} on_change={set_fastest_lap} />
       )}
 
@@ -97,8 +173,8 @@ export default function PredictionForm({
           disabled={!can_submit || submitting}
           style={{
             flex: 1,
-            background: can_submit ? '#00d9ff' : '#444',
-            color: can_submit ? '#1a1a2e' : '#888',
+            background: can_submit ? '#e10600' : '#444',
+            color: can_submit ? '#ffffff' : '#888',
             border: 'none',
             borderRadius: '6px',
             padding: '0.6rem',
