@@ -151,6 +151,7 @@ export async function GET(request: NextRequest) {
   if (is_local) {
     const { searchParams } = new URL(request.url);
     const params = new URLSearchParams();
+    if (searchParams.get('id')) params.set('id', searchParams.get('id')!);
     if (searchParams.get('status')) params.set('status', searchParams.get('status')!);
     if (searchParams.get('tag')) params.set('tag', searchParams.get('tag')!);
     return proxy_to_prod('GET', undefined, params.toString() || undefined);
@@ -164,6 +165,22 @@ export async function GET(request: NextRequest) {
     await release_stale_assignments();
 
     const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (id) {
+      const suggestion = await get_suggestion(id);
+      if (!suggestion) {
+        return NextResponse.json(
+          { success: false, error: 'Suggestion not found' },
+          { status: 404, headers: cors_headers(request.headers.get('origin')) }
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        suggestion
+      }, { headers: cors_headers(request.headers.get('origin')) });
+    }
+
     const status = searchParams.get('status') || undefined;
     const tag = searchParams.get('tag') || undefined;
 
