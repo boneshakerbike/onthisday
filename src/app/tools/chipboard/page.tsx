@@ -48,6 +48,7 @@ export default function ChipboardPage() {
   const [status_filter, set_status_filter] = useState<string>('all');
   const [keyword_query, set_keyword_query] = useState<string>('');
   const [cleaning_up, set_cleaning_up] = useState<Set<string>>(new Set());
+  const [error_msg, set_error_msg] = useState<string | null>(null);
   const [collapsed, set_collapsed] = useState<Record<GroupKey, boolean>>({
     inbox: false,
     todo: false,
@@ -105,6 +106,7 @@ export default function ChipboardPage() {
     if (!new_content.trim() || submitting) return;
 
     set_submitting(true);
+    set_error_msg(null);
     try {
       const res = await fetch('/api/suggestions', {
         method: 'POST',
@@ -115,15 +117,18 @@ export default function ChipboardPage() {
       if (data.success) {
         set_new_content('');
         fetch_suggestions();
+      } else {
+        set_error_msg(`Add failed (${res.status}): ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Failed to create suggestion:', error);
+      set_error_msg(`Add failed: ${error instanceof Error ? error.message : 'Network error'}`);
     } finally {
       set_submitting(false);
     }
   }
 
   async function update_status(id: string, status: Suggestion['status'], outcome?: string) {
+    set_error_msg(null);
     try {
       const res = await fetch('/api/suggestions', {
         method: 'PATCH',
@@ -135,14 +140,17 @@ export default function ChipboardPage() {
         set_editing_id(null);
         set_edit_outcome('');
         fetch_suggestions();
+      } else {
+        set_error_msg(`Status update failed (${res.status}): ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Failed to update suggestion:', error);
+      set_error_msg(`Status update failed: ${error instanceof Error ? error.message : 'Network error'}`);
     }
   }
 
   async function save_content(id: string) {
     if (!edit_content.trim()) return;
+    set_error_msg(null);
     try {
       const body: Record<string, string> = { id, content: edit_content.trim() };
       if (edit_title.trim()) body.title = edit_title.trim();
@@ -157,9 +165,11 @@ export default function ChipboardPage() {
         set_edit_content('');
         set_edit_title('');
         fetch_suggestions();
+      } else {
+        set_error_msg(`Edit failed (${res.status}): ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Failed to update suggestion content:', error);
+      set_error_msg(`Edit failed: ${error instanceof Error ? error.message : 'Network error'}`);
     }
   }
 
@@ -207,6 +217,7 @@ export default function ChipboardPage() {
   async function append_context(id: string) {
     if (!context_entry.trim() || context_submitting) return;
     set_context_submitting(true);
+    set_error_msg(null);
     try {
       const res = await fetch('/api/suggestions/context_append', {
         method: 'POST',
@@ -217,9 +228,11 @@ export default function ChipboardPage() {
       if (data.success) {
         set_context_entry('');
         fetch_suggestions();
+      } else {
+        set_error_msg(`Context append failed (${res.status}): ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Failed to append context:', error);
+      set_error_msg(`Context append failed: ${error instanceof Error ? error.message : 'Network error'}`);
     } finally {
       set_context_submitting(false);
     }
@@ -543,6 +556,14 @@ export default function ChipboardPage() {
           <h1 className="text-2xl font-bold text-cyan-400 mb-1">Chipboard</h1>
           <p className="text-gray-400 text-sm">Bugs, ideas, and everything in between.</p>
         </div>
+
+        {/* Error banner */}
+        {error_msg && (
+          <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg flex items-center justify-between">
+            <span className="text-sm text-red-400">{error_msg}</span>
+            <button onClick={() => set_error_msg(null)} className="text-red-400 hover:text-red-300 ml-3">×</button>
+          </div>
+        )}
 
         {/* New item form */}
         <form onSubmit={handle_submit} className="mb-6">

@@ -69,8 +69,8 @@ export async function POST(request: NextRequest) {
     if (!entry || typeof entry !== 'string' || entry.trim().length === 0) {
       return NextResponse.json({ error: 'entry is required' }, { status: 400 });
     }
-    if (entry.length > 10000) {
-      return NextResponse.json({ error: 'entry must be under 10000 characters' }, { status: 413 });
+    if (entry.length > 100000) {
+      return NextResponse.json({ error: 'entry must be under 100,000 characters' }, { status: 413 });
     }
 
     const updated = await append_suggestion_context(id, agent.trim(), entry.trim());

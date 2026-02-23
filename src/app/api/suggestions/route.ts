@@ -202,9 +202,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (content.length > 5000) {
+    if (content.length > 100000) {
       return NextResponse.json(
-        { error: 'Content must be under 5000 characters' },
+        { error: 'Content must be under 100,000 characters' },
         { status: 413 }
       );
     }
