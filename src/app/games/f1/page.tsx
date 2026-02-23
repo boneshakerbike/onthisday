@@ -217,6 +217,19 @@ export default function F1Page() {
         .f1-title-year {
           color: #e10600;
         }
+        .f1-badge {
+          display: inline-block;
+          background: #e10600;
+          color: #ffffff;
+          font-weight: 900;
+          font-style: italic;
+          padding: 0.1rem 0.45rem;
+          border-radius: 4px;
+          font-size: 1.1rem;
+          letter-spacing: -0.03em;
+          margin-right: 0.3rem;
+          vertical-align: baseline;
+        }
         .f1-subtitle {
           color: #888;
           font-size: 0.85rem;
@@ -317,7 +330,7 @@ export default function F1Page() {
       <div className="f1-page">
         <div className="f1-header">
           <div className="f1-title">
-            <span className="f1-title-year">{season}</span> Predictors&apos; Championship
+            <span className="f1-badge">F1</span> <span className="f1-title-year">{season}</span> Predictors&apos; Championship
           </div>
           <div className="f1-subtitle">Predict the podium. Avoid spoilers. Settle the score.</div>
         </div>
