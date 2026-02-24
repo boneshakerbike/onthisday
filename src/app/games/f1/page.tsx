@@ -62,6 +62,13 @@ export default function F1Page() {
     }
   }, []);
 
+  // If roster exists and current name isn't on it, prompt to re-select
+  useEffect(() => {
+    if (roster.length > 0 && player_name && !roster.includes(player_name)) {
+      set_show_name_prompt(true);
+    }
+  }, [roster, player_name]);
+
   // Save player name
   const save_player_name = (name: string) => {
     const trimmed = name.trim();
