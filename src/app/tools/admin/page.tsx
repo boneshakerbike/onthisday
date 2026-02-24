@@ -40,8 +40,108 @@ export default function AdminPage() {
           ))}
         </div>
 
+        {/* Permissions Overview */}
+        <Section title="Permissions &amp; Access Control">
+          <p className="mb-3">
+            The app uses a two-tier permission model: <strong className="text-white">admin</strong> (GitHub login) and <strong className="text-white">guest</strong> (PIN login). There are no granular roles — every GitHub user on the allowlist gets full admin access.
+          </p>
+
+          <h4 className="font-medium text-cyan-400 mt-4 mb-2">How identity works</h4>
+          <p className="text-gray-300 mb-2">
+            The session carries a single <code className="bg-white/10 px-1 rounded">user.id</code> field. GitHub users get their GitHub numeric ID. Guest PIN users get the literal string <code className="bg-white/10 px-1 rounded">guest</code>. Every permission check in the app is just: <em>is this user &quot;guest&quot; or not?</em>
+          </p>
+
+          <h4 className="font-medium text-cyan-400 mt-4 mb-2">What each tier can do</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left border-b border-white/10">
+                  <th className="py-2 pr-4 text-gray-400">Action</th>
+                  <th className="py-2 pr-4 text-gray-400">Admin (GitHub)</th>
+                  <th className="py-2 text-gray-400">Guest (PIN)</th>
+                </tr>
+              </thead>
+              <tbody className="text-gray-300">
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4">Use all tools &amp; pages</td>
+                  <td className="py-2 pr-4 text-green-400">Yes</td>
+                  <td className="py-2 text-green-400">Yes</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4">F1: make predictions</td>
+                  <td className="py-2 pr-4 text-green-400">Yes</td>
+                  <td className="py-2 text-green-400">Yes</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4">Chipboard: create &amp; edit items</td>
+                  <td className="py-2 pr-4 text-green-400">Yes</td>
+                  <td className="py-2 text-green-400">Yes</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4">F1: manage roster &amp; reset seasons</td>
+                  <td className="py-2 pr-4 text-green-400">Yes</td>
+                  <td className="py-2 text-red-400">No</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4">Chipboard: delete items</td>
+                  <td className="py-2 pr-4 text-green-400">Yes</td>
+                  <td className="py-2 text-red-400">No</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4">Generate AI stories</td>
+                  <td className="py-2 pr-4 text-green-400">Yes</td>
+                  <td className="py-2 text-green-400">Yes</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h4 className="font-medium text-cyan-400 mt-4 mb-2">Public content (no login required)</h4>
+          <p className="text-gray-300 mb-2">
+            These routes are accessible to everyone: <code className="bg-white/10 px-1 rounded">/story/*</code>, <code className="bg-white/10 px-1 rounded">/archive</code>, <code className="bg-white/10 px-1 rounded">/games</code>, <code className="bg-white/10 px-1 rounded">/privacy</code>, <code className="bg-white/10 px-1 rounded">/terms</code>, and <code className="bg-white/10 px-1 rounded">/login</code>.
+          </p>
+
+          <h4 className="font-medium text-cyan-400 mt-4 mb-2">Where the checks live</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left border-b border-white/10">
+                  <th className="py-2 pr-4 text-gray-400">File</th>
+                  <th className="py-2 text-gray-400">What it checks</th>
+                </tr>
+              </thead>
+              <tbody className="text-gray-300">
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4"><code className="text-cyan-400 text-xs">src/proxy.ts</code></td>
+                  <td className="py-2">Route-level auth gate (authenticated vs not)</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4"><code className="text-cyan-400 text-xs">src/lib/auth.ts</code></td>
+                  <td className="py-2">GitHub allowlist, guest PIN validation, session shape</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4"><code className="text-cyan-400 text-xs">src/app/api/f1/roster/route.ts</code></td>
+                  <td className="py-2"><code className="bg-white/10 px-1 rounded">require_admin()</code> — blocks guest from roster management</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4"><code className="text-cyan-400 text-xs">src/app/api/suggestions/route.ts</code></td>
+                  <td className="py-2"><code className="bg-white/10 px-1 rounded">is_bill_request()</code> — blocks guest from deleting items</td>
+                </tr>
+                <tr className="border-b border-white/5">
+                  <td className="py-2 pr-4"><code className="text-cyan-400 text-xs">src/app/games/f1/page.tsx</code></td>
+                  <td className="py-2"><code className="bg-white/10 px-1 rounded">is_admin</code> — hides roster UI for guests</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded text-sm">
+            <strong className="text-yellow-400">Limitation:</strong> There is no per-app or per-user permission system yet. All GitHub users on the allowlist are equivalent admins. Future: add a role field or friends-list per app (e.g. F1 roster as access gate).
+          </div>
+        </Section>
+
         {/* Guest PIN Management */}
-        <Section title="Managing Guest PINs" defaultOpen={true}>
+        <Section title="Managing Guest PINs">
           <p className="mb-3">
             Guest PINs let friends access the app without a GitHub account.
             PINs are stored securely in Vercel environment variables.
