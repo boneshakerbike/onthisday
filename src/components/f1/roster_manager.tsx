@@ -89,8 +89,11 @@ export default function RosterManager({ season, roster, on_roster_change, on_sea
       border: '1px solid rgba(225,6,0,0.2)',
       borderRadius: '8px',
     }}>
-      <div style={{ color: '#e10600', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+      <div style={{ color: '#e10600', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.25rem' }}>
         Roster Manager
+      </div>
+      <div style={{ color: '#888', fontSize: '0.7rem', marginBottom: '0.5rem' }}>
+        Add yourself first before adding other players.
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.5rem' }}>
         {roster.map(name => (
