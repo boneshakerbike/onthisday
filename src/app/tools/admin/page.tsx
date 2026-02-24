@@ -14,7 +14,32 @@ export default function AdminPage() {
       <div className="max-w-3xl mx-auto p-6">
         <NavTabs />
 
-        <h1 className="text-2xl font-bold text-cyan-400 mb-6">Admin Reference</h1>
+        <h1 className="text-2xl font-bold text-cyan-400 mb-4">Admin Reference</h1>
+
+        {/* Quick Links - chiclets */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {[
+            { label: 'Live', href: 'https://8i11.vercel.app' },
+            { label: 'Deploys', href: 'https://vercel.com/boneshakerbikes-projects/~/deployments' },
+            { label: 'Repo', href: 'https://github.com/boneshakerbike/onthisday' },
+            { label: 'Console', href: 'https://console.anthropic.com' },
+            { label: 'Usage', href: 'https://claude.ai/settings/usage' },
+            { label: 'Turso', href: 'https://app.turso.tech' },
+            { label: 'Oura Dev', href: 'https://developer.ouraring.com/applications' },
+            { label: 'Scheduled', href: 'https://8i11.substack.com/publish/posts/scheduled' },
+            { label: 'Env Vars', href: 'https://vercel.com/boneshakerbike/onthisday/settings/environment-variables' },
+          ].map(link => (
+            <a
+              key={link.label}
+              href={link.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 text-sm rounded-full bg-cyan-400/10 text-cyan-400 border border-cyan-400/30 hover:bg-cyan-400/20 transition-colors"
+            >
+              {link.label}
+            </a>
+          ))}
+        </div>
 
         {/* Guest PIN Management */}
         <Section title="Managing Guest PINs" defaultOpen={true}>
@@ -80,32 +105,6 @@ export default function AdminPage() {
           <p className="text-gray-400 text-sm mt-2">
             Generate keys with: <code className="bg-white/10 px-1 rounded">python3 -c "import secrets; print(secrets.token_urlsafe(32))"</code>
           </p>
-        </Section>
-
-        {/* Quick Links */}
-        <Section title="Quick Links">
-          <ul className="space-y-2">
-            <li>
-              <a href="https://vercel.com/boneshakerbike/onthisday/settings/environment-variables" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline">
-                Vercel Environment Variables →
-              </a>
-            </li>
-            <li>
-              <a href="https://vercel.com/boneshakerbike/onthisday/deployments" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline">
-                Vercel Deployments →
-              </a>
-            </li>
-            <li>
-              <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline">
-                Anthropic Console (API usage) →
-              </a>
-            </li>
-            <li>
-              <a href="https://github.com/boneshakerbike/onthisday" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline">
-                GitHub Repository →
-              </a>
-            </li>
-          </ul>
         </Section>
 
         {/* Environment Variables Reference */}
