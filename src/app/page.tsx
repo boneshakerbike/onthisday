@@ -76,12 +76,13 @@ export default function HomePage() {
     },
     {
       title: 'Games',
-      description: 'Pixel art classics and brick breakers',
+      description: 'Pixel art classics, brick breakers, and F1 predictions',
       icon: '🎮',
       color: 'pink',
       links: [
         { label: 'Frogger', href: '/games/frogger' },
         { label: 'Breakout', href: '/games/breakout' },
+        { label: 'F1 Predictions', href: '/games/f1' },
       ],
     },
   ];
