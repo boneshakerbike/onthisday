@@ -19,7 +19,6 @@ export default function AdminPage() {
         {/* Quick Links - chiclets */}
         <div className="flex flex-wrap gap-2 mb-6">
           {[
-            { label: 'Live', href: 'https://8i11.vercel.app' },
             { label: 'Deploys', href: 'https://vercel.com/boneshakerbikes-projects/~/deployments' },
             { label: 'Repo', href: 'https://github.com/boneshakerbike/onthisday' },
             { label: 'Console', href: 'https://console.anthropic.com' },
@@ -27,7 +26,7 @@ export default function AdminPage() {
             { label: 'Turso', href: 'https://app.turso.tech' },
             { label: 'Oura Dev', href: 'https://developer.ouraring.com/applications' },
             { label: 'Scheduled', href: 'https://8i11.substack.com/publish/posts/scheduled' },
-            { label: 'Env Vars', href: 'https://vercel.com/boneshakerbike/onthisday/settings/environment-variables' },
+            { label: 'Env Vars', href: 'https://vercel.com/boneshakerbikes-projects/8i11/settings/environment-variables' },
           ].map(link => (
             <a
               key={link.label}
