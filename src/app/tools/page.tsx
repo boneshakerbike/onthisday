@@ -22,6 +22,13 @@ export default function ToolsPage() {
 
         <div className="grid gap-4">
           <Link
+            href="/tools/text-cleaner"
+            className="block bg-white/5 rounded-xl p-6 border border-white/10 hover:border-cyan-400 transition-all"
+          >
+            <h2 className="text-xl text-white mb-2">What Am I Trying To Say</h2>
+            <p className="text-gray-400 text-sm">Paste rough text — get it cleaned up for clarity, then edit and copy</p>
+          </Link>
+          <Link
             href="/tools/markdown"
             className="block bg-white/5 rounded-xl p-6 border border-white/10 hover:border-cyan-400 transition-all"
           >
