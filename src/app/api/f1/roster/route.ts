@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { auth_options } from '@/lib/auth';
-import { get_roster, add_to_roster, remove_from_roster } from '@/lib/f1/db';
+import { get_roster, add_to_roster, remove_from_roster, reset_season_data } from '@/lib/f1/db';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -40,6 +40,29 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Roster add error:', error);
     return NextResponse.json({ error: 'Failed to add player' }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  if (!await require_admin()) {
+    return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+  }
+
+  try {
+    const { season, action } = await request.json();
+    if (!season || action !== 'reset') {
+      return NextResponse.json({ error: 'Missing season or invalid action' }, { status: 400 });
+    }
+
+    const result = await reset_season_data(season);
+    return NextResponse.json({
+      season,
+      reset: true,
+      deleted: result,
+    });
+  } catch (error) {
+    console.error('Season reset error:', error);
+    return NextResponse.json({ error: 'Failed to reset season' }, { status: 500 });
   }
 }
 

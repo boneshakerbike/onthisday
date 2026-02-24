@@ -533,6 +533,37 @@ export async function get_all_player_states_for_round(
   }));
 }
 
+// —— Season Reset ————————————————————————————————————
+
+export async function reset_season_data(season: number): Promise<{ predictions: number; scores: number; states: number }> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  // Delete scores for this season's predictions
+  const score_result = await db.execute({
+    sql: `DELETE FROM f1_scores WHERE prediction_id IN (SELECT id FROM f1_predictions WHERE season = ?)`,
+    args: [season],
+  });
+
+  // Delete predictions
+  const pred_result = await db.execute({
+    sql: 'DELETE FROM f1_predictions WHERE season = ?',
+    args: [season],
+  });
+
+  // Delete player states
+  const state_result = await db.execute({
+    sql: 'DELETE FROM f1_player_state WHERE season = ?',
+    args: [season],
+  });
+
+  return {
+    predictions: pred_result.rowsAffected,
+    scores: score_result.rowsAffected,
+    states: state_result.rowsAffected,
+  };
+}
+
 // —— Leaderboard Query ———————————————————————————————
 
 export interface LeaderboardEntry {
