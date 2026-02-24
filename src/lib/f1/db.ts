@@ -535,7 +535,7 @@ export async function get_all_player_states_for_round(
 
 // —— Season Reset ————————————————————————————————————
 
-export async function reset_season_data(season: number): Promise<{ predictions: number; scores: number; states: number }> {
+export async function reset_season_data(season: number): Promise<{ predictions: number; scores: number; states: number; sessions: number }> {
   await ensure_f1_schema();
   const db = get_client();
 
@@ -557,10 +557,17 @@ export async function reset_season_data(season: number): Promise<{ predictions: 
     args: [season],
   });
 
+  // Delete cached results (so rounds don't show as completed)
+  const session_result = await db.execute({
+    sql: 'DELETE FROM f1_sessions WHERE season = ?',
+    args: [season],
+  });
+
   return {
     predictions: pred_result.rowsAffected,
     scores: score_result.rowsAffected,
     states: state_result.rowsAffected,
+    sessions: session_result.rowsAffected,
   };
 }
 
