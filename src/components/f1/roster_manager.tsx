@@ -6,11 +6,36 @@ interface RosterManagerProps {
   season: number;
   roster: string[];
   on_roster_change: (roster: string[]) => void;
+  on_season_reset?: () => void;
 }
 
-export default function RosterManager({ season, roster, on_roster_change }: RosterManagerProps) {
+export default function RosterManager({ season, roster, on_roster_change, on_season_reset }: RosterManagerProps) {
   const [new_name, set_new_name] = useState('');
   const [busy, set_busy] = useState(false);
+
+  const reset_season = async () => {
+    if (!confirm(`Reset all predictions, scores, and player states for ${season}? This cannot be undone.`)) return;
+    set_busy(true);
+    try {
+      const res = await fetch('/api/f1/roster', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ season, action: 'reset' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Cleared: ${data.deleted.predictions} predictions, ${data.deleted.scores} scores, ${data.deleted.states} states`);
+        if (on_season_reset) on_season_reset();
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to reset');
+      }
+    } catch {
+      alert('Failed to reset season');
+    } finally {
+      set_busy(false);
+    }
+  };
 
   const add_player = async () => {
     const name = new_name.trim();
@@ -134,6 +159,24 @@ export default function RosterManager({ season, roster, on_roster_change }: Rost
           }}
         >
           Add
+        </button>
+      </div>
+      <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        <button
+          onClick={reset_season}
+          disabled={busy}
+          style={{
+            background: 'none',
+            border: '1px solid rgba(255,68,102,0.3)',
+            color: '#ff4466',
+            borderRadius: '6px',
+            padding: '0.35rem 0.75rem',
+            cursor: 'pointer',
+            fontSize: '0.75rem',
+            opacity: busy ? 0.5 : 1,
+          }}
+        >
+          Reset {season} Season Data
         </button>
       </div>
     </div>

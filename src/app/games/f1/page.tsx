@@ -453,6 +453,12 @@ export default function F1Page() {
               set_roster(new_roster);
               refresh_progress();
             }}
+            on_season_reset={() => {
+              refresh_leaderboard();
+              refresh_progress();
+              set_sessions([]);
+              set_revealed_data({});
+            }}
           />
         )}
 
