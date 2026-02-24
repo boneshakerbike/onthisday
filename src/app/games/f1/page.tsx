@@ -398,6 +398,9 @@ export default function F1Page() {
                       {name}
                     </button>
                   ))}
+                  <div style={{ color: '#666', fontSize: '0.75rem', textAlign: 'center', marginTop: '0.25rem' }}>
+                    Don&apos;t see your name? Ask the game admin to add you to the roster.
+                  </div>
                 </div>
               ) : (
                 <>
