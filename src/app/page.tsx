@@ -58,6 +58,7 @@ export default function HomePage() {
       color: 'purple',
       links: [
         { label: 'Chipboard', href: '/tools/chipboard' },
+        { label: 'What Am I Trying To Say', href: '/tools/text-cleaner' },
         { label: 'Markdown', href: '/tools/markdown' },
         { label: 'Instruction Stripper', href: '/tools/instruction-stripper' },
         { label: 'Knowledge Diff', href: '/tools/knowledge-diff' },
