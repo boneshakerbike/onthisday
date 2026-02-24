@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { call_anthropic } from '@/lib/ai';
+import Anthropic from '@anthropic-ai/sdk';
 
 async function require_auth(request: NextRequest): Promise<NextResponse | null> {
   const token = await getToken({ req: request });
@@ -27,6 +27,11 @@ export async function POST(request: NextRequest) {
   const auth_error = await require_auth(request);
   if (auth_error) return auth_error;
 
+  const api_key = process.env.ANTHROPIC_API_KEY;
+  if (!api_key) {
+    return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 });
+  }
+
   try {
     const body = await request.json();
     const { content } = body;
@@ -39,9 +44,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Content too large (max 20,000 characters)' }, { status: 400 });
     }
 
-    const { message: result } = await call_anthropic({
-      route: '/api/strip',
-      agent_id: null,
+    const client = new Anthropic({ apiKey: api_key });
+
+    const result = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 4096,
       messages: [

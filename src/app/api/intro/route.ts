@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { call_anthropic } from '@/lib/ai';
+import Anthropic from '@anthropic-ai/sdk';
 
 interface PostSummary {
   year: number;
@@ -13,6 +13,15 @@ interface PostSummary {
 }
 
 export async function POST(request: NextRequest) {
+  const api_key = process.env.ANTHROPIC_API_KEY;
+
+  if (!api_key) {
+    return NextResponse.json(
+      { error: 'ANTHROPIC_API_KEY not configured' },
+      { status: 500 }
+    );
+  }
+
   try {
     const { date_display, posts } = await request.json() as {
       date_display: string;
@@ -51,9 +60,9 @@ Format:
 Tone: Understated, gently self-aware. No purple prose. No "anthology" or "tapestry" or fancy metaphors.
 Output ONLY the intro, nothing else.`;
 
-    const { message } = await call_anthropic({
-      route: '/api/intro',
-      agent_id: null,
+    const client = new Anthropic({ apiKey: api_key });
+
+    const message = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 150,
       messages: [

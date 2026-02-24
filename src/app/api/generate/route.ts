@@ -4,10 +4,19 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { call_anthropic } from '@/lib/ai';
+import Anthropic from '@anthropic-ai/sdk';
 import { get_posts_on_date, get_post_url, save_story } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
+  const api_key = process.env.ANTHROPIC_API_KEY;
+
+  if (!api_key) {
+    return NextResponse.json(
+      { error: 'ANTHROPIC_API_KEY not configured' },
+      { status: 500 }
+    );
+  }
+
   try {
     const { month, day } = await request.json();
 
@@ -105,9 +114,9 @@ FORMAT: HTML with <h2> title, <p> paragraphs, <a href> links`;
 
 ${formatted_posts}`;
 
-    const { message } = await call_anthropic({
-      route: '/api/generate',
-      agent_id: null,
+    const client = new Anthropic({ apiKey: api_key });
+
+    const message = await client.messages.create({
       model: 'claude-opus-4-5-20251101',
       max_tokens: 1024,
       system: [
@@ -151,8 +160,8 @@ ${formatted_posts}`;
       usage: {
         input_tokens: message.usage.input_tokens,
         output_tokens: message.usage.output_tokens,
-        cache_creation_input_tokens: message.usage.cache_creation_input_tokens ?? 0,
-        cache_read_input_tokens: message.usage.cache_read_input_tokens ?? 0
+        cache_creation_input_tokens: (message.usage as unknown as Record<string, number>).cache_creation_input_tokens || 0,
+        cache_read_input_tokens: (message.usage as unknown as Record<string, number>).cache_read_input_tokens || 0
       }
     });
 

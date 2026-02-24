@@ -6,9 +6,18 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { call_anthropic } from '@/lib/ai';
+import Anthropic from '@anthropic-ai/sdk';
 
 export async function POST(request: NextRequest) {
+  const api_key = process.env.ANTHROPIC_API_KEY;
+
+  if (!api_key) {
+    return NextResponse.json(
+      { error: 'ANTHROPIC_API_KEY not configured' },
+      { status: 500 }
+    );
+  }
+
   try {
     const body = await request.json();
     const { step = 'analyze', old_doc, new_doc, analysis, use_opus } = body;
@@ -21,6 +30,8 @@ export async function POST(request: NextRequest) {
         { status: 413 }
       );
     }
+
+    const client = new Anthropic({ apiKey: api_key });
 
     if (step === 'analyze') {
       if (!old_doc || !new_doc) {
@@ -68,9 +79,7 @@ ${old_doc}
 NEW DOCUMENT:
 ${new_doc}`;
 
-      const { message: result } = await call_anthropic({
-        route: '/api/knowledge-diff/analyze',
-        agent_id: null,
+      const result = await client.messages.create({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 8192,
         messages: [{ role: 'user', content: prompt }]
@@ -144,9 +153,7 @@ Rules:
 VERIFIED_LOSSES:
 ${analysis}`;
 
-      const { message: result } = await call_anthropic({
-        route: '/api/knowledge-diff/appendix',
-        agent_id: null,
+      const result = await client.messages.create({
         model,
         max_tokens: 8192,
         messages: [{ role: 'user', content: prompt }]

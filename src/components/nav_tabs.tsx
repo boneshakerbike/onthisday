@@ -315,13 +315,6 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
         </Link>
         <div className={`border-t my-1 ${is_light ? 'border-[#e5e0d8]' : 'border-white/10'}`}></div>
         <Link
-          href="/tools/usage"
-          onClick={() => set_tools_open(false)}
-          className={dropdown_item_class}
-        >
-          Usage Dashboard
-        </Link>
-        <Link
           href="/tools/admin"
           onClick={() => set_tools_open(false)}
           className={dropdown_item_class}
