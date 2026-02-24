@@ -3,12 +3,28 @@
 import type { F1RaceSchedule, F1Driver, SessionType, F1DriverResult } from '@/lib/f1/types';
 import PredictionForm from './prediction_form';
 import ResultsReveal from './results_reveal';
+import GroupPicks from './group_picks';
+
+interface GroupPick {
+  player_name: string;
+  p1: string;
+  p2: string;
+  p3: string;
+  fastest_lap: string | null;
+}
+
+interface GroupState {
+  all_predicted: boolean;
+  missing: string[];
+  predictions: GroupPick[] | null;
+}
 
 interface SessionInfo {
   session_type: SessionType;
   state: string; // 'predicting' | 'watching' | 'revealed' | 'locked'
   prediction: { p1: string; p2: string; p3: string; fastest_lap: string | null } | null;
   score: { perfect_match: number; podium_lock: number; almost: number; fastest_lap: number; total: number } | null;
+  group?: GroupState | null;
 }
 
 interface RevealData {
@@ -136,7 +152,12 @@ export default function WeekendView({
                       Make Prediction
                     </button>
                   )}
-                  {is_watching && (
+                  {is_watching && session.group && !session.group.all_predicted && (
+                    <span style={{ color: '#e10600', fontSize: '0.75rem' }}>
+                      Waiting for {session.group.missing.join(', ')}
+                    </span>
+                  )}
+                  {is_watching && (!session.group || session.group.all_predicted) && (
                     <button
                       onClick={() => on_reveal(session.session_type)}
                       disabled={revealing === session.session_type}
@@ -182,8 +203,27 @@ export default function WeekendView({
                 />
               )}
 
-              {/* Watching state - show locked prediction */}
-              {is_watching && session.prediction && (
+              {/* Watching state - show group picks or locked prediction */}
+              {is_watching && session.group?.all_predicted && session.group.predictions && (
+                <GroupPicks
+                  predictions={session.group.predictions}
+                  drivers={drivers}
+                  show_fastest_lap={session.session_type === 'race'}
+                />
+              )}
+              {is_watching && !session.group?.all_predicted && session.prediction && (
+                <div style={{
+                  marginTop: '0.5rem',
+                  padding: '0.5rem',
+                  background: 'rgba(255,255,255,0.03)',
+                  borderRadius: '6px',
+                  color: '#888',
+                  fontSize: '0.8rem',
+                }}>
+                  Prediction locked. Waiting for all players to lock in.
+                </div>
+              )}
+              {is_watching && !session.group && session.prediction && (
                 <div style={{
                   marginTop: '0.5rem',
                   padding: '0.5rem',

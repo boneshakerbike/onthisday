@@ -1,10 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import NavTabs from '@/components/nav_tabs';
 import SeasonGrid from '@/components/f1/season_grid';
 import WeekendView from '@/components/f1/weekend_view';
 import Leaderboard from '@/components/f1/leaderboard';
+import RosterManager from '@/components/f1/roster_manager';
 import type { F1RaceSchedule, F1Driver, F1DriverResult, SessionType } from '@/lib/f1/types';
 
 interface SessionInfo {
@@ -29,6 +31,8 @@ interface LeaderboardEntry {
 
 export default function F1Page() {
   const current_year = new Date().getFullYear();
+  const { data: auth_session } = useSession();
+  const is_admin = !!auth_session?.user && (auth_session.user as { id?: string }).id !== 'guest';
   const [season, set_season] = useState(current_year);
   const [races, set_races] = useState<F1RaceSchedule[]>([]);
   const [drivers, set_drivers] = useState<F1Driver[]>([]);
@@ -43,6 +47,9 @@ export default function F1Page() {
   const [show_name_prompt, set_show_name_prompt] = useState(false);
   const [loading, set_loading] = useState(true);
   const [error, set_error] = useState<string | null>(null);
+  const [roster, set_roster] = useState<string[]>([]);
+  const [active_round, set_active_round] = useState<number | undefined>(undefined);
+  const [completed_rounds, set_completed_rounds] = useState<number[]>([]);
 
   // Load player name from localStorage
   useEffect(() => {
@@ -62,6 +69,20 @@ export default function F1Page() {
     set_player_name(trimmed);
     set_show_name_prompt(false);
   };
+
+  // Fetch season progress + roster
+  const refresh_progress = useCallback(() => {
+    fetch(`/api/f1/season_progress?season=${season}`)
+      .then(res => res.json())
+      .then(data => {
+        set_roster(data.roster || []);
+        set_active_round(data.roster?.length > 0 ? data.active_round : undefined);
+        set_completed_rounds(data.roster?.length > 0 ? (data.completed_rounds || []) : []);
+      })
+      .catch(() => {});
+  }, [season]);
+
+  useEffect(() => { refresh_progress(); }, [refresh_progress]);
 
   // Fetch schedule
   useEffect(() => {
@@ -182,6 +203,7 @@ export default function F1Page() {
       }));
       refresh_state();
       refresh_leaderboard();
+      refresh_progress();
     } catch {
       alert('Failed to reveal results');
     } finally {
@@ -340,28 +362,53 @@ export default function F1Page() {
           <div className="name-prompt">
             <div className="name-modal">
               <div style={{ color: '#e10600', fontSize: '1.1rem', fontWeight: 700 }}>
-                Enter Your Name
+                {roster.length > 0 ? 'Select Your Name' : 'Enter Your Name'}
               </div>
               <div style={{ color: '#888', fontSize: '0.8rem', marginTop: '0.5rem' }}>
                 This is how you&apos;ll appear on the leaderboard
               </div>
-              <input
-                className="name-input"
-                placeholder="Your name"
-                autoFocus
-                onKeyDown={e => {
-                  if (e.key === 'Enter') save_player_name((e.target as HTMLInputElement).value);
-                }}
-              />
-              <button
-                className="name-submit"
-                onClick={() => {
-                  const input = document.querySelector('.name-input') as HTMLInputElement;
-                  save_player_name(input?.value || '');
-                }}
-              >
-                Let&apos;s Go
-              </button>
+              {roster.length > 0 ? (
+                <div style={{ margin: '1rem 0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {roster.map(name => (
+                    <button
+                      key={name}
+                      onClick={() => save_player_name(name)}
+                      style={{
+                        background: 'rgba(225,6,0,0.1)',
+                        border: '1px solid rgba(225,6,0,0.3)',
+                        color: '#e0e0e0',
+                        borderRadius: '6px',
+                        padding: '0.6rem',
+                        fontSize: '1rem',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {name}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <input
+                    className="name-input"
+                    placeholder="Your name"
+                    autoFocus
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') save_player_name((e.target as HTMLInputElement).value);
+                    }}
+                  />
+                  <button
+                    className="name-submit"
+                    onClick={() => {
+                      const input = document.querySelector('.name-input') as HTMLInputElement;
+                      save_player_name(input?.value || '');
+                    }}
+                  >
+                    Let&apos;s Go
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -413,11 +460,23 @@ export default function F1Page() {
               />
             ) : (
               <>
+                {is_admin && (
+                  <RosterManager
+                    season={season}
+                    roster={roster}
+                    on_roster_change={(new_roster) => {
+                      set_roster(new_roster);
+                      refresh_progress();
+                    }}
+                  />
+                )}
                 <Leaderboard standings={standings} season={season} />
                 {races.length > 0 ? (
                   <SeasonGrid
                     races={races}
                     season={season}
+                    active_round={active_round}
+                    completed_rounds={completed_rounds}
                     on_select_round={(round) => {
                       set_selected_round(round);
                       set_revealed_data({});

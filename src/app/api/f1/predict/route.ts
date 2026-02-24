@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { save_prediction, get_prediction, set_player_state } from '@/lib/f1/db';
+import { save_prediction, get_prediction, set_player_state, get_roster } from '@/lib/f1/db';
 import type { SessionType } from '@/lib/f1/types';
 
 export async function POST(request: NextRequest) {
@@ -15,6 +15,15 @@ export async function POST(request: NextRequest) {
     }
 
     const st = session_type as SessionType;
+
+    // Roster check: if roster exists, only rostered players can predict
+    const roster = await get_roster(season);
+    if (roster.length > 0 && !roster.includes(player_name)) {
+      return NextResponse.json(
+        { error: 'You are not on the roster for this season' },
+        { status: 403 }
+      );
+    }
 
     // Check for duplicate prediction
     const existing = await get_prediction(season, round, st, player_name);

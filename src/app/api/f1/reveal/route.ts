@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { reveal_session } from '@/lib/f1/cache';
+import { get_roster, get_predictions_for_session } from '@/lib/f1/db';
 import type { SessionType } from '@/lib/f1/types';
 
 export async function POST(request: NextRequest) {
@@ -15,6 +16,21 @@ export async function POST(request: NextRequest) {
     }
 
     const st = session_type as SessionType;
+
+    // Group check: if roster exists, all players must have predicted
+    const roster = await get_roster(season);
+    if (roster.length > 0) {
+      const predictions = await get_predictions_for_session(season, round, st);
+      const predicted = new Set(predictions.map(p => p.player_name));
+      const missing = roster.filter(p => !predicted.has(p));
+      if (missing.length > 0) {
+        return NextResponse.json(
+          { error: `Waiting for ${missing.join(', ')} to lock in predictions` },
+          { status: 403 }
+        );
+      }
+    }
+
     const { results, prediction, score } = await reveal_session(season, round, st, player_name);
 
     return NextResponse.json({

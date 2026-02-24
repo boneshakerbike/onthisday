@@ -132,6 +132,15 @@ async function init_f1_schema(): Promise<void> {
       PRIMARY KEY (season, round, session_type, player_name)
     )
   `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS f1_roster (
+      season INTEGER NOT NULL,
+      player_name TEXT NOT NULL,
+      added_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (season, player_name)
+    )
+  `);
 }
 
 async function ensure_f1_schema(): Promise<void> {
@@ -467,7 +476,64 @@ export async function get_player_round_states(
   }));
 }
 
-// ΓöÇΓöÇ Leaderboard Query ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+// —— Roster CRUD ——————————————————————————————————————
+
+export async function get_roster(season: number): Promise<string[]> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'SELECT player_name FROM f1_roster WHERE season = ? ORDER BY player_name ASC',
+    args: [season],
+  });
+
+  return result.rows.map(row => row.player_name as string);
+}
+
+export async function add_to_roster(season: number, player_name: string): Promise<void> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  await db.execute({
+    sql: 'INSERT OR IGNORE INTO f1_roster (season, player_name) VALUES (?, ?)',
+    args: [season, player_name],
+  });
+}
+
+export async function remove_from_roster(season: number, player_name: string): Promise<void> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  await db.execute({
+    sql: 'DELETE FROM f1_roster WHERE season = ? AND player_name = ?',
+    args: [season, player_name],
+  });
+}
+
+export async function get_all_player_states_for_round(
+  season: number, round: number
+): Promise<F1PlayerState[]> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: `SELECT * FROM f1_player_state
+          WHERE season = ? AND round = ?
+          ORDER BY player_name ASC, session_type ASC`,
+    args: [season, round],
+  });
+
+  return result.rows.map(row => ({
+    season: row.season as number,
+    round: row.round as number,
+    session_type: row.session_type as SessionType,
+    player_name: row.player_name as string,
+    state: row.state as PlayerState,
+    updated_at: row.updated_at as string,
+  }));
+}
+
+// —— Leaderboard Query ———————————————————————————————
 
 export interface LeaderboardEntry {
   player_name: string;

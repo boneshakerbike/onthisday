@@ -6,6 +6,8 @@ interface SeasonGridProps {
   races: F1RaceSchedule[];
   season: number;
   on_select_round: (round: number) => void;
+  active_round?: number;
+  completed_rounds?: number[];
 }
 
 const country_flags: Record<string, string> = {
@@ -32,7 +34,10 @@ function format_date(date_str: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export default function SeasonGrid({ races, on_select_round }: SeasonGridProps) {
+export default function SeasonGrid({ races, on_select_round, active_round, completed_rounds = [] }: SeasonGridProps) {
+  const has_locking = active_round !== undefined;
+  const completed_set = new Set(completed_rounds);
+
   return (
     <div style={{ marginTop: '1.5rem' }}>
       <h3 style={{ color: '#ffffff', fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>
@@ -43,52 +48,70 @@ export default function SeasonGrid({ races, on_select_round }: SeasonGridProps) 
         gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
         gap: '0.75rem',
       }}>
-        {races.map(race => (
-          <button
-            key={race.round}
-            onClick={() => on_select_round(race.round)}
-            style={{
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '8px',
-              padding: '0.75rem',
-              cursor: 'pointer',
-              textAlign: 'left',
-              transition: 'border-color 0.2s, background 0.2s',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.borderColor = '#e10600';
-              e.currentTarget.style.background = 'rgba(225,6,0,0.08)';
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
-              e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-            }}
-          >
-            <div style={{ fontSize: '0.7rem', color: '#888', marginBottom: '0.25rem' }}>
-              R{race.round} {get_flag(race.country)}
-            </div>
-            <div style={{ color: '#e0e0e0', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem' }}>
-              {race.race_name.replace(' Grand Prix', ' GP')}
-            </div>
-            <div style={{ color: '#888', fontSize: '0.7rem' }}>
-              {format_date(race.race_date)}
-              {race.is_sprint_weekend && (
-                <span style={{
-                  marginLeft: '0.4rem',
-                  background: '#e10600',
-                  color: '#fff',
-                  padding: '1px 4px',
-                  borderRadius: '3px',
-                  fontSize: '0.6rem',
-                  fontWeight: 700,
-                }}>
-                  SPRINT
-                </span>
-              )}
-            </div>
-          </button>
-        ))}
+        {races.map(race => {
+          const is_completed = completed_set.has(race.round);
+          const is_active = has_locking && race.round === active_round;
+          const is_future = has_locking && !is_completed && !is_active;
+
+          return (
+            <button
+              key={race.round}
+              onClick={() => {
+                if (is_future) return;
+                on_select_round(race.round);
+              }}
+              style={{
+                background: is_future ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${is_active ? 'rgba(225,6,0,0.4)' : is_completed ? 'rgba(0,255,136,0.2)' : 'rgba(255,255,255,0.1)'}`,
+                borderRadius: '8px',
+                padding: '0.75rem',
+                cursor: is_future ? 'not-allowed' : 'pointer',
+                textAlign: 'left',
+                transition: 'border-color 0.2s, background 0.2s',
+                opacity: is_future ? 0.4 : 1,
+              }}
+              onMouseEnter={e => {
+                if (is_future) return;
+                e.currentTarget.style.borderColor = '#e10600';
+                e.currentTarget.style.background = 'rgba(225,6,0,0.08)';
+              }}
+              onMouseLeave={e => {
+                if (is_future) return;
+                e.currentTarget.style.borderColor = is_active ? 'rgba(225,6,0,0.4)' : is_completed ? 'rgba(0,255,136,0.2)' : 'rgba(255,255,255,0.1)';
+                e.currentTarget.style.background = is_future ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)';
+              }}
+            >
+              <div style={{ fontSize: '0.7rem', color: '#888', marginBottom: '0.25rem', display: 'flex', justifyContent: 'space-between' }}>
+                <span>R{race.round} {get_flag(race.country)}</span>
+                {is_completed && (
+                  <span style={{ color: '#00ff88', fontSize: '0.6rem', fontWeight: 700 }}>DONE</span>
+                )}
+                {is_active && (
+                  <span style={{ color: '#e10600', fontSize: '0.6rem', fontWeight: 700 }}>NEXT</span>
+                )}
+              </div>
+              <div style={{ color: is_future ? '#555' : '#e0e0e0', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+                {race.race_name.replace(' Grand Prix', ' GP')}
+              </div>
+              <div style={{ color: '#888', fontSize: '0.7rem' }}>
+                {format_date(race.race_date)}
+                {race.is_sprint_weekend && (
+                  <span style={{
+                    marginLeft: '0.4rem',
+                    background: '#e10600',
+                    color: '#fff',
+                    padding: '1px 4px',
+                    borderRadius: '3px',
+                    fontSize: '0.6rem',
+                    fontWeight: 700,
+                  }}>
+                    SPRINT
+                  </span>
+                )}
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
