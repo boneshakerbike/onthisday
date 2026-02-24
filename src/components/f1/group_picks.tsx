@@ -32,7 +32,7 @@ export default function GroupPicks({ predictions, drivers, show_fastest_lap }: G
       border: '1px solid rgba(225,6,0,0.15)',
       borderRadius: '8px',
     }}>
-      <div style={{ color: '#e10600', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <div style={{ color: '#e10600', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
         All Picks Locked In
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${predictions.length}, 1fr)`, gap: '0.5rem' }}>
@@ -43,20 +43,20 @@ export default function GroupPicks({ predictions, drivers, show_fastest_lap }: G
             padding: '0.5rem',
             textAlign: 'center',
           }}>
-            <div style={{ color: '#e0e0e0', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.4rem' }}>
+            <div style={{ color: '#e0e0e0', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.4rem' }}>
               {pred.player_name}
             </div>
-            <div style={{ color: '#ffffff', fontSize: '0.8rem', fontWeight: 600 }}>
+            <div style={{ color: '#ffffff', fontSize: '0.85rem', fontWeight: 600 }}>
               P1: {driver_label(pred.p1, drivers)}
             </div>
-            <div style={{ color: '#ffffff', fontSize: '0.8rem', fontWeight: 600 }}>
+            <div style={{ color: '#ffffff', fontSize: '0.85rem', fontWeight: 600 }}>
               P2: {driver_label(pred.p2, drivers)}
             </div>
-            <div style={{ color: '#ffffff', fontSize: '0.8rem', fontWeight: 600 }}>
+            <div style={{ color: '#ffffff', fontSize: '0.85rem', fontWeight: 600 }}>
               P3: {driver_label(pred.p3, drivers)}
             </div>
             {show_fastest_lap && pred.fastest_lap && (
-              <div style={{ color: '#c084fc', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+              <div style={{ color: '#c084fc', fontSize: '0.8rem', marginTop: '0.25rem' }}>
                 FL: {driver_label(pred.fastest_lap, drivers)}
               </div>
             )}

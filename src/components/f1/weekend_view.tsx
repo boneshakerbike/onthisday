@@ -70,13 +70,15 @@ export default function WeekendView({
       <button
         onClick={on_back}
         style={{
-          background: 'none',
-          border: 'none',
+          background: 'rgba(225,6,0,0.1)',
+          border: '1px solid rgba(225,6,0,0.3)',
           color: '#e10600',
           cursor: 'pointer',
-          fontSize: '0.85rem',
+          fontSize: '0.9rem',
+          fontWeight: 600,
           marginBottom: '1rem',
-          padding: 0,
+          padding: '0.5rem 1rem',
+          borderRadius: '6px',
         }}
       >
         &larr; Back to calendar
@@ -118,12 +120,12 @@ export default function WeekendView({
                   <span style={{
                     color: is_revealed ? '#00ff88' : is_locked ? '#555' : '#e0e0e0',
                     fontWeight: 600,
-                    fontSize: '0.95rem',
+                    fontSize: '1rem',
                   }}>
                     {session_labels[session.session_type] || session.session_type}
                   </span>
                   {is_revealed && session.score && (
-                    <span style={{ color: '#ffffff', marginLeft: '0.75rem', fontWeight: 700, fontSize: '0.85rem' }}>
+                    <span style={{ color: '#ffffff', marginLeft: '0.75rem', fontWeight: 700, fontSize: '0.9rem' }}>
                       {session.score.total} pts
                     </span>
                   )}
@@ -131,7 +133,7 @@ export default function WeekendView({
 
                 <div>
                   {is_locked && (
-                    <span style={{ color: '#555', fontSize: '0.75rem' }}>
+                    <span style={{ color: '#555', fontSize: '0.8rem' }}>
                       Complete previous session first
                     </span>
                   )}
@@ -146,14 +148,14 @@ export default function WeekendView({
                         padding: '0.4rem 0.75rem',
                         fontWeight: 700,
                         cursor: 'pointer',
-                        fontSize: '0.8rem',
+                        fontSize: '0.85rem',
                       }}
                     >
                       Make Prediction
                     </button>
                   )}
                   {is_watching && session.group && !session.group.all_predicted && (
-                    <span style={{ color: '#e10600', fontSize: '0.75rem' }}>
+                    <span style={{ color: '#e10600', fontSize: '0.8rem' }}>
                       Waiting for {session.group.missing.join(', ')}
                     </span>
                   )}
@@ -169,14 +171,14 @@ export default function WeekendView({
                         padding: '0.4rem 0.75rem',
                         fontWeight: 700,
                         cursor: revealing === session.session_type ? 'wait' : 'pointer',
-                        fontSize: '0.8rem',
+                        fontSize: '0.85rem',
                       }}
                     >
                       {revealing === session.session_type ? 'Fetching...' : 'Reveal Results'}
                     </button>
                   )}
                   {is_revealed && (
-                    <span style={{ color: '#00ff88', fontSize: '0.75rem' }}>Revealed</span>
+                    <span style={{ color: '#00ff88', fontSize: '0.8rem' }}>Revealed</span>
                   )}
                 </div>
               </div>
@@ -218,7 +220,7 @@ export default function WeekendView({
                   background: 'rgba(255,255,255,0.03)',
                   borderRadius: '6px',
                   color: '#888',
-                  fontSize: '0.8rem',
+                  fontSize: '0.85rem',
                 }}>
                   Prediction locked. Waiting for all players to lock in.
                 </div>
@@ -230,7 +232,7 @@ export default function WeekendView({
                   background: 'rgba(255,255,255,0.03)',
                   borderRadius: '6px',
                   color: '#888',
-                  fontSize: '0.8rem',
+                  fontSize: '0.85rem',
                 }}>
                   Prediction locked. Watch the session, then click Reveal when ready.
                 </div>

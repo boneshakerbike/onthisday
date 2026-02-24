@@ -90,10 +90,10 @@ export default function SeasonGrid({ races, on_select_round, active_round, compl
                   <span style={{ color: '#e10600', fontSize: '0.6rem', fontWeight: 700 }}>NEXT</span>
                 )}
               </div>
-              <div style={{ color: is_future ? '#555' : '#e0e0e0', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+              <div style={{ color: is_future ? '#555' : '#e0e0e0', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.25rem' }}>
                 {race.race_name.replace(' Grand Prix', ' GP')}
               </div>
-              <div style={{ color: '#888', fontSize: '0.7rem' }}>
+              <div style={{ color: '#888', fontSize: '0.75rem' }}>
                 {format_date(race.race_date)}
                 {race.is_sprint_weekend && (
                   <span style={{

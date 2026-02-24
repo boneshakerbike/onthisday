@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 interface LeaderboardEntry {
   player_name: string;
   total_score: number;
@@ -11,18 +13,68 @@ interface LeaderboardProps {
   season: number;
 }
 
+function ScoringRules() {
+  const [open, set_open] = useState(false);
+
+  return (
+    <div style={{ marginTop: '0.75rem' }}>
+      <button
+        onClick={() => set_open(prev => !prev)}
+        style={{
+          background: 'none',
+          border: 'none',
+          color: '#888',
+          cursor: 'pointer',
+          fontSize: '0.8rem',
+          padding: 0,
+        }}
+      >
+        {open ? 'Hide' : 'How'} scoring works {open ? '\u25B2' : '\u25BC'}
+      </button>
+      {open && (
+        <div style={{
+          marginTop: '0.5rem',
+          padding: '0.75rem',
+          background: 'rgba(255,255,255,0.03)',
+          borderRadius: '8px',
+          fontSize: '0.85rem',
+          lineHeight: 1.6,
+        }}>
+          <div style={{ color: '#e0e0e0', marginBottom: '0.5rem', fontWeight: 600 }}>Predict the top 3 for each session</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.25rem 0.75rem' }}>
+            <span style={{ color: '#00ff88', fontWeight: 700 }}>+5</span>
+            <span style={{ color: '#ccc' }}>Perfect Match — right driver, right position</span>
+            <span style={{ color: '#ffaa00', fontWeight: 700 }}>+2</span>
+            <span style={{ color: '#ccc' }}>Podium Lock — right driver, wrong position</span>
+            <span style={{ color: '#888', fontWeight: 700 }}>+1</span>
+            <span style={{ color: '#ccc' }}>Almost — driver finishes P4 or P5</span>
+            <span style={{ color: '#c084fc', fontWeight: 700 }}>+3</span>
+            <span style={{ color: '#ccc' }}>Fastest Lap — bonus for race sessions only</span>
+          </div>
+          <div style={{ color: '#666', fontSize: '0.75rem', marginTop: '0.5rem' }}>
+            Max per session: 18 pts (3 perfect + fastest lap)
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Leaderboard({ standings, season }: LeaderboardProps) {
   if (standings.length === 0) {
     return (
-      <div style={{
-        background: 'rgba(255,255,255,0.03)',
-        borderRadius: '10px',
-        padding: '1.5rem',
-        textAlign: 'center',
-        color: '#666',
-        fontSize: '0.85rem',
-      }}>
-        No predictions yet for {season}. Be the first to play!
+      <div>
+        <div style={{
+          background: 'rgba(255,255,255,0.03)',
+          borderRadius: '10px',
+          padding: '1.5rem',
+          textAlign: 'center',
+          color: '#666',
+          fontSize: '0.85rem',
+        }}>
+          No predictions yet for {season}. Be the first to play!
+        </div>
+        <ScoringRules />
       </div>
     );
   }
@@ -84,6 +136,7 @@ export default function Leaderboard({ standings, season }: LeaderboardProps) {
           </div>
         ))}
       </div>
+      <ScoringRules />
     </div>
   );
 }

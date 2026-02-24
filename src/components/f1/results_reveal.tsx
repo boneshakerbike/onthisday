@@ -71,15 +71,15 @@ export default function ResultsReveal({
               borderRadius: '6px',
               borderLeft: `3px solid ${color}`,
             }}>
-              <div style={{ color: '#888', fontWeight: 700, fontSize: '0.85rem' }}>{pos}</div>
+              <div style={{ color: '#888', fontWeight: 700, fontSize: '0.9rem' }}>{pos}</div>
               <div>
-                <div style={{ color: '#888', fontSize: '0.6rem' }}>YOUR PICK</div>
+                <div style={{ color: '#888', fontSize: '0.65rem' }}>YOUR PICK</div>
                 <div style={{ color: pick ? '#e0e0e0' : '#555', fontSize: '0.85rem' }}>
                   {pick ? driver_display(pick, results) : 'No pick'}
                 </div>
               </div>
               <div>
-                <div style={{ color: '#888', fontSize: '0.6rem' }}>ACTUAL</div>
+                <div style={{ color: '#888', fontSize: '0.65rem' }}>ACTUAL</div>
                 <div style={{ color: '#e0e0e0', fontSize: '0.85rem' }}>
                   {actual_driver ? `${actual_driver.driver_code} - ${actual_driver.given_name} ${actual_driver.family_name}` : '-'}
                 </div>
@@ -105,27 +105,27 @@ export default function ResultsReveal({
           padding: '0.5rem',
           background: 'rgba(255,255,255,0.03)',
           borderRadius: '6px',
-          borderLeft: `3px solid ${prediction.fastest_lap === fastest_lap_driver_id ? '#a020f0' : '#555'}`,
+          borderLeft: `3px solid ${prediction.fastest_lap === fastest_lap_driver_id ? '#c084fc' : '#555'}`,
           display: 'grid',
           gridTemplateColumns: '40px 1fr 1fr auto',
           gap: '0.5rem',
           alignItems: 'center',
         }}>
-          <div style={{ color: '#888', fontWeight: 700, fontSize: '0.75rem' }}>FL</div>
+          <div style={{ color: '#888', fontWeight: 700, fontSize: '0.85rem' }}>FL</div>
           <div>
-            <div style={{ color: '#888', fontSize: '0.6rem' }}>YOUR PICK</div>
+            <div style={{ color: '#888', fontSize: '0.65rem' }}>YOUR PICK</div>
             <div style={{ color: '#e0e0e0', fontSize: '0.85rem' }}>
               {driver_display(prediction.fastest_lap, results)}
             </div>
           </div>
           <div>
-            <div style={{ color: '#888', fontSize: '0.6rem' }}>ACTUAL</div>
+            <div style={{ color: '#888', fontSize: '0.65rem' }}>ACTUAL</div>
             <div style={{ color: '#e0e0e0', fontSize: '0.85rem' }}>
               {fastest_lap_driver_id ? driver_display(fastest_lap_driver_id, results) : 'N/A'}
             </div>
           </div>
           <div style={{
-            color: prediction.fastest_lap === fastest_lap_driver_id ? '#a020f0' : '#555',
+            color: prediction.fastest_lap === fastest_lap_driver_id ? '#c084fc' : '#555',
             fontWeight: 700,
             fontSize: '0.8rem',
             textAlign: 'right',
@@ -145,11 +145,11 @@ export default function ResultsReveal({
           borderRadius: '8px',
           textAlign: 'center',
         }}>
-          <div style={{ color: '#888', fontSize: '0.7rem', marginBottom: '0.25rem' }}>SESSION TOTAL</div>
+          <div style={{ color: '#888', fontSize: '0.75rem', marginBottom: '0.25rem' }}>SESSION TOTAL</div>
           <div style={{ color: '#ffffff', fontSize: '2rem', fontWeight: 700 }}>
             {score.total} pts
           </div>
-          <div style={{ color: '#888', fontSize: '0.7rem', marginTop: '0.25rem' }}>
+          <div style={{ color: '#888', fontSize: '0.75rem', marginTop: '0.25rem' }}>
             {score.perfect_match > 0 && `${score.perfect_match} perfect `}
             {score.podium_lock > 0 && `${score.podium_lock} podium `}
             {score.almost > 0 && `${score.almost} almost `}
