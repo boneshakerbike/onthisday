@@ -48,26 +48,28 @@ export default function F1Page() {
   const [loading, set_loading] = useState(true);
   const [error, set_error] = useState<string | null>(null);
   const [roster, set_roster] = useState<string[]>([]);
+  const [roster_loaded, set_roster_loaded] = useState(false);
   const [active_round, set_active_round] = useState<number | undefined>(undefined);
   const [completed_rounds, set_completed_rounds] = useState<number[]>([]);
   const [show_roster, set_show_roster] = useState(false);
 
-  // Load player name from localStorage
+  // Load player name from localStorage (don't show prompt yet — wait for roster)
   useEffect(() => {
     const saved = localStorage.getItem('f1_player_name');
     if (saved) {
       set_player_name(saved);
-    } else {
-      set_show_name_prompt(true);
     }
   }, []);
 
-  // If roster exists and current name isn't on it, prompt to re-select
+  // Once roster is loaded, decide whether to show name prompt
   useEffect(() => {
-    if (roster.length > 0 && player_name && !roster.includes(player_name)) {
+    if (!roster_loaded) return;
+    if (!player_name) {
+      set_show_name_prompt(true);
+    } else if (roster.length > 0 && !roster.includes(player_name)) {
       set_show_name_prompt(true);
     }
-  }, [roster, player_name]);
+  }, [roster_loaded, roster, player_name]);
 
   // Save player name
   const save_player_name = (name: string) => {
@@ -86,8 +88,9 @@ export default function F1Page() {
         set_roster(data.roster || []);
         set_active_round(data.roster?.length > 0 ? data.active_round : undefined);
         set_completed_rounds(data.roster?.length > 0 ? (data.completed_rounds || []) : []);
+        set_roster_loaded(true);
       })
-      .catch(() => {});
+      .catch(() => { set_roster_loaded(true); });
   }, [season]);
 
   useEffect(() => { refresh_progress(); }, [refresh_progress]);
