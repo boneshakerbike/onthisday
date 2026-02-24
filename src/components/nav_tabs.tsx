@@ -279,6 +279,13 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
         className={dropdown_class}
       >
         <Link
+          href="/tools/text-cleaner"
+          onClick={() => set_tools_open(false)}
+          className={dropdown_item_class}
+        >
+          What Am I Trying To Say
+        </Link>
+        <Link
           href="/tools/markdown"
           onClick={() => set_tools_open(false)}
           className={dropdown_item_class}
