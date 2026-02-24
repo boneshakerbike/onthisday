@@ -50,6 +50,7 @@ export default function F1Page() {
   const [roster, set_roster] = useState<string[]>([]);
   const [active_round, set_active_round] = useState<number | undefined>(undefined);
   const [completed_rounds, set_completed_rounds] = useState<number[]>([]);
+  const [show_roster, set_show_roster] = useState(false);
 
   // Load player name from localStorage
   useEffect(() => {
@@ -417,10 +418,42 @@ export default function F1Page() {
         {player_name && (
           <div className="player-bar">
             <span className="player-name">Playing as: <strong>{player_name}</strong></span>
-            <button className="change-name" onClick={() => set_show_name_prompt(true)}>
-              Change
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button className="change-name" onClick={() => set_show_name_prompt(true)}>
+                Change
+              </button>
+              {is_admin && (
+                <button
+                  onClick={() => set_show_roster(prev => !prev)}
+                  style={{
+                    background: show_roster ? 'rgba(225,6,0,0.15)' : 'none',
+                    border: 'none',
+                    color: show_roster ? '#e10600' : '#666',
+                    cursor: 'pointer',
+                    fontSize: '1rem',
+                    padding: '0.2rem',
+                    lineHeight: 1,
+                    borderRadius: '4px',
+                  }}
+                  title="Manage roster"
+                >
+                  &#9881;
+                </button>
+              )}
+            </div>
           </div>
+        )}
+
+        {/* Roster manager (toggled by gear icon) */}
+        {show_roster && is_admin && (
+          <RosterManager
+            season={season}
+            roster={roster}
+            on_roster_change={(new_roster) => {
+              set_roster(new_roster);
+              refresh_progress();
+            }}
+          />
         )}
 
         {/* Loading / Error */}
@@ -460,16 +493,6 @@ export default function F1Page() {
               />
             ) : (
               <>
-                {is_admin && (
-                  <RosterManager
-                    season={season}
-                    roster={roster}
-                    on_roster_change={(new_roster) => {
-                      set_roster(new_roster);
-                      refresh_progress();
-                    }}
-                  />
-                )}
                 <Leaderboard standings={standings} season={season} />
                 {races.length > 0 ? (
                   <SeasonGrid
