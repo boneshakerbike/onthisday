@@ -28,6 +28,13 @@ export default function ToolsPage() {
             <h2 className="text-xl text-white mb-2">Markdown Converter</h2>
             <p className="text-gray-400 text-sm">Convert rich text to Markdown and back</p>
           </Link>
+          <Link
+            href="/tools/usage"
+            className="block bg-white/5 rounded-xl p-6 border border-white/10 hover:border-cyan-400 transition-all"
+          >
+            <h2 className="text-xl text-white mb-2">Usage Dashboard</h2>
+            <p className="text-gray-400 text-sm">Anthropic API token tracking and estimated costs</p>
+          </Link>
         </div>
       </div>
     </div>

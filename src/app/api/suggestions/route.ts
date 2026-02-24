@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import Anthropic from '@anthropic-ai/sdk';
+import { call_anthropic } from '@/lib/ai';
 import {
   get_suggestions,
   get_suggestion,
@@ -93,11 +93,10 @@ async function is_bill_request(request: NextRequest): Promise<boolean> {
 
 // Run Haiku to generate a short title + cleaned content from raw text
 async function ai_cleanup(raw: string): Promise<{ title: string; content: string } | null> {
-  const api_key = process.env.ANTHROPIC_API_KEY;
-  if (!api_key) return null;
   try {
-    const client = new Anthropic({ apiKey: api_key });
-    const result = await client.messages.create({
+    const { message: result } = await call_anthropic({
+      route: '/api/suggestions/ai_cleanup',
+      agent_id: null,
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1024,
       messages: [{

@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import Anthropic from '@anthropic-ai/sdk';
+import { call_anthropic } from '@/lib/ai';
 
 async function require_auth(request: NextRequest): Promise<NextResponse | null> {
   const token = await getToken({ req: request });
@@ -27,11 +27,6 @@ export async function POST(request: NextRequest) {
   const auth_error = await require_auth(request);
   if (auth_error) return auth_error;
 
-  const api_key = process.env.ANTHROPIC_API_KEY;
-  if (!api_key) {
-    return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 });
-  }
-
   try {
     const { content, issue } = await request.json();
 
@@ -39,10 +34,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Prompt content is required' }, { status: 400 });
     }
 
-    const client = new Anthropic({ apiKey: api_key });
-
     // Prompt Library: "Prompt Review" — update library if this changes
-    const review = await client.messages.create({
+    const { message: review } = await call_anthropic({
+      route: '/api/prompts/review',
+      agent_id: null,
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2048,
       messages: [
