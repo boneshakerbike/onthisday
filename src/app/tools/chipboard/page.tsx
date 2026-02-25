@@ -94,22 +94,11 @@ export default function ChipboardPage() {
   const [plan_open, set_plan_open] = useState<Set<string>>(new Set());
   const [todos_open, set_todos_open] = useState<Set<string>>(new Set());
   const [summary_open, set_summary_open] = useState<Set<string>>(new Set());
+  const [show_done_todos, set_show_done_todos] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetch_suggestions();
   }, []);
-
-  // Auto-expand plan section for items that have plans
-  useEffect(() => {
-    const with_plan = suggestions.filter(s => s.plan).map(s => s.id);
-    if (with_plan.length > 0) {
-      set_plan_open(prev => {
-        const next = new Set(prev);
-        with_plan.forEach(id => next.add(id));
-        return next;
-      });
-    }
-  }, [suggestions]);
 
   // Auto-expand the relevant section when a status filter is selected
   useEffect(() => {
@@ -139,7 +128,7 @@ export default function ChipboardPage() {
 
   async function fetch_suggestions() {
     try {
-      const res = await fetch('/api/suggestions');
+      const res = await fetch('/api/suggestions', { cache: 'no-store' });
       const data = await res.json();
       if (data.success) {
         set_suggestions(data.suggestions);
@@ -590,7 +579,7 @@ export default function ChipboardPage() {
               {s.title && (
                 <p className="text-white font-semibold break-words">{s.title}</p>
               )}
-              <p className={`break-words ${s.title ? 'text-sm text-gray-400' : 'text-gray-200'}`}>{s.content}</p>
+              <p className={`break-words ${s.title ? 'text-base sm:text-sm text-gray-400' : 'text-gray-200'}`}>{s.content}</p>
             </>
           )}
 
@@ -660,6 +649,61 @@ export default function ChipboardPage() {
             const todos = parse_todos(s.todos);
             const done_count = todos.filter(t => t.done).length;
             const has_todos = todos.length > 0;
+            const open_todos = todos.filter(t => !t.done);
+            const done_todos = todos.filter(t => t.done);
+            const showing_done = show_done_todos.has(s.id);
+
+            function render_todo_row(t: TodoItem) {
+              const type_colors = {
+                bug: 'bg-red-500/20 text-red-400',
+                feature: 'bg-cyan-500/20 text-cyan-400',
+                task: 'bg-gray-500/20 text-gray-400',
+              };
+              return (
+                <div key={t.id} className="flex items-center gap-2 group">
+                  {is_bill ? (
+                    <button
+                      onClick={() => toggle_todo(s.id, t.id, !t.done)}
+                      className={`w-4 h-4 flex-shrink-0 rounded border transition-all ${t.done ? 'bg-green-500/30 border-green-500/50' : 'border-white/20 hover:border-white/40'}`}
+                    >
+                      {t.done && <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                    </button>
+                  ) : (
+                    <span className={`w-4 h-4 flex-shrink-0 rounded border ${t.done ? 'bg-green-500/30 border-green-500/50' : 'border-white/20'} flex items-center justify-center`}>
+                      {t.done && <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                    </span>
+                  )}
+                  {is_bill && editing_todo?.item_id === s.id && editing_todo?.todo_id === t.id ? (
+                    <input
+                      type="text"
+                      value={editing_todo_text}
+                      onChange={(e) => set_editing_todo_text(e.target.value)}
+                      onBlur={() => save_todo_text(s.id, t.id, editing_todo_text)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') save_todo_text(s.id, t.id, editing_todo_text); if (e.key === 'Escape') set_editing_todo(null); }}
+                      maxLength={200}
+                      autoFocus
+                      className="flex-1 bg-white/5 border border-cyan-400/30 rounded px-1 py-0.5 text-sm sm:text-xs text-white focus:outline-none"
+                    />
+                  ) : (
+                    <span
+                      className={`text-sm sm:text-xs flex-1 ${t.done ? 'line-through text-gray-600' : 'text-gray-300'} ${is_bill ? 'cursor-pointer hover:text-white' : ''}`}
+                      onClick={() => { if (is_bill) { set_editing_todo({ item_id: s.id, todo_id: t.id }); set_editing_todo_text(t.text); } }}
+                    >
+                      {t.text}
+                    </span>
+                  )}
+                  <span className={`px-1 py-0.5 text-[10px] rounded ${type_colors[t.type]}`}>{t.type}</span>
+                  {is_bill && (
+                    <button
+                      onClick={() => remove_todo(s.id, t.id)}
+                      className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all text-xs"
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+              );
+            }
 
             return (
               <div className="border border-white/10 rounded-lg overflow-hidden">
@@ -683,57 +727,22 @@ export default function ChipboardPage() {
                   <div className="px-3 pb-3">
                     {has_todos && (
                       <div className="space-y-1 mb-3">
-                        {todos.map(t => {
-                          const type_colors = {
-                            bug: 'bg-red-500/20 text-red-400',
-                            feature: 'bg-cyan-500/20 text-cyan-400',
-                            task: 'bg-gray-500/20 text-gray-400',
-                          };
-                          return (
-                            <div key={t.id} className="flex items-center gap-2 group">
-                              {is_bill ? (
-                                <button
-                                  onClick={() => toggle_todo(s.id, t.id, !t.done)}
-                                  className={`w-4 h-4 flex-shrink-0 rounded border transition-all ${t.done ? 'bg-green-500/30 border-green-500/50' : 'border-white/20 hover:border-white/40'}`}
-                                >
-                                  {t.done && <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
-                                </button>
-                              ) : (
-                                <span className={`w-4 h-4 flex-shrink-0 rounded border ${t.done ? 'bg-green-500/30 border-green-500/50' : 'border-white/20'} flex items-center justify-center`}>
-                                  {t.done && <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
-                                </span>
-                              )}
-                              {is_bill && editing_todo?.item_id === s.id && editing_todo?.todo_id === t.id ? (
-                                <input
-                                  type="text"
-                                  value={editing_todo_text}
-                                  onChange={(e) => set_editing_todo_text(e.target.value)}
-                                  onBlur={() => save_todo_text(s.id, t.id, editing_todo_text)}
-                                  onKeyDown={(e) => { if (e.key === 'Enter') save_todo_text(s.id, t.id, editing_todo_text); if (e.key === 'Escape') set_editing_todo(null); }}
-                                  maxLength={100}
-                                  autoFocus
-                                  className="flex-1 bg-white/5 border border-cyan-400/30 rounded px-1 py-0.5 text-xs text-white focus:outline-none"
-                                />
-                              ) : (
-                                <span
-                                  className={`text-xs flex-1 ${t.done ? 'line-through text-gray-600' : 'text-gray-300'} ${is_bill ? 'cursor-pointer hover:text-white' : ''}`}
-                                  onClick={() => { if (is_bill) { set_editing_todo({ item_id: s.id, todo_id: t.id }); set_editing_todo_text(t.text); } }}
-                                >
-                                  {t.text}
-                                </span>
-                              )}
-                              <span className={`px-1 py-0.5 text-[10px] rounded ${type_colors[t.type]}`}>{t.type}</span>
-                              {is_bill && (
-                                <button
-                                  onClick={() => remove_todo(s.id, t.id)}
-                                  className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all text-xs"
-                                >
-                                  ×
-                                </button>
-                              )}
-                            </div>
-                          );
-                        })}
+                        {open_todos.map(t => render_todo_row(t))}
+                        {done_todos.length > 0 && (
+                          <>
+                            <button
+                              onClick={() => {
+                                const next = new Set(show_done_todos);
+                                showing_done ? next.delete(s.id) : next.add(s.id);
+                                set_show_done_todos(next);
+                              }}
+                              className="mt-1 text-xs text-gray-600 hover:text-gray-400 transition-all"
+                            >
+                              {showing_done ? `Hide ${done_todos.length} completed` : `Show ${done_todos.length} completed`}
+                            </button>
+                            {showing_done && done_todos.map(t => render_todo_row(t))}
+                          </>
+                        )}
                       </div>
                     )}
                     {/* Add todo input */}
@@ -744,7 +753,7 @@ export default function ChipboardPage() {
                         onChange={(e) => set_todo_input(prev => ({ ...prev, [s.id]: e.target.value }))}
                         onKeyDown={(e) => { if (e.key === 'Enter') add_todo(s.id); }}
                         placeholder="Add a todo..."
-                        maxLength={100}
+                        maxLength={200}
                         className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-cyan-400/30"
                       />
                       <select
@@ -978,6 +987,22 @@ export default function ChipboardPage() {
               </button>
             </div>
           )}
+        </div>
+
+        {/* Collapse all & scroll to top */}
+        <div className="mt-3 flex justify-end">
+          <button
+            onClick={() => {
+              set_plan_open(prev => { const next = new Set(prev); next.delete(s.id); return next; });
+              set_todos_open(prev => { const next = new Set(prev); next.delete(s.id); return next; });
+              set_summary_open(prev => { const next = new Set(prev); next.delete(s.id); return next; });
+              if (context_open === s.id) set_context_open(null);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="text-xs text-gray-600 hover:text-gray-400 transition-all"
+          >
+            Collapse all ↑
+          </button>
         </div>
 
         {/* Done outcome modal */}

@@ -96,8 +96,8 @@ export async function POST(request: NextRequest) {
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return NextResponse.json({ error: 'text is required' }, { status: 400, headers: cors_headers() });
     }
-    if (text.length > 100) {
-      return NextResponse.json({ error: 'text must be 100 characters or fewer' }, { status: 400, headers: cors_headers() });
+    if (text.length > 200) {
+      return NextResponse.json({ error: 'text must be 200 characters or fewer' }, { status: 400, headers: cors_headers() });
     }
     const valid_types = ['bug', 'feature', 'task'];
     if (!type || !valid_types.includes(type)) {
@@ -146,8 +146,8 @@ export async function PATCH(request: NextRequest) {
     if (!id || !todo_id) {
       return NextResponse.json({ error: 'id and todo_id are required' }, { status: 400, headers: cors_headers() });
     }
-    if (text !== undefined && text.length > 100) {
-      return NextResponse.json({ error: 'text must be 100 characters or fewer' }, { status: 400, headers: cors_headers() });
+    if (text !== undefined && text.length > 200) {
+      return NextResponse.json({ error: 'text must be 200 characters or fewer' }, { status: 400, headers: cors_headers() });
     }
 
     const updates: { done?: boolean; text?: string } = {};
