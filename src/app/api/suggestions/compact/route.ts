@@ -1,11 +1,11 @@
 /**
  * API route: /api/suggestions/compact
  * Manual context compaction with preview — admin only
- * Calls Haiku to generate a summary + extract todos from context history
+ * Calls Haiku to generate a summary from context history
  *
  * POST - Compact context (admin only)
- *   confirm=false: preview mode (returns proposed summary + todos, saves nothing)
- *   confirm=true: saves summary and appends extracted todos
+ *   confirm=false: preview mode (returns proposed summary, saves nothing)
+ *   confirm=true: saves summary
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -14,8 +14,6 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
   get_suggestion,
   set_suggestion_summary,
-  add_suggestion_todo,
-  TodoItem,
 } from '@/lib/db';
 
 export const maxDuration = 30;
@@ -38,22 +36,11 @@ async function require_bill(request: NextRequest): Promise<NextResponse | null> 
   return NextResponse.json({ error: 'Admin access required' }, { status: 403, headers: cors_headers() });
 }
 
-function generate_todo_id(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let id = '';
-  for (let i = 0; i < 8; i++) {
-    id += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return id;
-}
+const COMPACTION_PROMPT = `You are compacting a project's context history into a concise current-state summary.
 
-const COMPACTION_PROMPT = `You are compacting a project's context history into two outputs.
+Write a summary covering only what's CURRENT: what's built, what works, what's broken, key decisions still relevant. Discard completed or outdated information. Do NOT summarize any content from the plan field — that is managed separately. Max 500 words.
 
-OUTPUT 1 - SUMMARY: Write a concise current-state summary. Cover only what's CURRENT: what's built, what works, what's broken, key decisions still relevant. Discard completed or outdated information. Do NOT summarize any content from the plan field — that is managed separately. Max 500 words.
-
-OUTPUT 2 - TODOS: Extract every unresolved bug, feature request, and pending task. Each item MUST be under 100 characters — one short sentence, like a git commit subject. Classify each as "bug", "feature", or "task". If you cannot express it in under 100 characters, split it into multiple items.
-
-Return valid JSON only: {"summary": "...", "todos": [{"text": "...", "type": "bug|feature|task"}, ...]}`;
+Return valid JSON only: {"summary": "..."}`;
 
 export async function OPTIONS(request: NextRequest) {
   return NextResponse.json({}, { headers: cors_headers(request.headers.get('origin')) });
@@ -108,49 +95,30 @@ export async function POST(request: NextRequest) {
       raw_text = raw_text.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
     }
 
-    let parsed: { summary: string; todos: { text: string; type: string }[] };
+    let parsed: { summary: string };
     try {
       parsed = JSON.parse(raw_text);
     } catch {
       return NextResponse.json({ error: 'AI returned invalid JSON', raw: raw_text }, { status: 500, headers: cors_headers() });
     }
 
-    const new_todos = (parsed.todos || []).map(t => ({
-      text: t.text.slice(0, 100),
-      type: ['bug', 'feature', 'task'].includes(t.type) ? t.type : 'task',
-    }));
-
     if (!confirm) {
-      // Preview mode — return proposed changes, save nothing
+      // Preview mode — return proposed summary, save nothing
       return NextResponse.json({
         success: true,
         preview: true,
         summary: parsed.summary,
-        new_todos,
         overflow,
       }, { headers: cors_headers() });
     }
 
-    // Confirm mode — save summary and append todos
+    // Confirm mode — save summary
     await set_suggestion_summary(id, parsed.summary);
-
-    for (const t of new_todos) {
-      const todo: TodoItem = {
-        id: generate_todo_id(),
-        text: t.text,
-        type: t.type as TodoItem['type'],
-        done: false,
-        added_by: 'compact',
-        created_at: new Date().toISOString(),
-      };
-      await add_suggestion_todo(id, todo);
-    }
 
     return NextResponse.json({
       success: true,
       saved: true,
       summary: parsed.summary,
-      new_todos,
       overflow,
     }, { headers: cors_headers() });
   } catch (error) {

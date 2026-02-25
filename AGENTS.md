@@ -180,6 +180,7 @@ Team protocol: **propose -> discuss -> agree -> act.** Do not skip agree.
 
 ```
 GET  /api/suggestions?status=STATUS               # List items by status -- REQUIRES AUTH (see below)
+GET  /api/suggestions?id=ID                      # Fetch single item by ID -- REQUIRES AUTH
 GET  /api/suggestions?tag=chip                    # Filter by agent tag -- REQUIRES AUTH
 POST /api/suggestions                             # Create item (X-Guest-Pin or session required)
 PATCH /api/suggestions                            # Update status/tags/assigned_to/blocked_reason (auth required)

@@ -87,7 +87,6 @@ export default function ChipboardPage() {
   const [compact_preview, set_compact_preview] = useState<{
     id: string;
     summary: string;
-    new_todos: { text: string; type: string }[];
     overflow: boolean;
   } | null>(null);
 
@@ -405,7 +404,6 @@ export default function ChipboardPage() {
         set_compact_preview({
           id: item_id,
           summary: data.summary,
-          new_todos: data.new_todos,
           overflow: data.overflow,
         });
       } else {
@@ -806,23 +804,6 @@ export default function ChipboardPage() {
                       <pre className="text-xs text-gray-300 whitespace-pre-wrap break-words font-mono bg-black/20 rounded p-2 mb-2 max-h-32 overflow-y-auto">
                         {compact_preview.summary}
                       </pre>
-                      {compact_preview.new_todos.length > 0 && (
-                        <>
-                          <p className="text-xs text-gray-400 mb-1 font-medium">Extracted Todos ({compact_preview.new_todos.length}):</p>
-                          <div className="space-y-0.5 mb-2">
-                            {compact_preview.new_todos.map((t, i) => (
-                              <div key={i} className="flex items-center gap-2 text-xs text-gray-300">
-                                <span className={`px-1 py-0.5 text-[10px] rounded ${
-                                  t.type === 'bug' ? 'bg-red-500/20 text-red-400' :
-                                  t.type === 'feature' ? 'bg-cyan-500/20 text-cyan-400' :
-                                  'bg-gray-500/20 text-gray-400'
-                                }`}>{t.type}</span>
-                                {t.text}
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      )}
                       <div className="flex gap-2">
                         <button onClick={save_compact}
                           className="px-3 py-1 text-xs bg-green-500 hover:bg-green-600 rounded transition-all">Save Compaction</button>
