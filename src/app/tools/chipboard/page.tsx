@@ -62,10 +62,10 @@ export default function ChipboardPage() {
   const [cleaning_up, set_cleaning_up] = useState<Set<string>>(new Set());
   const [error_msg, set_error_msg] = useState<string | null>(null);
   const [collapsed, set_collapsed] = useState<Record<GroupKey, boolean>>({
-    inbox: false,
-    todo: false,
-    inwork: false,
-    testing: false,
+    inbox: true,
+    todo: true,
+    inwork: true,
+    testing: true,
     completed: true,
   });
 
@@ -96,6 +96,10 @@ export default function ChipboardPage() {
   const [summary_open, set_summary_open] = useState<Set<string>>(new Set());
   const [show_done_todos, set_show_done_todos] = useState<Set<string>>(new Set());
   const [item_expanded, set_item_expanded] = useState<Set<string>>(new Set());
+
+  // Suggest todos state
+  const [suggest_loading, set_suggest_loading] = useState<Set<string>>(new Set());
+  const [suggested_todos, set_suggested_todos] = useState<Record<string, Array<{ text: string; type: 'bug' | 'feature' | 'task' }>>>({});
 
   useEffect(() => {
     fetch_suggestions();
@@ -145,22 +149,37 @@ export default function ChipboardPage() {
     e.preventDefault();
     if (!new_content.trim() || submitting) return;
 
+    const content_to_submit = new_content.trim();
+    const temp_id = 'temp_' + Date.now();
+
+    // Optimistic add
+    const placeholder: Suggestion = {
+      id: temp_id, slug: temp_id, title: null, content: content_to_submit,
+      status: 'inbox', created_at: new Date().toISOString(), resolved_at: null,
+      outcome: null, tags: null, assigned_to: null, context: null,
+      last_context_at: null, todos: null, summary: null, plan: null,
+    };
+    set_suggestions(prev => [placeholder, ...prev]);
+    set_collapsed(prev => ({ ...prev, inbox: false }));
+    set_new_content('');
+
     set_submitting(true);
     set_error_msg(null);
     try {
       const res = await fetch('/api/suggestions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: new_content.trim() })
+        body: JSON.stringify({ content: content_to_submit })
       });
       const data = await res.json();
       if (data.success) {
-        set_new_content('');
-        fetch_suggestions();
+        fetch_suggestions(); // replaces placeholder with AI-cleaned real item
       } else {
+        set_suggestions(prev => prev.filter(s => s.id !== temp_id));
         set_error_msg(`Add failed (${res.status}): ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
+      set_suggestions(prev => prev.filter(s => s.id !== temp_id));
       set_error_msg(`Add failed: ${error instanceof Error ? error.message : 'Network error'}`);
     } finally {
       set_submitting(false);
@@ -283,8 +302,8 @@ export default function ChipboardPage() {
     try { return JSON.parse(json); } catch { return []; }
   }
 
-  async function add_todo(item_id: string) {
-    const text = (todo_input[item_id] || '').trim();
+  async function add_todo(item_id: string, override_text?: string, override_type?: string) {
+    const text = override_text ?? (todo_input[item_id] || '').trim();
     if (!text || todo_submitting) return;
     set_todo_submitting(true);
     set_error_msg(null);
@@ -295,7 +314,7 @@ export default function ChipboardPage() {
         body: JSON.stringify({
           id: item_id,
           text,
-          type: todo_type[item_id] || 'task',
+          type: override_type ?? todo_type[item_id] ?? 'task',
           added_by: 'bill',
         }),
       });
@@ -446,6 +465,30 @@ export default function ChipboardPage() {
       }
     } catch (error) {
       set_error_msg(`Save compact failed: ${error instanceof Error ? error.message : 'Network error'}`);
+    }
+  }
+
+  async function run_suggest_todos(item_id: string) {
+    set_suggest_loading(prev => new Set(prev).add(item_id));
+    set_suggested_todos(prev => ({ ...prev, [item_id]: [] }));
+    try {
+      const res = await fetch('/api/suggestions/suggest_todos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item_id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        set_suggested_todos(prev => ({ ...prev, [item_id]: data.todos }));
+      } else {
+        set_error_msg(`Suggest todos failed: ${data.error}`);
+        set_suggested_todos(prev => { const next = { ...prev }; delete next[item_id]; return next; });
+      }
+    } catch (error) {
+      set_error_msg(`Suggest todos failed: ${error instanceof Error ? error.message : 'Network error'}`);
+      set_suggested_todos(prev => { const next = { ...prev }; delete next[item_id]; return next; });
+    } finally {
+      set_suggest_loading(prev => { const next = new Set(prev); next.delete(item_id); return next; });
     }
   }
 
@@ -804,6 +847,46 @@ export default function ChipboardPage() {
                       >
                         +
                       </button>
+                    </div>
+
+                    {/* Suggest todos */}
+                    <div className="mt-2">
+                      <button
+                        onClick={() => run_suggest_todos(s.id)}
+                        disabled={suggest_loading.has(s.id)}
+                        className="px-2 py-1 text-xs bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 disabled:opacity-40 rounded transition-all"
+                      >
+                        {suggest_loading.has(s.id) ? 'Thinking…' : '✦ Suggest'}
+                      </button>
+                      {suggested_todos[s.id] !== undefined && suggested_todos[s.id].length > 0 && (
+                        <div className="mt-2 space-y-1 border border-purple-500/20 rounded-lg p-2 bg-purple-500/5">
+                          {suggested_todos[s.id].map((t, i) => {
+                            const type_colors = {
+                              bug: 'bg-red-500/20 text-red-400',
+                              feature: 'bg-cyan-500/20 text-cyan-400',
+                              task: 'bg-gray-500/20 text-gray-400',
+                            };
+                            return (
+                              <div key={i} className="flex items-center gap-2">
+                                <span className="text-sm sm:text-xs text-gray-300 flex-1">{t.text}</span>
+                                <span className={`px-1 py-0.5 text-[10px] rounded flex-shrink-0 ${type_colors[t.type]}`}>{t.type}</span>
+                                <button
+                                  onClick={async () => {
+                                    await add_todo(s.id, t.text, t.type);
+                                    set_suggested_todos(prev => ({
+                                      ...prev,
+                                      [s.id]: prev[s.id].filter((_, j) => j !== i),
+                                    }));
+                                  }}
+                                  className="px-2 py-0.5 text-[10px] bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 rounded transition-all flex-shrink-0"
+                                >
+                                  Add
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
