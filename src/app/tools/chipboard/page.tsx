@@ -95,6 +95,7 @@ export default function ChipboardPage() {
   const [todos_open, set_todos_open] = useState<Set<string>>(new Set());
   const [summary_open, set_summary_open] = useState<Set<string>>(new Set());
   const [show_done_todos, set_show_done_todos] = useState<Set<string>>(new Set());
+  const [item_expanded, set_item_expanded] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetch_suggestions();
@@ -313,6 +314,13 @@ export default function ChipboardPage() {
   }
 
   async function toggle_todo(item_id: string, todo_id: string, done: boolean) {
+    // Optimistic update
+    set_suggestions(prev => prev.map(s => {
+      if (s.id !== item_id) return s;
+      const todos = parse_todos(s.todos);
+      const updated = todos.map(t => t.id === todo_id ? { ...t, done } : t);
+      return { ...s, todos: JSON.stringify(updated) };
+    }));
     try {
       const res = await fetch('/api/suggestions/todos', {
         method: 'PATCH',
@@ -320,9 +328,24 @@ export default function ChipboardPage() {
         body: JSON.stringify({ id: item_id, todo_id, done }),
       });
       const data = await res.json();
-      if (data.success) fetch_suggestions();
+      if (!data.success) {
+        // Revert on API failure
+        set_suggestions(prev => prev.map(s => {
+          if (s.id !== item_id) return s;
+          const todos = parse_todos(s.todos);
+          const reverted = todos.map(t => t.id === todo_id ? { ...t, done: !done } : t);
+          return { ...s, todos: JSON.stringify(reverted) };
+        }));
+      }
     } catch (error) {
       console.error('Toggle todo failed:', error);
+      // Revert on network error
+      set_suggestions(prev => prev.map(s => {
+        if (s.id !== item_id) return s;
+        const todos = parse_todos(s.todos);
+        const reverted = todos.map(t => t.id === todo_id ? { ...t, done: !done } : t);
+        return { ...s, todos: JSON.stringify(reverted) };
+      }));
     }
   }
 
@@ -516,10 +539,14 @@ export default function ChipboardPage() {
 
     return (
       <div key={s.id} className="p-4 bg-white/5 border border-white/10 rounded-lg hover:border-white/20 transition-all">
-        <div className="flex flex-col gap-3">
-
-          {/* Header row: status badge + date + id + assignee */}
-          <div className="flex items-center gap-2 flex-wrap">
+        {/* Header row - always visible, click to expand */}
+        <div
+          className="flex items-center gap-2 flex-wrap cursor-pointer"
+          onClick={() => toggle_set(set_item_expanded, s.id)}
+        >
+          <svg className={`w-3 h-3 flex-shrink-0 transition-transform ${item_expanded.has(s.id) ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
             <span className={`px-2 py-0.5 text-xs rounded border ${status_colors[s.status]}`}>
               {status_labels[s.status]}
             </span>
@@ -544,8 +571,13 @@ export default function ChipboardPage() {
                 </span>
               );
             })()}
+            {s.title && !item_expanded.has(s.id) && (
+              <span className="text-sm text-white/70 font-medium truncate">{s.title}</span>
+            )}
           </div>
 
+          {item_expanded.has(s.id) && (
+          <div className="flex flex-col gap-3 mt-3">
           {/* Title + Content */}
           {editing_content_id === s.id ? (
             <div className="flex flex-col gap-2">
@@ -947,10 +979,9 @@ export default function ChipboardPage() {
               </button>
             )}
           </div>
-        </div>
 
-        {/* Context section */}
-        <div className="mt-3">
+          {/* Context section */}
+          <div className="mt-0">
           <button
             onClick={() => { set_context_open(context_open === s.id ? null : s.id); set_context_entry(''); }}
             className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 transition-all"
@@ -989,45 +1020,49 @@ export default function ChipboardPage() {
           )}
         </div>
 
-        {/* Collapse all & scroll to top */}
-        <div className="mt-3 flex justify-end">
-          <button
-            onClick={() => {
-              set_plan_open(prev => { const next = new Set(prev); next.delete(s.id); return next; });
-              set_todos_open(prev => { const next = new Set(prev); next.delete(s.id); return next; });
-              set_summary_open(prev => { const next = new Set(prev); next.delete(s.id); return next; });
-              if (context_open === s.id) set_context_open(null);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className="text-xs text-gray-600 hover:text-gray-400 transition-all"
-          >
-            Collapse all ↑
-          </button>
-        </div>
-
-        {/* Done outcome modal */}
-        {editing_id === s.id && (
-          <div className="mt-4 p-3 bg-white/5 border border-white/10 rounded-lg">
-            <label className="block text-sm text-gray-400 mb-2">What was the outcome? (optional)</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={edit_outcome}
-                onChange={(e) => set_edit_outcome(e.target.value)}
-                placeholder="e.g., Shipped in session 40"
-                className="flex-1 bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400/50"
-              />
-              <button onClick={() => update_status(s.id, 'done', edit_outcome)}
-                className="px-4 py-2 text-sm bg-green-500 hover:bg-green-600 rounded transition-all">
-                Save
-              </button>
-              <button onClick={() => { set_editing_id(null); set_edit_outcome(''); }}
-                className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 rounded transition-all">
-                Cancel
-              </button>
-            </div>
+          {/* Collapse all & scroll to top */}
+          <div className="flex justify-end">
+            <button
+              onClick={() => {
+                set_item_expanded(new Set());
+                set_plan_open(new Set());
+                set_todos_open(new Set());
+                set_summary_open(new Set());
+                set_show_done_todos(new Set());
+                set_context_open(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="text-xs text-gray-600 hover:text-gray-400 transition-all"
+            >
+              Collapse all ↑
+            </button>
           </div>
-        )}
+
+          {/* Done outcome modal */}
+          {editing_id === s.id && (
+            <div className="mt-1 p-3 bg-white/5 border border-white/10 rounded-lg">
+              <label className="block text-sm text-gray-400 mb-2">What was the outcome? (optional)</label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={edit_outcome}
+                  onChange={(e) => set_edit_outcome(e.target.value)}
+                  placeholder="e.g., Shipped in session 40"
+                  className="flex-1 bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400/50"
+                />
+                <button onClick={() => update_status(s.id, 'done', edit_outcome)}
+                  className="px-4 py-2 text-sm bg-green-500 hover:bg-green-600 rounded transition-all">
+                  Save
+                </button>
+                <button onClick={() => { set_editing_id(null); set_edit_outcome(''); }}
+                  className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 rounded transition-all">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+          </div>
+          )}
       </div>
     );
   }
