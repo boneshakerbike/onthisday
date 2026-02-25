@@ -685,6 +685,15 @@ export async function get_adjacent_stories(date_key: string): Promise<{
 // Suggestions
 // ============================================================================
 
+export interface TodoItem {
+  id: string;
+  text: string;
+  type: 'bug' | 'feature' | 'task';
+  done: boolean;
+  added_by: string;
+  created_at: string;
+}
+
 export interface Suggestion {
   id: string;
   slug: string;
@@ -699,6 +708,9 @@ export interface Suggestion {
   blocked_reason: string | null;
   context: string | null;
   last_context_at: string | null;
+  todos: string | null;
+  summary: string | null;
+  plan: string | null;
 }
 
 /**
@@ -748,6 +760,16 @@ async function init_suggestions_schema(): Promise<void> {
   try {
     await db.execute(`ALTER TABLE suggestions ADD COLUMN title TEXT`);
   } catch { /* column already exists */ }
+
+  // Migration: todos checklist, compacted summary, implementation plan
+  const enhancement_migrations = [
+    `ALTER TABLE suggestions ADD COLUMN todos TEXT DEFAULT NULL`,
+    `ALTER TABLE suggestions ADD COLUMN summary TEXT DEFAULT NULL`,
+    `ALTER TABLE suggestions ADD COLUMN plan TEXT DEFAULT NULL`,
+  ];
+  for (const sql of enhancement_migrations) {
+    try { await db.execute(sql); } catch { /* column already exists */ }
+  }
 }
 
 // Track if suggestions schema is initialized
@@ -900,6 +922,28 @@ export async function release_stale_assignments(): Promise<number> {
   return result.rowsAffected;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function map_suggestion_row(row: any): Suggestion {
+  return {
+    id: row.id as string,
+    slug: (row.slug as string) || (row.id as string),
+    title: (row.title as string) || null,
+    content: row.content as string,
+    status: row.status as Suggestion['status'],
+    created_at: row.created_at as string,
+    resolved_at: (row.resolved_at as string) || null,
+    outcome: (row.outcome as string) || null,
+    tags: (row.tags as string) || null,
+    assigned_to: (row.assigned_to as string) || null,
+    blocked_reason: (row.blocked_reason as string) || null,
+    context: (row.context as string) || null,
+    last_context_at: (row.last_context_at as string) || null,
+    todos: (row.todos as string) || null,
+    summary: (row.summary as string) || null,
+    plan: (row.plan as string) || null,
+  };
+}
+
 /**
  * Get all suggestions, optionally filtered by status and/or tag
  */
@@ -926,21 +970,7 @@ export async function get_suggestions(status?: string, tag?: string): Promise<Su
 
   const result = await db.execute({ sql, args });
 
-  return result.rows.map(row => ({
-    id: row.id as string,
-    slug: (row.slug as string) || (row.id as string),
-    title: (row.title as string) || null,
-    content: row.content as string,
-    status: row.status as Suggestion['status'],
-    created_at: row.created_at as string,
-    resolved_at: (row.resolved_at as string) || null,
-    outcome: (row.outcome as string) || null,
-    tags: (row.tags as string) || null,
-    assigned_to: (row.assigned_to as string) || null,
-    blocked_reason: (row.blocked_reason as string) || null,
-    context: (row.context as string) || null,
-    last_context_at: (row.last_context_at as string) || null,
-  }));
+  return result.rows.map(row => map_suggestion_row(row));
 }
 
 /**
@@ -956,23 +986,7 @@ export async function get_suggestion(id: string): Promise<Suggestion | null> {
   });
 
   if (result.rows.length === 0) return null;
-
-  const row = result.rows[0];
-  return {
-    id: row.id as string,
-    slug: (row.slug as string) || (row.id as string),
-    title: (row.title as string) || null,
-    content: row.content as string,
-    status: row.status as Suggestion['status'],
-    created_at: row.created_at as string,
-    resolved_at: (row.resolved_at as string) || null,
-    outcome: (row.outcome as string) || null,
-    tags: (row.tags as string) || null,
-    assigned_to: (row.assigned_to as string) || null,
-    blocked_reason: (row.blocked_reason as string) || null,
-    context: (row.context as string) || null,
-    last_context_at: (row.last_context_at as string) || null,
-  };
+  return map_suggestion_row(result.rows[0]);
 }
 
 /**
@@ -1036,6 +1050,122 @@ export async function update_suggestion_content(
   });
 
   return result.rowsAffected > 0;
+}
+
+/**
+ * Parse todos JSON from a suggestion row, returns empty array if null/invalid
+ */
+export function parse_todos(todos_json: string | null): TodoItem[] {
+  if (!todos_json) return [];
+  try { return JSON.parse(todos_json); } catch { return []; }
+}
+
+/**
+ * Add a todo item to a suggestion
+ */
+export async function add_suggestion_todo(id: string, todo: TodoItem): Promise<TodoItem[]> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  const item = await get_suggestion(id);
+  if (!item) throw new Error('Suggestion not found');
+
+  const todos = parse_todos(item.todos);
+  todos.push(todo);
+  const json = JSON.stringify(todos);
+
+  await db.execute({ sql: 'UPDATE suggestions SET todos = ? WHERE id = ?', args: [json, id] });
+  return todos;
+}
+
+/**
+ * Update a todo item (check off or edit text)
+ */
+export async function update_suggestion_todo(
+  id: string,
+  todo_id: string,
+  updates: { done?: boolean; text?: string }
+): Promise<TodoItem[]> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  const item = await get_suggestion(id);
+  if (!item) throw new Error('Suggestion not found');
+
+  const todos = parse_todos(item.todos);
+  const todo = todos.find(t => t.id === todo_id);
+  if (!todo) throw new Error('Todo not found');
+
+  if (updates.done !== undefined) todo.done = updates.done;
+  if (updates.text !== undefined) todo.text = updates.text;
+  const json = JSON.stringify(todos);
+
+  await db.execute({ sql: 'UPDATE suggestions SET todos = ? WHERE id = ?', args: [json, id] });
+  return todos;
+}
+
+/**
+ * Delete a todo item
+ */
+export async function delete_suggestion_todo(id: string, todo_id: string): Promise<TodoItem[]> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  const item = await get_suggestion(id);
+  if (!item) throw new Error('Suggestion not found');
+
+  const todos = parse_todos(item.todos).filter(t => t.id !== todo_id);
+  const json = JSON.stringify(todos);
+
+  await db.execute({ sql: 'UPDATE suggestions SET todos = ? WHERE id = ?', args: [json, id] });
+  return todos;
+}
+
+/**
+ * Set or update the plan field (replace, not append)
+ */
+export async function set_suggestion_plan(id: string, plan: string | null): Promise<boolean> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'UPDATE suggestions SET plan = ? WHERE id = ?',
+    args: [plan, id]
+  });
+  return result.rowsAffected > 0;
+}
+
+/**
+ * Set the compacted summary
+ */
+export async function set_suggestion_summary(id: string, summary: string | null): Promise<boolean> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'UPDATE suggestions SET summary = ? WHERE id = ?',
+    args: [summary, id]
+  });
+  return result.rowsAffected > 0;
+}
+
+/**
+ * Search suggestions across all text fields
+ */
+export async function search_suggestions(term: string): Promise<Suggestion[]> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+
+  const like = `%${term}%`;
+  const result = await db.execute({
+    sql: `SELECT * FROM suggestions
+          WHERE title LIKE ? OR content LIKE ? OR context LIKE ?
+             OR plan LIKE ? OR summary LIKE ? OR todos LIKE ?
+          ORDER BY created_at DESC`,
+    args: [like, like, like, like, like, like]
+  });
+
+  return result.rows.map(row => map_suggestion_row(row));
 }
 
 /**

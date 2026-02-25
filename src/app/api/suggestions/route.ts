@@ -14,6 +14,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
   get_suggestions,
   get_suggestion,
+  search_suggestions,
   create_suggestion,
   update_suggestion,
   update_suggestion_tags,
@@ -154,6 +155,7 @@ export async function GET(request: NextRequest) {
     if (searchParams.get('id')) params.set('id', searchParams.get('id')!);
     if (searchParams.get('status')) params.set('status', searchParams.get('status')!);
     if (searchParams.get('tag')) params.set('tag', searchParams.get('tag')!);
+    if (searchParams.get('search')) params.set('search', searchParams.get('search')!);
     return proxy_to_prod('GET', undefined, params.toString() || undefined);
   }
 
@@ -178,6 +180,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         suggestion
+      }, { headers: cors_headers(request.headers.get('origin')) });
+    }
+
+    const search = searchParams.get('search');
+    if (search && search.trim().length > 0) {
+      const suggestions = await search_suggestions(search.trim());
+      return NextResponse.json({
+        success: true,
+        suggestions,
+        count: suggestions.length
       }, { headers: cors_headers(request.headers.get('origin')) });
     }
 
