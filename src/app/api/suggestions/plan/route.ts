@@ -3,7 +3,7 @@
  * Set or update the plan field on a Chipboard item
  * Plan is a dedicated field — never compacted, replace-not-append
  *
- * POST - Set/update plan (admin only)
+ * POST - Set/update plan (any authenticated user or agent)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -21,11 +21,17 @@ function cors_headers(origin?: string | null) {
   };
 }
 
-async function require_bill(request: NextRequest): Promise<NextResponse | null> {
+async function require_auth(request: NextRequest): Promise<NextResponse | null> {
   const token = await getToken({ req: request });
-  if (token && token.sub !== 'guest') return null;
+  if (token) return null;
 
-  return NextResponse.json({ error: 'Admin access required' }, { status: 403, headers: cors_headers() });
+  const pin_header = request.headers.get('X-Guest-Pin');
+  if (pin_header) {
+    const valid_pins = (process.env.GUEST_PINS || process.env.GUEST_PIN || '').split(',').map(p => p.trim()).filter(Boolean);
+    if (valid_pins.includes(pin_header)) return null;
+  }
+
+  return NextResponse.json({ error: 'Authentication required' }, { status: 401, headers: cors_headers() });
 }
 
 const is_local = !process.env.TURSO_DATABASE_URL;
@@ -47,7 +53,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(await res.json(), { status: res.status });
   }
 
-  const auth_error = await require_bill(request);
+  const auth_error = await require_auth(request);
   if (auth_error) return auth_error;
 
   try {
