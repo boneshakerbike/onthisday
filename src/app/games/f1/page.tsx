@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import NavTabs from '@/components/nav_tabs';
 import SeasonGrid from '@/components/f1/season_grid';
@@ -52,6 +52,26 @@ export default function F1Page() {
   const [active_round, set_active_round] = useState<number | undefined>(undefined);
   const [completed_rounds, set_completed_rounds] = useState<number[]>([]);
   const [show_roster, set_show_roster] = useState(false);
+  const initialized_from_url = useRef(false);
+
+  // Read season/round from URL params on mount (prevents "bounces to 2026" on refresh)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const url_season = parseInt(params.get('season') || '');
+    const url_round = parseInt(params.get('round') || '');
+    if (url_season && !isNaN(url_season)) set_season(url_season);
+    if (url_round && !isNaN(url_round)) set_selected_round(url_round);
+    initialized_from_url.current = true;
+  }, []);
+
+  // Update URL when season/round changes
+  useEffect(() => {
+    if (!initialized_from_url.current) return;
+    const params = new URLSearchParams();
+    params.set('season', String(season));
+    if (selected_round) params.set('round', String(selected_round));
+    window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
+  }, [season, selected_round]);
 
   // Load player name from localStorage (don't show prompt yet — wait for roster)
   useEffect(() => {
@@ -139,6 +159,23 @@ export default function F1Page() {
   }, [season, selected_round, player_name]);
 
   useEffect(() => { refresh_state(); }, [refresh_state]);
+
+  // Poll group state every 5s when viewing a weekend (so other players' picks appear live)
+  useEffect(() => {
+    if (!selected_round || !player_name) return;
+    const interval = setInterval(refresh_state, 5000);
+    return () => clearInterval(interval);
+  }, [selected_round, player_name, refresh_state]);
+
+  // Poll leaderboard + season progress every 10s on calendar view
+  useEffect(() => {
+    if (selected_round) return;
+    const interval = setInterval(() => {
+      refresh_leaderboard();
+      refresh_progress();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [selected_round, refresh_leaderboard, refresh_progress]);
 
   // Load cached revealed data for already-revealed sessions
   useEffect(() => {
