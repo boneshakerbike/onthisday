@@ -25,6 +25,7 @@ import {
   assign_suggestion,
   set_suggestion_blocked,
   release_stale_assignments,
+  set_suggestion_archived_md,
   Suggestion
 } from '@/lib/db';
 
@@ -122,6 +123,47 @@ ${raw.trim()}`
     }
   } catch { /* fall through */ }
   return null;
+}
+
+function generate_archive_md(item: Suggestion, outcome?: string): string {
+  const title = item.title || item.content.split('\n')[0].slice(0, 100);
+  const lines: string[] = [
+    `# ${title}`,
+    '',
+    `**Status:** Done`,
+    item.resolved_at ? `**Resolved:** ${item.resolved_at}` : '',
+    outcome ? `**Outcome:** ${outcome}` : (item.outcome ? `**Outcome:** ${item.outcome}` : ''),
+    '',
+    '## Description',
+    '',
+    item.content,
+  ];
+
+  if (item.plan) {
+    lines.push('', '## Plan', '', item.plan);
+  }
+
+  if (item.todos) {
+    try {
+      const todos: Array<{ text: string; type: string; done: boolean }> = JSON.parse(item.todos);
+      if (todos.length > 0) {
+        lines.push('', '## Todos', '');
+        for (const t of todos) {
+          lines.push(`- [${t.done ? 'x' : ' '}] ${t.text} *(${t.type})*`);
+        }
+      }
+    } catch { /* malformed todos — skip */ }
+  }
+
+  if (item.summary) {
+    lines.push('', '## Summary', '', item.summary);
+  }
+
+  if (item.context) {
+    lines.push('', '## Context History', '', item.context);
+  }
+
+  return lines.filter(l => l !== undefined).join('\n');
 }
 
 // When running locally, proxy mutations to production
@@ -365,6 +407,17 @@ export async function PATCH(request: NextRequest) {
         { error: 'Suggestion not found' },
         { status: 404 }
       );
+    }
+
+    // Auto-archive when moving to done
+    if (status === 'done') {
+      try {
+        const item = await get_suggestion(id);
+        if (item) {
+          const md = generate_archive_md(item, outcome);
+          await set_suggestion_archived_md(id, md);
+        }
+      } catch { /* non-fatal */ }
     }
 
     return NextResponse.json({

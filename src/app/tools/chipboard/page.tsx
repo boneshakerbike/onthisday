@@ -34,6 +34,7 @@ interface Suggestion {
   todos: string | null;
   summary: string | null;
   plan: string | null;
+  archived_md: string | null;
 }
 
 type GroupKey = 'inbox' | 'todo' | 'inwork' | 'testing' | 'completed';
@@ -157,7 +158,7 @@ export default function ChipboardPage() {
       id: temp_id, slug: temp_id, title: null, content: content_to_submit,
       status: 'inbox', created_at: new Date().toISOString(), resolved_at: null,
       outcome: null, tags: null, assigned_to: null, context: null,
-      last_context_at: null, todos: null, summary: null, plan: null,
+      last_context_at: null, todos: null, summary: null, plan: null, archived_md: null,
     };
     set_suggestions(prev => [placeholder, ...prev]);
     set_collapsed(prev => ({ ...prev, inbox: false }));
@@ -851,13 +852,23 @@ export default function ChipboardPage() {
 
                     {/* Suggest todos */}
                     <div className="mt-2">
-                      <button
-                        onClick={() => run_suggest_todos(s.id)}
-                        disabled={suggest_loading.has(s.id)}
-                        className="px-2 py-1 text-xs bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 disabled:opacity-40 rounded transition-all"
-                      >
-                        {suggest_loading.has(s.id) ? 'Thinking…' : '✦ Suggest'}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => run_suggest_todos(s.id)}
+                          disabled={suggest_loading.has(s.id)}
+                          className="px-2 py-1 text-xs bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 disabled:opacity-40 rounded transition-all"
+                        >
+                          {suggest_loading.has(s.id) ? 'Thinking…' : '✦ Suggest'}
+                        </button>
+                        {suggested_todos[s.id] !== undefined && (
+                          <button
+                            onClick={() => set_suggested_todos(prev => { const next = { ...prev }; delete next[s.id]; return next; })}
+                            className="text-xs text-gray-600 hover:text-gray-400 transition-all"
+                          >
+                            Dismiss
+                          </button>
+                        )}
+                      </div>
                       {suggested_todos[s.id] !== undefined && suggested_todos[s.id].length > 0 && (
                         <div className="mt-2 space-y-1 border border-purple-500/20 rounded-lg p-2 bg-purple-500/5">
                           {suggested_todos[s.id].map((t, i) => {

@@ -711,6 +711,7 @@ export interface Suggestion {
   todos: string | null;
   summary: string | null;
   plan: string | null;
+  archived_md: string | null;
 }
 
 /**
@@ -770,6 +771,11 @@ async function init_suggestions_schema(): Promise<void> {
   for (const sql of enhancement_migrations) {
     try { await db.execute(sql); } catch { /* column already exists */ }
   }
+
+  // Migration: archived markdown export
+  try {
+    await db.execute(`ALTER TABLE suggestions ADD COLUMN archived_md TEXT DEFAULT NULL`);
+  } catch { /* column already exists */ }
 }
 
 // Track if suggestions schema is initialized
@@ -941,6 +947,7 @@ function map_suggestion_row(row: any): Suggestion {
     todos: (row.todos as string) || null,
     summary: (row.summary as string) || null,
     plan: (row.plan as string) || null,
+    archived_md: (row.archived_md as string) || null,
   };
 }
 
@@ -1145,6 +1152,36 @@ export async function set_suggestion_summary(id: string, summary: string | null)
   const result = await db.execute({
     sql: 'UPDATE suggestions SET summary = ? WHERE id = ?',
     args: [summary, id]
+  });
+  return result.rowsAffected > 0;
+}
+
+/**
+ * Compact context: save summary and replace context with preserved recent entries
+ */
+export async function compact_suggestion_context(
+  id: string,
+  summary: string,
+  kept_context: string
+): Promise<boolean> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+  const result = await db.execute({
+    sql: 'UPDATE suggestions SET summary = ?, context = ? WHERE id = ?',
+    args: [summary, kept_context, id]
+  });
+  return result.rowsAffected > 0;
+}
+
+/**
+ * Store the archived markdown export for a done item
+ */
+export async function set_suggestion_archived_md(id: string, md: string): Promise<boolean> {
+  await ensure_suggestions_schema();
+  const db = get_client();
+  const result = await db.execute({
+    sql: 'UPDATE suggestions SET archived_md = ? WHERE id = ?',
+    args: [md, id]
   });
   return result.rowsAffected > 0;
 }

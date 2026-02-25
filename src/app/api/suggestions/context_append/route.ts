@@ -4,11 +4,15 @@
  * Server-side append prevents last-write-wins overwrites
  *
  * POST - Append context entry - REQUIRES AUTH
+ *
+ * Auto-compaction: if context exceeds 30KB, compacts all but the last 3 entries
+ * using Haiku before appending. Transparent to callers.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { append_suggestion_context } from '@/lib/db';
+import Anthropic from '@anthropic-ai/sdk';
+import { append_suggestion_context, get_suggestion, compact_suggestion_context } from '@/lib/db';
 
 const ALLOWED_ORIGINS = ['https://8i11.vercel.app', 'http://localhost:3000'];
 
@@ -32,6 +36,57 @@ async function require_auth(request: NextRequest): Promise<NextResponse | null> 
   }
 
   return NextResponse.json({ error: 'Authentication required' }, { status: 401, headers: cors_headers() });
+}
+
+// Split context string into individual entries (each starts with [agent | timestamp])
+function split_context_entries(context: string): string[] {
+  return context.split(/\n\n(?=\[)/).filter(p => p.trim().length > 0);
+}
+
+const COMPACT_PROMPT = `You are compacting a project's context history into a concise current-state summary.
+
+Write a summary covering only what's CURRENT: what's built, what works, what's broken, key decisions still relevant. Discard completed or outdated information. Do NOT summarize any content from the plan field — that is managed separately. Max 500 words.
+
+Return valid JSON only: {"summary": "..."}`;
+
+async function maybe_auto_compact(id: string): Promise<{ compacted: boolean; error?: string }> {
+  const item = await get_suggestion(id);
+  if (!item || !item.context || item.context.length <= 30000) {
+    return { compacted: false };
+  }
+
+  const entries = split_context_entries(item.context);
+  if (entries.length <= 3) {
+    // Nothing old enough to compact
+    return { compacted: false };
+  }
+
+  const api_key = process.env.ANTHROPIC_API_KEY;
+  if (!api_key) return { compacted: false, error: 'no api key' };
+
+  try {
+    const client = new Anthropic({ apiKey: api_key });
+    const result = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2048,
+      messages: [{ role: 'user', content: `${COMPACT_PROMPT}\n\nContext to compact:\n${item.context}` }],
+    });
+
+    const text_block = result.content.find(b => b.type === 'text');
+    if (!text_block || text_block.type !== 'text') return { compacted: false, error: 'empty ai response' };
+
+    let raw = text_block.text.trim();
+    if (raw.startsWith('```')) raw = raw.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '');
+
+    const parsed: { summary: string } = JSON.parse(raw);
+    const kept_context = entries.slice(-3).join('\n\n');
+    await compact_suggestion_context(id, parsed.summary, kept_context);
+
+    return { compacted: true };
+  } catch {
+    // Non-fatal — proceed with append even if compaction fails
+    return { compacted: false, error: 'compaction failed' };
+  }
 }
 
 // Proxy mutations to production when running locally
@@ -73,13 +128,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'entry must be under 100,000 characters' }, { status: 413 });
     }
 
+    // Auto-compact if context is large (non-fatal if it fails)
+    const compact_result = await maybe_auto_compact(id);
+
     const updated = await append_suggestion_context(id, agent.trim(), entry.trim());
 
     if (!updated) {
       return NextResponse.json({ error: 'Suggestion not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, message: 'Context appended' }, { headers: cors_headers() });
+    return NextResponse.json({
+      success: true,
+      message: 'Context appended',
+      ...(compact_result.compacted ? { auto_compacted: true } : {}),
+    }, { headers: cors_headers() });
   } catch (error) {
     console.error('POST context_append error:', error);
     return NextResponse.json({ error: 'Failed to append context' }, { status: 500, headers: cors_headers() });
