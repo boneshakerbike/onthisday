@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import NavTabs from '@/components/nav_tabs';
 
 interface HealthData {
@@ -28,7 +29,40 @@ interface Category {
   links: MiniLink[];
 }
 
+const ADMIN_QUICK_LINKS = [
+  { label: 'Deploys', href: 'https://vercel.com/boneshakerbikes-projects/~/deployments' },
+  { label: 'Repo', href: 'https://github.com/boneshakerbike/onthisday' },
+  { label: 'Console', href: 'https://console.anthropic.com' },
+  { label: 'Usage', href: 'https://claude.ai/settings/usage' },
+  { label: 'Turso', href: 'https://app.turso.tech' },
+  { label: 'Oura Dev', href: 'https://developer.ouraring.com/applications' },
+  { label: 'Scheduled', href: 'https://8i11.substack.com/publish/posts/scheduled' },
+  { label: 'Env Vars', href: 'https://vercel.com/boneshakerbikes-projects/8i11/settings/environment-variables' },
+];
+
+function AdminSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, set_open] = useState(false);
+  return (
+    <div className="border border-white/10 rounded-lg overflow-hidden">
+      <button
+        onClick={() => set_open(o => !o)}
+        className="w-full flex justify-between items-center px-3 py-2 text-sm text-gray-300 hover:bg-white/5 transition-colors text-left"
+      >
+        <span>{title}</span>
+        <span className="text-gray-500">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div className="px-3 py-3 text-sm text-gray-400 border-t border-white/10">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function HomePage() {
+  const { data: session } = useSession();
+  const is_admin = !!(session?.user && (session.user as { id?: string }).id !== 'guest');
   const [health, set_health] = useState<HealthData | null>(null);
 
   useEffect(() => { document.title = '8i11 | Home'; }, []);
@@ -42,16 +76,6 @@ export default function HomePage() {
 
   const categories: Category[] = [
     {
-      title: 'Creative',
-      description: 'Browse Substack posts by date, generate reflective stories',
-      icon: '✍️',
-      color: 'cyan',
-      links: [
-        { label: 'On This Day', href: '/creative' },
-        { label: 'Archive', href: '/creative/archive' },
-      ],
-    },
-    {
       title: 'Tools',
       description: 'Utilities for writing, thinking, and building',
       icon: '🛠️',
@@ -63,7 +87,16 @@ export default function HomePage() {
         { label: 'Instruction Stripper', href: '/tools/instruction-stripper' },
         { label: 'Knowledge Diff', href: '/tools/knowledge-diff' },
         { label: 'Prompt Library', href: '/tools/prompt-library' },
-        { label: 'Admin', href: '/tools/admin' },
+      ],
+    },
+    {
+      title: 'Creative',
+      description: 'Browse Substack posts by date, generate reflective stories',
+      icon: '✍️',
+      color: 'cyan',
+      links: [
+        { label: 'On This Day', href: '/creative' },
+        { label: 'Archive', href: '/creative/archive' },
       ],
     },
     {
@@ -108,37 +141,130 @@ export default function HomePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-16">
           {categories.map((cat) => {
             const colors = color_map[cat.color];
+            const is_tools = cat.title === 'Tools';
             return (
               <div
                 key={cat.title}
-                className={`p-6 rounded-xl border ${colors.border} bg-white/5`}
+                className={`p-6 rounded-xl border ${colors.border} bg-white/5 ${is_tools ? 'sm:col-span-2' : ''}`}
               >
                 <div className="text-3xl mb-3">{cat.icon}</div>
                 <h2 className={`text-lg font-medium ${colors.text} mb-1`}>{cat.title}</h2>
                 <p className="text-gray-400 text-sm leading-relaxed mb-3">{cat.description}</p>
-                <div className="flex flex-wrap gap-x-3 gap-y-1">
-                  {cat.links.map((link) =>
-                    link.external ? (
-                      <a
-                        key={link.label}
-                        href={link.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`text-xs ${colors.link} transition-colors`}
-                      >
-                        {link.label} ↗
-                      </a>
-                    ) : (
-                      <Link
-                        key={link.label}
-                        href={link.href}
-                        className={`text-xs ${colors.link} transition-colors`}
-                      >
-                        {link.label}
-                      </Link>
-                    )
-                  )}
+
+                {/* Tool links + admin quick links as chiclets */}
+                <div className="flex flex-wrap gap-1.5 mb-1">
+                  {cat.links.map((link) => (
+                    <Link key={link.label} href={link.href}
+                      className="px-2 py-1 text-xs rounded bg-white/5 border border-purple-400/20 text-purple-400/80 hover:text-purple-400 hover:bg-white/10 transition-colors">
+                      {link.label}
+                    </Link>
+                  ))}
+                  {is_tools && is_admin && ADMIN_QUICK_LINKS.map((link) => (
+                    <a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer"
+                      className="px-2 py-1 text-xs rounded bg-cyan-400/10 border border-cyan-400/20 text-cyan-400 hover:bg-cyan-400/20 transition-colors">
+                      {link.label} ↗
+                    </a>
+                  ))}
                 </div>
+
+                {/* Admin collapsible sections */}
+                {is_tools && is_admin && (
+                  <div className="space-y-1.5 mt-4">
+                    <AdminSection title="Permissions &amp; Access Control">
+                      <p className="mb-3">Two-tier model: <strong className="text-white">admin</strong> (GitHub login) and <strong className="text-white">guest</strong> (PIN login). Every GitHub user on the allowlist gets full admin access.</p>
+                      <h4 className="font-medium text-cyan-400 mt-3 mb-2">Identity</h4>
+                      <p className="text-gray-300 mb-2">Session carries <code className="bg-white/10 px-1 rounded">user.id</code>. GitHub users get their numeric ID; guest PIN users get the string <code className="bg-white/10 px-1 rounded">guest</code>. Every check is: <em>is this user &quot;guest&quot; or not?</em></p>
+                      <h4 className="font-medium text-cyan-400 mt-3 mb-2">What each tier can do</h4>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead><tr className="text-left border-b border-white/10"><th className="py-2 pr-4 text-gray-400">Action</th><th className="py-2 pr-4 text-gray-400">Admin</th><th className="py-2 text-gray-400">Guest</th></tr></thead>
+                          <tbody className="text-gray-300">
+                            {[['Use all tools & pages','✓','✓'],['F1: make predictions','✓','✓'],['Chipboard: create & edit','✓','✓'],['Generate AI stories','✓','✓'],['F1: manage roster & reset','✓','✗'],['Chipboard: delete items','✓','✗']].map(([action, adm, gst]) => (
+                              <tr key={action} className="border-b border-white/5">
+                                <td className="py-1.5 pr-4">{action}</td>
+                                <td className={`py-1.5 pr-4 ${adm === '✓' ? 'text-green-400' : 'text-red-400'}`}>{adm}</td>
+                                <td className={`py-1.5 ${gst === '✓' ? 'text-green-400' : 'text-red-400'}`}>{gst}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <h4 className="font-medium text-cyan-400 mt-3 mb-1">Public routes (no login)</h4>
+                      <p className="text-gray-300 text-sm"><code className="bg-white/10 px-1 rounded">/story/*</code> <code className="bg-white/10 px-1 rounded">/archive</code> <code className="bg-white/10 px-1 rounded">/games</code> <code className="bg-white/10 px-1 rounded">/privacy</code> <code className="bg-white/10 px-1 rounded">/terms</code> <code className="bg-white/10 px-1 rounded">/login</code></p>
+                      <div className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded text-sm">
+                        <strong className="text-yellow-400">Note:</strong> No granular roles yet — all GitHub allowlist users are equivalent admins.
+                      </div>
+                    </AdminSection>
+                    <AdminSection title="Managing Guest PINs">
+                      <p className="mb-3">PINs let friends access the app without a GitHub account. Stored in Vercel env vars.</p>
+                      <h4 className="font-medium text-cyan-400 mt-3 mb-2">Add or change PINs</h4>
+                      <ol className="list-decimal list-inside space-y-1.5 text-gray-300 text-sm">
+                        <li>Vercel Dashboard → <strong>onthisday</strong> → Settings → Environment Variables</li>
+                        <li>Find or create <code className="bg-white/10 px-1 rounded">GUEST_PINS</code></li>
+                        <li>Set value: <code className="bg-white/10 px-1 rounded">mom1234,friend5678</code></li>
+                        <li>Save → Deployments → ... → Redeploy</li>
+                      </ol>
+                      <p className="text-gray-300 text-sm mt-3">To revoke: remove their PIN and redeploy.</p>
+                      <div className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded text-sm">
+                        <strong className="text-yellow-400">Note:</strong> Legacy <code className="bg-white/10 px-1 rounded">GUEST_PIN</code> still works alongside <code className="bg-white/10 px-1 rounded">GUEST_PINS</code>.
+                      </div>
+                    </AdminSection>
+                    <AdminSection title="Managing GitHub Users">
+                      <p className="mb-3">Default: only <code className="bg-white/10 px-1 rounded">boneshakerbike</code> can log in with GitHub.</p>
+                      <h4 className="font-medium text-cyan-400 mt-3 mb-2">Allow other GitHub users</h4>
+                      <ol className="list-decimal list-inside space-y-1.5 text-gray-300 text-sm">
+                        <li>Vercel → Settings → Environment Variables</li>
+                        <li>Create <code className="bg-white/10 px-1 rounded">ALLOWED_GITHUB_USERS</code></li>
+                        <li>Value: comma-separated usernames — <code className="bg-white/10 px-1 rounded">boneshakerbike,frienduser</code></li>
+                        <li>Save and redeploy</li>
+                      </ol>
+                    </AdminSection>
+                    <AdminSection title="Reviewer Agent Keys (Chipboard Read-Only)">
+                      <p className="mb-3">Read-only keys for reviewer agents. Grants <strong>GET</strong> access to <code className="bg-white/10 px-1 rounded">/api/suggestions</code> only.</p>
+                      <h4 className="font-medium text-cyan-400 mt-3 mb-2">Agent setup</h4>
+                      <code className="bg-white/10 px-2 py-1 rounded text-xs block mb-1">export CHIPBOARD_READ_KEY=&quot;&lt;key&gt;&quot;</code>
+                      <code className="bg-white/10 px-2 py-1 rounded text-xs block mb-3">curl -H &quot;X-Chipboard-Key: $CHIPBOARD_READ_KEY&quot; https://8i11.vercel.app/api/suggestions</code>
+                      <h4 className="font-medium text-cyan-400 mt-3 mb-2">Add/revoke keys</h4>
+                      <p className="text-gray-300 text-sm">Edit <code className="bg-white/10 px-1 rounded">CHIPBOARD_READ_KEYS</code> in Vercel env vars (comma-separated). Save and redeploy.</p>
+                      <p className="text-gray-400 text-sm mt-2">Generate: <code className="bg-white/10 px-1 rounded">python3 -c &quot;import secrets; print(secrets.token_urlsafe(32))&quot;</code></p>
+                    </AdminSection>
+                    <AdminSection title="Environment Variables Reference">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead><tr className="text-left border-b border-white/10"><th className="py-2 pr-4 text-gray-400">Variable</th><th className="py-2 text-gray-400">Purpose</th></tr></thead>
+                          <tbody className="text-gray-300">
+                            {[
+                              ['','Auth',''],
+                              ['GUEST_PINS','Comma-separated guest PINs (agent + human access)',''],
+                              ['GUEST_PIN','Legacy single PIN (still works)',''],
+                              ['CHIPBOARD_READ_KEYS','Read-only keys for reviewer agents (Chipboard GET only)',''],
+                              ['ALLOWED_GITHUB_USERS','Comma-separated GitHub login names allowed to authenticate',''],
+                              ['GITHUB_CLIENT_ID','GitHub OAuth app ID',''],
+                              ['GITHUB_CLIENT_SECRET','GitHub OAuth app secret',''],
+                              ['NEXTAUTH_SECRET','Session encryption key',''],
+                              ['','Database',''],
+                              ['TURSO_DATABASE_URL','Production Turso (libSQL) database URL',''],
+                              ['TURSO_AUTH_TOKEN','Production Turso auth token',''],
+                              ['','AI & Integrations',''],
+                              ['ANTHROPIC_API_KEY','Claude API key (stories, prompt review, Chipboard AI)',''],
+                              ['OURA_CLIENT_ID','Oura Ring OAuth app ID',''],
+                              ['OURA_CLIENT_SECRET','Oura Ring OAuth app secret',''],
+                              ['','Agents',''],
+                              ['WORKLOG_API_KEY','Agent worklog read/write (X-Worklog-Key header)',''],
+                            ].map((row, i) => row[0] === '' ? (
+                              <tr key={i}><td colSpan={2} className="py-2 pr-4 font-medium text-gray-400 pt-3">{row[1]}</td></tr>
+                            ) : (
+                              <tr key={i} className="border-b border-white/5">
+                                <td className="py-1.5 pr-4"><code className="text-cyan-400">{row[0]}</code></td>
+                                <td className="py-1.5">{row[1]}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </AdminSection>
+                  </div>
+                )}
               </div>
             );
           })}
