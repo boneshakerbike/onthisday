@@ -9,6 +9,15 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import NavTabs from '@/components/nav_tabs';
 
+interface TodoItem {
+  id: string;
+  text: string;
+  type: 'bug' | 'feature' | 'task';
+  done: boolean;
+  added_by: string;
+  created_at: string;
+}
+
 interface Suggestion {
   id: string;
   slug: string;
@@ -22,6 +31,9 @@ interface Suggestion {
   assigned_to: string | null;
   context: string | null;
   last_context_at: string | null;
+  todos: string | null;
+  summary: string | null;
+  plan: string | null;
 }
 
 type GroupKey = 'inbox' | 'todo' | 'inwork' | 'testing' | 'completed';
@@ -57,9 +69,44 @@ export default function ChipboardPage() {
     completed: true,
   });
 
+  // Todos state
+  const [todo_input, set_todo_input] = useState<Record<string, string>>({});
+  const [todo_type, set_todo_type] = useState<Record<string, 'bug' | 'feature' | 'task'>>({});
+  const [todo_submitting, set_todo_submitting] = useState(false);
+
+  // Plan state
+  const [plan_editing_id, set_plan_editing_id] = useState<string | null>(null);
+  const [plan_draft, set_plan_draft] = useState('');
+
+  // Compact state
+  const [compact_loading, set_compact_loading] = useState<string | null>(null);
+  const [compact_preview, set_compact_preview] = useState<{
+    id: string;
+    summary: string;
+    new_todos: { text: string; type: string }[];
+    overflow: boolean;
+  } | null>(null);
+
+  // Detail section toggles (per item)
+  const [plan_open, set_plan_open] = useState<Set<string>>(new Set());
+  const [todos_open, set_todos_open] = useState<Set<string>>(new Set());
+  const [summary_open, set_summary_open] = useState<Set<string>>(new Set());
+
   useEffect(() => {
     fetch_suggestions();
   }, []);
+
+  // Auto-expand plan section for items that have plans
+  useEffect(() => {
+    const with_plan = suggestions.filter(s => s.plan).map(s => s.id);
+    if (with_plan.length > 0) {
+      set_plan_open(prev => {
+        const next = new Set(prev);
+        with_plan.forEach(id => next.add(id));
+        return next;
+      });
+    }
+  }, [suggestions]);
 
   // Auto-expand the relevant section when a status filter is selected
   useEffect(() => {
@@ -238,6 +285,146 @@ export default function ChipboardPage() {
     }
   }
 
+  function parse_todos(json: string | null): TodoItem[] {
+    if (!json) return [];
+    try { return JSON.parse(json); } catch { return []; }
+  }
+
+  async function add_todo(item_id: string) {
+    const text = (todo_input[item_id] || '').trim();
+    if (!text || todo_submitting) return;
+    set_todo_submitting(true);
+    set_error_msg(null);
+    try {
+      const res = await fetch('/api/suggestions/todos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: item_id,
+          text,
+          type: todo_type[item_id] || 'task',
+          added_by: 'bill',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        set_todo_input(prev => ({ ...prev, [item_id]: '' }));
+        fetch_suggestions();
+      } else {
+        set_error_msg(`Add todo failed: ${data.error}`);
+      }
+    } catch (error) {
+      set_error_msg(`Add todo failed: ${error instanceof Error ? error.message : 'Network error'}`);
+    } finally {
+      set_todo_submitting(false);
+    }
+  }
+
+  async function toggle_todo(item_id: string, todo_id: string, done: boolean) {
+    try {
+      const res = await fetch('/api/suggestions/todos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item_id, todo_id, done }),
+      });
+      const data = await res.json();
+      if (data.success) fetch_suggestions();
+    } catch (error) {
+      console.error('Toggle todo failed:', error);
+    }
+  }
+
+  async function remove_todo(item_id: string, todo_id: string) {
+    try {
+      const res = await fetch('/api/suggestions/todos', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item_id, todo_id }),
+      });
+      const data = await res.json();
+      if (data.success) fetch_suggestions();
+    } catch (error) {
+      console.error('Delete todo failed:', error);
+    }
+  }
+
+  async function save_plan(item_id: string) {
+    set_error_msg(null);
+    try {
+      const res = await fetch('/api/suggestions/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item_id, plan: plan_draft.trim() || null }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        set_plan_editing_id(null);
+        set_plan_draft('');
+        fetch_suggestions();
+      } else {
+        set_error_msg(`Save plan failed: ${data.error}`);
+      }
+    } catch (error) {
+      set_error_msg(`Save plan failed: ${error instanceof Error ? error.message : 'Network error'}`);
+    }
+  }
+
+  async function run_compact(item_id: string) {
+    set_compact_loading(item_id);
+    set_error_msg(null);
+    try {
+      const res = await fetch('/api/suggestions/compact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item_id, confirm: false }),
+      });
+      const data = await res.json();
+      if (data.success && data.preview) {
+        set_compact_preview({
+          id: item_id,
+          summary: data.summary,
+          new_todos: data.new_todos,
+          overflow: data.overflow,
+        });
+      } else {
+        set_error_msg(`Compact failed: ${data.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      set_error_msg(`Compact failed: ${error instanceof Error ? error.message : 'Network error'}`);
+    } finally {
+      set_compact_loading(null);
+    }
+  }
+
+  async function save_compact() {
+    if (!compact_preview) return;
+    set_error_msg(null);
+    try {
+      const res = await fetch('/api/suggestions/compact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: compact_preview.id, confirm: true }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        set_compact_preview(null);
+        fetch_suggestions();
+      } else {
+        set_error_msg(`Save compact failed: ${data.error}`);
+      }
+    } catch (error) {
+      set_error_msg(`Save compact failed: ${error instanceof Error ? error.message : 'Network error'}`);
+    }
+  }
+
+  function toggle_set(setter: React.Dispatch<React.SetStateAction<Set<string>>>, id: string) {
+    setter(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
   function format_date(date_str: string): string {
     // SQLite CURRENT_TIMESTAMP has no timezone suffix — normalize to UTC before parsing
     const normalized = date_str.includes('T') || date_str.endsWith('Z')
@@ -263,7 +450,10 @@ export default function ChipboardPage() {
           s.content.toLowerCase().includes(q) ||
           s.tags?.toLowerCase().includes(q) ||
           s.assigned_to?.toLowerCase().includes(q) ||
-          s.id.toLowerCase().includes(q)
+          s.id.toLowerCase().includes(q) ||
+          s.plan?.toLowerCase().includes(q) ||
+          s.summary?.toLowerCase().includes(q) ||
+          s.todos?.toLowerCase().includes(q)
         );
       })
     : status_filtered;
@@ -331,6 +521,20 @@ export default function ChipboardPage() {
                 {s.assigned_to}
               </span>
             )}
+            {s.plan && (
+              <span className="px-1.5 py-0.5 text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded">Plan</span>
+            )}
+            {(() => {
+              const todos = parse_todos(s.todos);
+              if (todos.length === 0) return null;
+              const done_count = todos.filter(t => t.done).length;
+              const all_done = done_count === todos.length;
+              return (
+                <span className={`px-1.5 py-0.5 text-xs rounded border ${all_done ? 'bg-green-500/20 text-green-400 border-green-500/30' : 'bg-white/10 text-gray-400 border-white/10'}`}>
+                  {done_count}/{todos.length}
+                </span>
+              );
+            })()}
           </div>
 
           {/* Title + Content */}
@@ -380,6 +584,225 @@ export default function ChipboardPage() {
               {s.tags.split(',').map(t => t.trim()).filter(Boolean).map(tag => (
                 <span key={tag} className="px-1.5 py-0.5 text-xs bg-white/10 text-gray-400 rounded">{tag}</span>
               ))}
+            </div>
+          )}
+
+          {/* Plan section */}
+          {(s.plan || plan_editing_id === s.id) && (
+            <div className="border border-white/10 rounded-lg overflow-hidden">
+              <button
+                onClick={() => toggle_set(set_plan_open, s.id)}
+                className="w-full flex items-center gap-1.5 px-3 py-2 text-xs text-cyan-400 hover:bg-white/5 transition-all"
+              >
+                <svg className={`w-3 h-3 transition-transform ${plan_open.has(s.id) ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                Plan
+              </button>
+              {plan_open.has(s.id) && (
+                <div className="px-3 pb-3">
+                  {plan_editing_id === s.id ? (
+                    <div className="flex flex-col gap-2">
+                      <textarea
+                        value={plan_draft}
+                        onChange={(e) => set_plan_draft(e.target.value)}
+                        rows={12}
+                        className="w-full bg-white/5 border border-cyan-400/30 rounded px-3 py-2 text-xs text-white font-mono placeholder-gray-500 focus:outline-none resize-y"
+                        placeholder="Implementation plan, reference doc..."
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={() => save_plan(s.id)}
+                          className="px-3 py-1 text-xs bg-cyan-500 hover:bg-cyan-600 rounded transition-all">Save</button>
+                        <button onClick={() => { set_plan_editing_id(null); set_plan_draft(''); }}
+                          className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20 rounded transition-all">Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <pre className="text-xs text-gray-300 whitespace-pre-wrap break-words font-mono bg-white/5 rounded p-3 max-h-64 overflow-y-auto">
+                        {s.plan}
+                      </pre>
+                      {is_bill && (
+                        <button onClick={() => { set_plan_editing_id(s.id); set_plan_draft(s.plan || ''); set_plan_open(prev => new Set(prev).add(s.id)); }}
+                          className="mt-2 px-2 py-1 text-xs bg-white/10 text-gray-300 rounded hover:bg-white/20 transition-all">
+                          Edit Plan
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Todos section */}
+          {(() => {
+            const todos = parse_todos(s.todos);
+            const done_count = todos.filter(t => t.done).length;
+            const has_todos = todos.length > 0;
+
+            return (
+              <div className="border border-white/10 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => toggle_set(set_todos_open, s.id)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-xs text-gray-400 hover:bg-white/5 transition-all"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <svg className={`w-3 h-3 transition-transform ${todos_open.has(s.id) ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                    Todos
+                  </div>
+                  {has_todos && (
+                    <span className={`px-1.5 py-0.5 text-xs rounded ${done_count === todos.length ? 'bg-green-500/20 text-green-400' : 'bg-white/10 text-gray-400'}`}>
+                      {done_count}/{todos.length}
+                    </span>
+                  )}
+                </button>
+                {todos_open.has(s.id) && (
+                  <div className="px-3 pb-3">
+                    {has_todos && (
+                      <div className="space-y-1 mb-3">
+                        {todos.map(t => {
+                          const type_colors = {
+                            bug: 'bg-red-500/20 text-red-400',
+                            feature: 'bg-cyan-500/20 text-cyan-400',
+                            task: 'bg-gray-500/20 text-gray-400',
+                          };
+                          return (
+                            <div key={t.id} className="flex items-center gap-2 group">
+                              {is_bill ? (
+                                <button
+                                  onClick={() => toggle_todo(s.id, t.id, !t.done)}
+                                  className={`w-4 h-4 flex-shrink-0 rounded border transition-all ${t.done ? 'bg-green-500/30 border-green-500/50' : 'border-white/20 hover:border-white/40'}`}
+                                >
+                                  {t.done && <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                </button>
+                              ) : (
+                                <span className={`w-4 h-4 flex-shrink-0 rounded border ${t.done ? 'bg-green-500/30 border-green-500/50' : 'border-white/20'} flex items-center justify-center`}>
+                                  {t.done && <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>}
+                                </span>
+                              )}
+                              <span className={`text-xs flex-1 ${t.done ? 'line-through text-gray-600' : 'text-gray-300'}`}>{t.text}</span>
+                              <span className={`px-1 py-0.5 text-[10px] rounded ${type_colors[t.type]}`}>{t.type}</span>
+                              {is_bill && (
+                                <button
+                                  onClick={() => remove_todo(s.id, t.id)}
+                                  className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all text-xs"
+                                >
+                                  ×
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {/* Add todo input */}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={todo_input[s.id] || ''}
+                        onChange={(e) => set_todo_input(prev => ({ ...prev, [s.id]: e.target.value }))}
+                        onKeyDown={(e) => { if (e.key === 'Enter') add_todo(s.id); }}
+                        placeholder="Add a todo..."
+                        maxLength={100}
+                        className="flex-1 bg-white/5 border border-white/10 rounded px-2 py-1 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-cyan-400/30"
+                      />
+                      <select
+                        value={todo_type[s.id] || 'task'}
+                        onChange={(e) => set_todo_type(prev => ({ ...prev, [s.id]: e.target.value as 'bug' | 'feature' | 'task' }))}
+                        className="bg-white/5 border border-white/10 rounded px-1 py-1 text-xs text-gray-400 focus:outline-none cursor-pointer"
+                      >
+                        <option value="task">task</option>
+                        <option value="bug">bug</option>
+                        <option value="feature">feature</option>
+                      </select>
+                      <button
+                        onClick={() => add_todo(s.id)}
+                        disabled={!(todo_input[s.id] || '').trim() || todo_submitting}
+                        className="px-2 py-1 text-xs bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 disabled:opacity-40 rounded transition-all"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Summary / Compact section */}
+          {(s.summary || s.context) && (
+            <div className="border border-white/10 rounded-lg overflow-hidden">
+              <button
+                onClick={() => toggle_set(set_summary_open, s.id)}
+                className="w-full flex items-center gap-1.5 px-3 py-2 text-xs text-gray-400 hover:bg-white/5 transition-all"
+              >
+                <svg className={`w-3 h-3 transition-transform ${summary_open.has(s.id) ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                Summary
+                {s.summary && <span className="text-green-500/60 text-[10px]">compacted</span>}
+              </button>
+              {summary_open.has(s.id) && (
+                <div className="px-3 pb-3">
+                  {s.summary ? (
+                    <pre className="text-xs text-gray-400 whitespace-pre-wrap break-words font-mono bg-white/5 rounded p-3 max-h-48 overflow-y-auto mb-2">
+                      {s.summary}
+                    </pre>
+                  ) : (
+                    <p className="text-xs text-gray-600 mb-2">No summary yet.</p>
+                  )}
+
+                  {/* Compact preview */}
+                  {compact_preview && compact_preview.id === s.id && (
+                    <div className="border border-yellow-500/30 bg-yellow-500/10 rounded-lg p-3 mb-2">
+                      <p className="text-xs text-yellow-400 font-medium mb-2">Compaction Preview</p>
+                      {compact_preview.overflow && (
+                        <p className="text-xs text-amber-400 mb-2">Context exceeds 30KB. Consider archiving historical entries.</p>
+                      )}
+                      <p className="text-xs text-gray-400 mb-1 font-medium">Summary:</p>
+                      <pre className="text-xs text-gray-300 whitespace-pre-wrap break-words font-mono bg-black/20 rounded p-2 mb-2 max-h-32 overflow-y-auto">
+                        {compact_preview.summary}
+                      </pre>
+                      {compact_preview.new_todos.length > 0 && (
+                        <>
+                          <p className="text-xs text-gray-400 mb-1 font-medium">Extracted Todos ({compact_preview.new_todos.length}):</p>
+                          <div className="space-y-0.5 mb-2">
+                            {compact_preview.new_todos.map((t, i) => (
+                              <div key={i} className="flex items-center gap-2 text-xs text-gray-300">
+                                <span className={`px-1 py-0.5 text-[10px] rounded ${
+                                  t.type === 'bug' ? 'bg-red-500/20 text-red-400' :
+                                  t.type === 'feature' ? 'bg-cyan-500/20 text-cyan-400' :
+                                  'bg-gray-500/20 text-gray-400'
+                                }`}>{t.type}</span>
+                                {t.text}
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                      <div className="flex gap-2">
+                        <button onClick={save_compact}
+                          className="px-3 py-1 text-xs bg-green-500 hover:bg-green-600 rounded transition-all">Save Compaction</button>
+                        <button onClick={() => set_compact_preview(null)}
+                          className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20 rounded transition-all">Discard</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {is_bill && !compact_preview && s.context && (
+                    <button
+                      onClick={() => run_compact(s.id)}
+                      disabled={compact_loading === s.id}
+                      className="px-2 py-1 text-xs bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 disabled:opacity-40 rounded transition-all"
+                    >
+                      {compact_loading === s.id ? 'Compacting...' : 'Compact Context'}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -479,6 +902,13 @@ export default function ChipboardPage() {
               <option value="Hex">Hex</option>
               <option value="Bill">Bill</option>
             </select>
+
+            {is_bill && !s.plan && plan_editing_id !== s.id && (
+              <button onClick={() => { set_plan_editing_id(s.id); set_plan_draft(''); set_plan_open(prev => new Set(prev).add(s.id)); }}
+                className="px-2 py-1 text-xs bg-cyan-500/20 text-cyan-400 rounded hover:bg-cyan-500/30 transition-all">
+                + Plan
+              </button>
+            )}
 
             {is_bill && (
               <button onClick={() => delete_suggestion(s.id)}
