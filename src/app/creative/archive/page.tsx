@@ -432,7 +432,7 @@ const base_styles = `
   }
 
   .story-date {
-    font-size: 0.78em;
+    font-size: 0.95em;
     color: #c4704b;
     font-weight: 500;
     margin-bottom: 4px;
@@ -452,7 +452,7 @@ const base_styles = `
   }
 
   .story-meta {
-    font-size: 0.75em;
+    font-size: 0.95em;
     color: #9c9c9c;
     margin-top: auto;
   }
@@ -511,7 +511,7 @@ const base_styles = `
 
   .month-nav-link {
     padding: 5px 10px;
-    font-size: 0.8em;
+    font-size: 1em;
     color: #7c7c7c;
     text-decoration: none;
     border: 1px solid #e5e0d8;
@@ -606,7 +606,7 @@ const admin_styles = `
   .action-btn {
     padding: 2px 8px;
     border-radius: 4px;
-    font-size: 0.65em;
+    font-size: 0.85em;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;

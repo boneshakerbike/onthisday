@@ -655,7 +655,7 @@ export default function ChipboardPage() {
               {s.title && (
                 <p className="text-white font-semibold break-words">{s.title}</p>
               )}
-              <p className={`break-words ${s.title ? 'text-base sm:text-sm text-gray-400' : 'text-gray-200'}`}>{s.content}</p>
+              <p className={`break-words ${s.title ? 'text-sm md:text-base text-gray-400' : 'text-gray-200'}`}>{s.content}</p>
             </>
           )}
 
@@ -758,11 +758,11 @@ export default function ChipboardPage() {
                       onKeyDown={(e) => { if (e.key === 'Enter') save_todo_text(s.id, t.id, editing_todo_text); if (e.key === 'Escape') set_editing_todo(null); }}
                       maxLength={200}
                       autoFocus
-                      className="flex-1 bg-white/5 border border-cyan-400/30 rounded px-1 py-0.5 text-sm sm:text-xs text-white focus:outline-none"
+                      className="flex-1 bg-white/5 border border-cyan-400/30 rounded px-1 py-0.5 text-xs md:text-sm text-white focus:outline-none"
                     />
                   ) : (
                     <span
-                      className={`text-sm sm:text-xs flex-1 ${t.done ? 'line-through text-gray-600' : 'text-gray-300'} ${is_bill ? 'cursor-pointer hover:text-white' : ''}`}
+                      className={`text-xs md:text-sm flex-1 ${t.done ? 'line-through text-gray-600' : 'text-gray-300'} ${is_bill ? 'cursor-pointer hover:text-white' : ''}`}
                       onClick={() => { if (is_bill) { set_editing_todo({ item_id: s.id, todo_id: t.id }); set_editing_todo_text(t.text); } }}
                     >
                       {t.text}
@@ -879,7 +879,7 @@ export default function ChipboardPage() {
                             };
                             return (
                               <div key={i} className="flex items-center gap-2">
-                                <span className="text-sm sm:text-xs text-gray-300 flex-1">{t.text}</span>
+                                <span className="text-xs md:text-sm text-gray-300 flex-1">{t.text}</span>
                                 <span className={`px-1 py-0.5 text-[10px] rounded flex-shrink-0 ${type_colors[t.type]}`}>{t.type}</span>
                                 <button
                                   onClick={async () => {

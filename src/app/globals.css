@@ -25,6 +25,12 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* Mobile font bump: text-xs → 14px, text-sm → 16px on screens < 768px */
+@media (max-width: 767px) {
+  .text-xs { font-size: 0.875rem; line-height: 1.25rem; }
+  .text-sm { font-size: 1rem; line-height: 1.5rem; }
+}
+
 /* Hide scrollbar on nav tabs while keeping scroll on mobile */
 .scrollbar-hide {
   -ms-overflow-style: none;
