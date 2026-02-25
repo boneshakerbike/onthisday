@@ -1,6 +1,6 @@
 /**
  * API route: POST /api/clean-text
- * Uses Sonnet to clean up rough text for clarity, correctness, and conciseness
+ * Uses Sonnet 4.5 to clean up rough text for clarity and readability
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -47,22 +47,16 @@ export async function POST(request: NextRequest) {
     const client = new Anthropic({ apiKey: api_key });
 
     const result = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: 'claude-sonnet-4-5-20250929',
       max_tokens: 4096,
       messages: [
         {
           role: 'user',
-          content: `You are an expert editor. Please review the following text and improve it for clarity, correctness, and conciseness while preserving all essential information.
+          content: `Rewrite the following text so it reads naturally and is easy to understand. Fix all spelling, grammar, and punctuation errors. Keep the author's voice and tone — don't make it sound corporate or robotic. If a sentence is confusing, rewrite it simply instead of just rearranging words. Keep it concise but don't cut anything important.
 
-Your tasks:
-1. Correct all spelling, grammar, and punctuation errors
-2. Clarify unclear or ambiguous phrases
-3. Streamline wordy sections without losing meaning
-4. Improve sentence structure and flow
+Return only the cleaned text. No commentary, no quotes, no preamble.
 
-Return only the cleaned text with no commentary, no quotes around it, no preamble.
-
-Text to edit:
+Text:
 ${content}`
         }
       ]
