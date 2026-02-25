@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { save_prediction, get_prediction, set_player_state, get_roster } from '@/lib/f1/db';
+import { save_prediction, get_prediction, set_player_state, get_roster, update_prediction, get_predictions_for_session } from '@/lib/f1/db';
 import type { SessionType } from '@/lib/f1/types';
 
 export async function POST(request: NextRequest) {
@@ -25,13 +25,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for duplicate prediction
+    // Check for existing prediction — allow edit if group isn't fully locked in
     const existing = await get_prediction(season, round, st, player_name);
     if (existing) {
-      return NextResponse.json(
-        { error: 'Prediction already submitted for this session' },
-        { status: 409 }
-      );
+      if (roster.length > 0) {
+        const all_predictions = await get_predictions_for_session(season, round, st);
+        const predicted_players = new Set(all_predictions.map(p => p.player_name));
+        const all_predicted = roster.every(p => predicted_players.has(p));
+        if (all_predicted) {
+          return NextResponse.json(
+            { error: 'All players have locked in — predictions cannot be changed' },
+            { status: 409 }
+          );
+        }
+      }
+      // Overwrite existing prediction
+      await update_prediction(season, round, st, player_name, p1, p2, p3, fastest_lap || null);
+      return NextResponse.json({ prediction_id: existing.id, state: 'watching' });
     }
 
     // Check no duplicate drivers

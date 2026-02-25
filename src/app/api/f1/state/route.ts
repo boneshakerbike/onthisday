@@ -66,10 +66,14 @@ export async function GET(request: NextRequest) {
           all_predicted,
           missing,
           predictions: all_predicted
-            ? session_predictions.map(p => ({
-                player_name: p.player_name,
-                p1: p.p1, p2: p.p2, p3: p.p3,
-                fastest_lap: p.fastest_lap,
+            ? await Promise.all(session_predictions.map(async p => {
+                const p_score = state === 'revealed' ? await get_score(p.id) : null;
+                return {
+                  player_name: p.player_name,
+                  p1: p.p1, p2: p.p2, p3: p.p3,
+                  fastest_lap: p.fastest_lap,
+                  score: p_score ? { perfect_match: p_score.perfect_match, podium_lock: p_score.podium_lock, almost: p_score.almost, fastest_lap: p_score.fastest_lap, total: p_score.total } : null,
+                };
               }))
             : null,
         };

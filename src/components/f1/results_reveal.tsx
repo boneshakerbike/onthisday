@@ -14,6 +14,7 @@ interface ResultsRevealProps {
   } | null;
   fastest_lap_driver_id: string | null;
   session_type: string;
+  player_name?: string;
 }
 
 function score_color(pick: string, position: number, actual_podium: string[], actual_p4_p5: string[]): string {
@@ -37,8 +38,9 @@ function driver_display(driver_id: string, results: F1DriverResult[]): string {
 }
 
 export default function ResultsReveal({
-  results, prediction, score, fastest_lap_driver_id, session_type,
+  results, prediction, score, fastest_lap_driver_id, session_type, player_name,
 }: ResultsRevealProps) {
+  const pick_label = player_name ? player_name.toUpperCase() : 'YOUR PICK';
   const actual_podium = results.slice(0, 3).map(r => r.driver_id);
   const actual_p4_p5 = results.slice(3, 5).map(r => r.driver_id);
   const picks = prediction ? [prediction.p1, prediction.p2, prediction.p3] : [];
@@ -73,7 +75,7 @@ export default function ResultsReveal({
             }}>
               <div style={{ color: '#888', fontWeight: 700, fontSize: '0.9rem' }}>{pos}</div>
               <div>
-                <div style={{ color: '#888', fontSize: '0.65rem' }}>YOUR PICK</div>
+                <div style={{ color: '#888', fontSize: '0.65rem' }}>{pick_label}</div>
                 <div style={{ color: pick ? '#e0e0e0' : '#555', fontSize: '0.85rem' }}>
                   {pick ? driver_display(pick, results) : 'No pick'}
                 </div>
@@ -113,7 +115,7 @@ export default function ResultsReveal({
         }}>
           <div style={{ color: '#888', fontWeight: 700, fontSize: '0.85rem' }}>FL</div>
           <div>
-            <div style={{ color: '#888', fontSize: '0.65rem' }}>YOUR PICK</div>
+            <div style={{ color: '#888', fontSize: '0.65rem' }}>{pick_label}</div>
             <div style={{ color: '#e0e0e0', fontSize: '0.85rem' }}>
               {driver_display(prediction.fastest_lap, results)}
             </div>

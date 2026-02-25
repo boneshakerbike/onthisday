@@ -344,6 +344,22 @@ export async function save_prediction(
   return id;
 }
 
+export async function update_prediction(
+  season: number, round: number, session_type: SessionType,
+  player_name: string, p1: string, p2: string, p3: string,
+  fastest_lap: string | null
+): Promise<void> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  await db.execute({
+    sql: `UPDATE f1_predictions
+          SET p1 = ?, p2 = ?, p3 = ?, fastest_lap = ?, created_at = CURRENT_TIMESTAMP
+          WHERE season = ? AND round = ? AND session_type = ? AND player_name = ?`,
+    args: [p1, p2, p3, fastest_lap, season, round, session_type, player_name],
+  });
+}
+
 export async function get_predictions_for_session(
   season: number, round: number, session_type: SessionType
 ): Promise<F1Prediction[]> {

@@ -11,6 +11,7 @@ interface GroupPick {
   p2: string;
   p3: string;
   fastest_lap: string | null;
+  score?: { perfect_match: number; podium_lock: number; almost: number; fastest_lap: number; total: number } | null;
 }
 
 interface GroupState {
@@ -155,9 +156,28 @@ export default function WeekendView({
                     </button>
                   )}
                   {is_watching && session.group && !session.group.all_predicted && (
-                    <span style={{ color: '#e10600', fontSize: '0.8rem' }}>
-                      Waiting for {session.group.missing.join(', ')}
-                    </span>
+                    <>
+                      <span style={{ color: '#e10600', fontSize: '0.8rem' }}>
+                        Waiting for {session.group.missing.join(', ')}
+                      </span>
+                      {!show_form && session.prediction && (
+                        <button
+                          onClick={() => on_predict_click(session.session_type)}
+                          style={{
+                            background: 'none',
+                            border: '1px solid rgba(225,6,0,0.3)',
+                            color: '#e10600',
+                            borderRadius: '4px',
+                            padding: '0.2rem 0.5rem',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            marginLeft: '0.5rem',
+                          }}
+                        >
+                          Edit Picks
+                        </button>
+                      )}
+                    </>
                   )}
                   {is_watching && (!session.group || session.group.all_predicted) && (
                     <button
@@ -194,8 +214,20 @@ export default function WeekendView({
                 />
               )}
 
-              {/* Revealed results */}
-              {is_revealed && reveal && (
+              {/* Revealed results — show all players when group data available */}
+              {is_revealed && reveal && session.group?.predictions && session.group.predictions.length > 0 ? (
+                session.group.predictions.map((gp: GroupPick) => (
+                  <ResultsReveal
+                    key={gp.player_name}
+                    results={reveal.results}
+                    prediction={{ p1: gp.p1, p2: gp.p2, p3: gp.p3, fastest_lap: gp.fastest_lap }}
+                    score={gp.score || null}
+                    fastest_lap_driver_id={reveal.fastest_lap_driver_id}
+                    session_type={session.session_type}
+                    player_name={gp.player_name}
+                  />
+                ))
+              ) : is_revealed && reveal ? (
                 <ResultsReveal
                   results={reveal.results}
                   prediction={reveal.prediction || session.prediction}
@@ -203,7 +235,7 @@ export default function WeekendView({
                   fastest_lap_driver_id={reveal.fastest_lap_driver_id}
                   session_type={session.session_type}
                 />
-              )}
+              ) : null}
 
               {/* Watching state - show group picks or locked prediction */}
               {is_watching && session.group?.all_predicted && session.group.predictions && (
@@ -213,7 +245,7 @@ export default function WeekendView({
                   show_fastest_lap={session.session_type === 'race'}
                 />
               )}
-              {is_watching && !session.group?.all_predicted && session.prediction && (
+              {is_watching && !show_form && !session.group?.all_predicted && session.prediction && (
                 <div style={{
                   marginTop: '0.5rem',
                   padding: '0.5rem',
@@ -225,7 +257,7 @@ export default function WeekendView({
                   Prediction locked. Waiting for all players to lock in.
                 </div>
               )}
-              {is_watching && !session.group && session.prediction && (
+              {is_watching && !show_form && !session.group && session.prediction && (
                 <div style={{
                   marginTop: '0.5rem',
                   padding: '0.5rem',
