@@ -3,6 +3,7 @@
 import type { F1RaceSchedule, F1Driver, SessionType, F1DriverResult } from '@/lib/f1/types';
 import PredictionForm from './prediction_form';
 import ResultsReveal from './results_reveal';
+import ResultsTable from './results_table';
 import GroupPicks from './group_picks';
 
 interface GroupPick {
@@ -259,19 +260,14 @@ export default function WeekendView({
                 />
               )}
 
-              {/* Revealed results — show all players when group data available */}
+              {/* Revealed results — table for group, card for solo */}
               {is_revealed && reveal && session.group?.predictions && session.group.predictions.length > 0 ? (
-                session.group.predictions.map((gp: GroupPick) => (
-                  <ResultsReveal
-                    key={gp.player_name}
-                    results={reveal.results}
-                    prediction={{ p1: gp.p1, p2: gp.p2, p3: gp.p3, fastest_lap: gp.fastest_lap }}
-                    score={gp.score || null}
-                    fastest_lap_driver_id={reveal.fastest_lap_driver_id}
-                    session_type={session.session_type}
-                    player_name={gp.player_name}
-                  />
-                ))
+                <ResultsTable
+                  results={reveal.results}
+                  predictions={session.group.predictions}
+                  fastest_lap_driver_id={reveal.fastest_lap_driver_id}
+                  session_type={session.session_type}
+                />
               ) : is_revealed && reveal ? (
                 <ResultsReveal
                   results={reveal.results}
