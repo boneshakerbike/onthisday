@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import NavTabs from '@/components/nav_tabs';
 import SeasonGrid from '@/components/f1/season_grid';
 import WeekendView from '@/components/f1/weekend_view';
 import Leaderboard from '@/components/f1/leaderboard';
@@ -292,7 +291,6 @@ export default function F1Page() {
 
   return (
     <>
-      <NavTabs />
       <style jsx>{`
         .f1-page {
           max-width: 720px;
@@ -615,6 +613,9 @@ export default function F1Page() {
             )}
           </>
         )}
+        <div style={{ textAlign: 'center', marginTop: '3rem', paddingBottom: '1rem' }}>
+          <a href="/" style={{ color: '#333', fontSize: '0.7rem', textDecoration: 'none' }}>8i11</a>
+        </div>
       </div>
       </div>
     </>
