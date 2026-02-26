@@ -9,6 +9,7 @@ interface PredictionFormProps {
   on_submit: (p1: string, p2: string, p3: string, fastest_lap: string | null) => void;
   on_cancel: () => void;
   submitting: boolean;
+  existing_prediction?: { p1: string; p2: string; p3: string; fastest_lap: string | null } | null;
 }
 
 function DriverTypeAhead({
@@ -132,12 +133,12 @@ function DriverTypeAhead({
 }
 
 export default function PredictionForm({
-  drivers, session_type, on_submit, on_cancel, submitting,
+  drivers, session_type, on_submit, on_cancel, submitting, existing_prediction,
 }: PredictionFormProps) {
-  const [p1, set_p1] = useState('');
-  const [p2, set_p2] = useState('');
-  const [p3, set_p3] = useState('');
-  const [fastest_lap, set_fastest_lap] = useState('');
+  const [p1, set_p1] = useState(existing_prediction?.p1 || '');
+  const [p2, set_p2] = useState(existing_prediction?.p2 || '');
+  const [p3, set_p3] = useState(existing_prediction?.p3 || '');
+  const [fastest_lap, set_fastest_lap] = useState(existing_prediction?.fastest_lap || '');
 
   const is_race = session_type === 'race';
   const can_submit = p1 && p2 && p3 && (!is_race || fastest_lap);
@@ -183,7 +184,7 @@ export default function PredictionForm({
             fontSize: '0.9rem',
           }}
         >
-          {submitting ? 'Submitting...' : 'Lock In Prediction'}
+          {submitting ? 'Saving...' : 'Save Picks'}
         </button>
         <button
           onClick={on_cancel}

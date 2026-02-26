@@ -109,6 +109,9 @@ async function init_f1_schema(): Promise<void> {
       ON f1_predictions(season, round, session_type)
   `);
 
+  // Migration: add is_locked column (safe to run repeatedly)
+  await db.execute(`ALTER TABLE f1_predictions ADD COLUMN is_locked INTEGER NOT NULL DEFAULT 0`).catch(() => {});
+
   await db.execute(`
     CREATE TABLE IF NOT EXISTS f1_scores (
       prediction_id TEXT PRIMARY KEY,
@@ -321,6 +324,7 @@ export async function get_prediction(
     p2: row.p2 as string,
     p3: row.p3 as string,
     fastest_lap: (row.fastest_lap as string) || null,
+    is_locked: (row.is_locked as number) === 1,
     created_at: row.created_at as string,
   };
 }
@@ -382,11 +386,34 @@ export async function get_predictions_for_session(
     p2: row.p2 as string,
     p3: row.p3 as string,
     fastest_lap: (row.fastest_lap as string) || null,
+    is_locked: (row.is_locked as number) === 1,
     created_at: row.created_at as string,
   }));
 }
 
-// ΓöÇΓöÇ Scores CRUD ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+export async function lock_prediction(
+  season: number, round: number, session_type: SessionType, player_name: string
+): Promise<boolean> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: `UPDATE f1_predictions SET is_locked = 1
+          WHERE season = ? AND round = ? AND session_type = ? AND player_name = ?`,
+    args: [season, round, session_type, player_name],
+  });
+
+  return result.rowsAffected > 0;
+}
+
+export async function is_prediction_locked(
+  season: number, round: number, session_type: SessionType, player_name: string
+): Promise<boolean> {
+  const prediction = await get_prediction(season, round, session_type, player_name);
+  return prediction !== null && prediction.is_locked;
+}
+
+//ΓöÇΓöÇ Scores CRUD ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
 export async function get_score(prediction_id: string): Promise<F1Score | null> {
   await ensure_f1_schema();

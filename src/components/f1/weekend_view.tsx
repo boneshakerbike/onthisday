@@ -23,7 +23,7 @@ interface GroupState {
 interface SessionInfo {
   session_type: SessionType;
   state: string; // 'predicting' | 'watching' | 'revealed' | 'locked'
-  prediction: { p1: string; p2: string; p3: string; fastest_lap: string | null } | null;
+  prediction: { p1: string; p2: string; p3: string; fastest_lap: string | null; is_locked?: boolean } | null;
   score: { perfect_match: number; podium_lock: number; almost: number; fastest_lap: number; total: number } | null;
   group?: GroupState | null;
 }
@@ -44,6 +44,7 @@ interface WeekendViewProps {
   on_predict_click: (session_type: SessionType) => void;
   on_predict_cancel: () => void;
   on_predict_submit: (session_type: SessionType, p1: string, p2: string, p3: string, fastest_lap: string | null) => void;
+  on_lock: (session_type: SessionType) => void;
   on_reveal: (session_type: SessionType) => void;
   submitting: boolean;
   revealing: string | null;
@@ -63,7 +64,7 @@ function format_date(date_str: string): string {
 
 export default function WeekendView({
   race, sessions, drivers, revealed_data, active_form,
-  on_predict_click, on_predict_cancel, on_predict_submit,
+  on_predict_click, on_predict_cancel, on_predict_submit, on_lock,
   on_reveal, submitting, revealing, on_back,
 }: WeekendViewProps) {
   return (
@@ -115,7 +116,7 @@ export default function WeekendView({
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                marginBottom: show_form || is_revealed ? '0.5rem' : 0,
+                marginBottom: show_form || is_revealed || (is_predicting && !!session.prediction) ? '0.5rem' : 0,
               }}>
                 <div>
                   <span style={{
@@ -138,7 +139,8 @@ export default function WeekendView({
                       Complete previous session first
                     </span>
                   )}
-                  {is_predicting && !show_form && (
+                  {/* predicting + no saved picks: show Make Prediction */}
+                  {is_predicting && !show_form && !session.prediction && (
                     <button
                       onClick={() => on_predict_click(session.session_type)}
                       style={{
@@ -155,29 +157,46 @@ export default function WeekendView({
                       Make Prediction
                     </button>
                   )}
+                  {/* predicting + saved picks: Edit Picks + Lock In */}
+                  {is_predicting && !show_form && session.prediction && (
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <button
+                        onClick={() => on_predict_click(session.session_type)}
+                        style={{
+                          background: 'none',
+                          border: '1px solid rgba(225,6,0,0.3)',
+                          color: '#e10600',
+                          borderRadius: '4px',
+                          padding: '0.3rem 0.6rem',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                        }}
+                      >
+                        Edit Picks
+                      </button>
+                      <button
+                        onClick={() => on_lock(session.session_type)}
+                        disabled={submitting}
+                        style={{
+                          background: submitting ? '#444' : '#e10600',
+                          color: submitting ? '#888' : '#ffffff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '0.3rem 0.6rem',
+                          fontWeight: 700,
+                          cursor: submitting ? 'wait' : 'pointer',
+                          fontSize: '0.8rem',
+                        }}
+                      >
+                        Lock In
+                      </button>
+                    </div>
+                  )}
                   {is_watching && session.group && !session.group.all_predicted && (
-                    <>
-                      <span style={{ color: '#e10600', fontSize: '0.8rem' }}>
-                        Waiting for {session.group.missing.join(', ')}
-                      </span>
-                      {!show_form && session.prediction && (
-                        <button
-                          onClick={() => on_predict_click(session.session_type)}
-                          style={{
-                            background: 'none',
-                            border: '1px solid rgba(225,6,0,0.3)',
-                            color: '#e10600',
-                            borderRadius: '4px',
-                            padding: '0.2rem 0.5rem',
-                            cursor: 'pointer',
-                            fontSize: '0.75rem',
-                            marginLeft: '0.5rem',
-                          }}
-                        >
-                          Edit Picks
-                        </button>
-                      )}
-                    </>
+                    <span style={{ color: '#e10600', fontSize: '0.8rem' }}>
+                      Waiting for {session.group.missing.join(', ')}
+                    </span>
                   )}
                   {is_watching && (!session.group || session.group.all_predicted) && (
                     <button
@@ -203,6 +222,25 @@ export default function WeekendView({
                 </div>
               </div>
 
+              {/* Saved picks summary (predicting + has saved picks, form not open) */}
+              {is_predicting && !show_form && session.prediction && (
+                <div style={{ marginTop: '0.5rem' }}>
+                  <div style={{ color: '#e0e0e0', fontWeight: 600, fontSize: '0.9rem' }}>
+                    {[session.prediction.p1, session.prediction.p2, session.prediction.p3]
+                      .map(id => drivers.find(d => d.driver_id === id)?.code || id)
+                      .join(' / ')}
+                    {session.session_type === 'race' && session.prediction.fastest_lap && (
+                      <span style={{ color: '#666', fontSize: '0.8rem', marginLeft: '0.5rem' }}>
+                        FL: {drivers.find(d => d.driver_id === session.prediction!.fastest_lap)?.code || session.prediction.fastest_lap}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ color: '#666', fontSize: '0.75rem', marginTop: '0.2rem' }}>
+                    Picks saved. Lock in when ready to watch.
+                  </div>
+                </div>
+              )}
+
               {/* Prediction form (inline) */}
               {show_form && (
                 <PredictionForm
@@ -211,6 +249,7 @@ export default function WeekendView({
                   on_submit={(p1, p2, p3, fl) => on_predict_submit(session.session_type, p1, p2, p3, fl)}
                   on_cancel={on_predict_cancel}
                   submitting={submitting}
+                  existing_prediction={session.prediction}
                 />
               )}
 

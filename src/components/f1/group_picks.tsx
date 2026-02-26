@@ -56,7 +56,7 @@ export default function GroupPicks({ predictions, drivers, show_fastest_lap }: G
               P3: {driver_label(pred.p3, drivers)}
             </div>
             {show_fastest_lap && pred.fastest_lap && (
-              <div style={{ color: '#c084fc', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+              <div style={{ color: '#A855F7', fontSize: '0.8rem', marginTop: '0.25rem' }}>
                 FL: {driver_label(pred.fastest_lap, drivers)}
               </div>
             )}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { save_prediction, get_prediction, set_player_state, get_roster, update_prediction, get_predictions_for_session } from '@/lib/f1/db';
+import { save_prediction, get_prediction, get_roster, update_prediction } from '@/lib/f1/db';
 import type { SessionType } from '@/lib/f1/types';
 
 export async function POST(request: NextRequest) {
@@ -25,23 +25,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for existing prediction — allow edit if group isn't fully locked in
+    // If prediction exists and is locked, reject edit
     const existing = await get_prediction(season, round, st, player_name);
     if (existing) {
-      if (roster.length > 0) {
-        const all_predictions = await get_predictions_for_session(season, round, st);
-        const predicted_players = new Set(all_predictions.map(p => p.player_name));
-        const all_predicted = roster.every(p => predicted_players.has(p));
-        if (all_predicted) {
-          return NextResponse.json(
-            { error: 'All players have locked in — predictions cannot be changed' },
-            { status: 409 }
-          );
-        }
+      if (existing.is_locked) {
+        return NextResponse.json(
+          { error: 'Prediction is locked' },
+          { status: 409 }
+        );
       }
-      // Overwrite existing prediction
+      // Overwrite existing prediction (picks only, does not affect lock state)
       await update_prediction(season, round, st, player_name, p1, p2, p3, fastest_lap || null);
-      return NextResponse.json({ prediction_id: existing.id, state: 'watching' });
+      return NextResponse.json({ prediction_id: existing.id, saved: true });
     }
 
     // Check no duplicate drivers
@@ -57,10 +52,8 @@ export async function POST(request: NextRequest) {
       season, round, st, player_name, p1, p2, p3, fastest_lap || null
     );
 
-    // Move player to watching state
-    await set_player_state(season, round, st, player_name, 'watching');
-
-    return NextResponse.json({ prediction_id, state: 'watching' });
+    // NOTE: Do NOT set player state here — lock route handles the transition to 'watching'
+    return NextResponse.json({ prediction_id, saved: true });
   } catch (error) {
     console.error('F1 predict error:', error);
     return NextResponse.json(

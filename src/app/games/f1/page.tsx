@@ -12,7 +12,7 @@ import type { F1RaceSchedule, F1Driver, F1DriverResult, SessionType } from '@/li
 interface SessionInfo {
   session_type: SessionType;
   state: string;
-  prediction: { p1: string; p2: string; p3: string; fastest_lap: string | null } | null;
+  prediction: { p1: string; p2: string; p3: string; fastest_lap: string | null; is_locked?: boolean } | null;
   score: { perfect_match: number; podium_lock: number; almost: number; fastest_lap: number; total: number } | null;
 }
 
@@ -72,6 +72,13 @@ export default function F1Page() {
     if (selected_round) params.set('round', String(selected_round));
     window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
   }, [season, selected_round]);
+
+  // Clear stale UI whenever the selected round changes
+  useEffect(() => {
+    set_revealed_data({});
+    set_active_form(null);
+    set_sessions([]);
+  }, [selected_round]);
 
   // Load player name from localStorage (don't show prompt yet — wait for roster)
   useEffect(() => {
@@ -226,6 +233,28 @@ export default function F1Page() {
       refresh_state();
     } catch {
       alert('Failed to submit prediction');
+    } finally {
+      set_submitting(false);
+    }
+  };
+
+  // Lock prediction (picks must already be saved via Save Picks)
+  const handle_lock = async (session_type: SessionType) => {
+    set_submitting(true);
+    try {
+      const res = await fetch('/api/f1/lock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ season, round: selected_round, session_type, player_name }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || 'Failed to lock prediction');
+        return;
+      }
+      refresh_state();
+    } catch {
+      alert('Failed to lock prediction');
     } finally {
       set_submitting(false);
     }
@@ -537,6 +566,7 @@ export default function F1Page() {
                 on_predict_click={(st) => set_active_form(st)}
                 on_predict_cancel={() => set_active_form(null)}
                 on_predict_submit={handle_predict}
+                on_lock={handle_lock}
                 on_reveal={handle_reveal}
                 submitting={submitting}
                 revealing={revealing}

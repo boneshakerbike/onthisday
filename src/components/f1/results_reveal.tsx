@@ -107,7 +107,7 @@ export default function ResultsReveal({
           padding: '0.5rem',
           background: 'rgba(255,255,255,0.03)',
           borderRadius: '6px',
-          borderLeft: `3px solid ${prediction.fastest_lap === fastest_lap_driver_id ? '#c084fc' : '#555'}`,
+          borderLeft: `3px solid ${prediction.fastest_lap === fastest_lap_driver_id ? '#A855F7' : '#555'}`,
           display: 'grid',
           gridTemplateColumns: '40px 1fr 1fr auto',
           gap: '0.5rem',
@@ -127,7 +127,7 @@ export default function ResultsReveal({
             </div>
           </div>
           <div style={{
-            color: prediction.fastest_lap === fastest_lap_driver_id ? '#c084fc' : '#555',
+            color: prediction.fastest_lap === fastest_lap_driver_id ? '#A855F7' : '#555',
             fontWeight: 700,
             fontSize: '0.8rem',
             textAlign: 'right',

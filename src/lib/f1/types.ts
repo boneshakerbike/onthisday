@@ -67,6 +67,7 @@ export interface F1Prediction {
   p2: string;
   p3: string;
   fastest_lap: string | null;
+  is_locked: boolean;
   created_at: string;
 }
 

@@ -48,7 +48,7 @@ function ScoringRules() {
             <span style={{ color: '#ccc' }}>Podium Lock — right driver, wrong position</span>
             <span style={{ color: '#888', fontWeight: 700 }}>+1</span>
             <span style={{ color: '#ccc' }}>Almost — driver finishes P4 or P5</span>
-            <span style={{ color: '#c084fc', fontWeight: 700 }}>+3</span>
+            <span style={{ color: '#A855F7', fontWeight: 700 }}>+3</span>
             <span style={{ color: '#ccc' }}>Fastest Lap — bonus for race sessions only</span>
           </div>
           <div style={{ color: '#666', fontSize: '0.75rem', marginTop: '0.5rem' }}>

@@ -17,12 +17,12 @@ export async function POST(request: NextRequest) {
 
     const st = session_type as SessionType;
 
-    // Group check: if roster exists, all players must have predicted
+    // Group check: if roster exists, all players must have LOCKED predictions
     const roster = await get_roster(season);
     if (roster.length > 0) {
       const predictions = await get_predictions_for_session(season, round, st);
-      const predicted = new Set(predictions.map(p => p.player_name));
-      const missing = roster.filter(p => !predicted.has(p));
+      const locked_names = new Set(predictions.filter(p => p.is_locked).map(p => p.player_name));
+      const missing = roster.filter(p => !locked_names.has(p));
       if (missing.length > 0) {
         return NextResponse.json(
           { error: `Waiting for ${missing.join(', ')} to lock in predictions` },
