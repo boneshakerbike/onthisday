@@ -54,6 +54,7 @@ export default function F1Page() {
   const [active_round, set_active_round] = useState<number | undefined>(undefined);
   const [completed_rounds, set_completed_rounds] = useState<number[]>([]);
   const [show_roster, set_show_roster] = useState(false);
+  const [setup_banner_dismissed, set_setup_banner_dismissed] = useState(false);
   const initialized_from_url = useRef(false);
 
   // Read season/round from URL params on mount (prevents "bounces to 2026" on refresh)
@@ -107,14 +108,14 @@ export default function F1Page() {
       });
   }, []);
 
-  // Once roster is loaded and identity is resolved, show picker if no player claimed
+  // Once roster is loaded and identity is resolved, show picker for guests with an unclaimed roster
   useEffect(() => {
-    if (!roster_loaded || name_resolving) return;
+    if (!roster_loaded || name_resolving || is_admin) return;
     const has_id = !!localStorage.getItem('f1_player_id');
-    if (!has_id || !player_name) {
+    if ((!has_id || !player_name) && roster.length > 0) {
       set_show_name_prompt(true);
     }
-  }, [roster_loaded, name_resolving, player_name]);
+  }, [roster_loaded, name_resolving, is_admin, player_name, roster]);
 
   // Claim a roster name as this device's identity
   const claim_player = (name: string) => {
@@ -130,13 +131,13 @@ export default function F1Page() {
     }).catch(() => {});
   };
 
-  // Reset device association — clears localStorage, shows picker
+  // Reset device association; admin gets inline picker, guest gets modal
   const reset_player = () => {
     localStorage.removeItem('f1_player_id');
     localStorage.removeItem('f1_player_name');
     set_player_id('');
     set_player_name('');
-    set_show_name_prompt(true);
+    if (!is_admin) set_show_name_prompt(true);
   };
 
   // Fetch season progress + roster
@@ -422,19 +423,88 @@ export default function F1Page() {
           <div className="f1-subtitle">Predict the podium. Avoid spoilers. Settle the score.</div>
         </div>
 
-        {/* Player picker */}
-        {show_name_prompt && (
+        {/* Guest blocking picker — roster exists, guest hasn't claimed */}
+        {show_name_prompt && !is_admin && (
           <PlayerPicker roster={roster} on_claim={claim_player} />
         )}
 
-        {/* Player bar */}
-        {player_name && (
-          <div className="player-bar">
-            <span className="player-name">Playing as: <strong>{player_name}</strong></span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <button className="change-name" onClick={reset_player}>
-                Not {player_name}?
+        {/* Admin: empty-season setup banner */}
+        {is_admin && roster_loaded && roster.length === 0 && !setup_banner_dismissed && (
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem',
+            background: 'rgba(225,6,0,0.08)', border: '1px solid rgba(225,6,0,0.25)',
+            borderRadius: '8px', padding: '0.6rem 0.75rem', marginBottom: '1rem', fontSize: '0.85rem',
+          }}>
+            <span style={{ color: '#ccc' }}><strong>{season}</strong> season not set up — add players to get started.</span>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                onClick={() => set_show_roster(true)}
+                style={{ background: '#e10600', border: 'none', color: '#fff', borderRadius: '5px', padding: '0.3rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}
+              >
+                Open Roster Manager
               </button>
+              <button
+                onClick={() => set_setup_banner_dismissed(true)}
+                style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Admin: inline name picker — roster exists but admin hasn't claimed */}
+        {is_admin && roster_loaded && roster.length > 0 && !player_name && (
+          <div style={{
+            background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '8px', padding: '0.6rem 0.75rem', marginBottom: '1rem',
+            display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem',
+          }}>
+            <span style={{ color: '#888', fontSize: '0.8rem' }}>Playing as:</span>
+            {roster.map(name => (
+              <button
+                key={name}
+                onClick={() => claim_player(name)}
+                style={{
+                  background: 'rgba(225,6,0,0.1)', border: '1px solid rgba(225,6,0,0.3)',
+                  color: '#e0e0e0', borderRadius: '5px', padding: '0.25rem 0.6rem',
+                  fontSize: '0.85rem', cursor: 'pointer', fontWeight: 600,
+                }}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Guest: empty roster message with season navigation */}
+        {!is_admin && roster_loaded && roster.length === 0 && !player_name && (
+          <div style={{
+            background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '8px', padding: '1rem', marginBottom: '1rem', textAlign: 'center',
+          }}>
+            <div style={{ color: '#888', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+              No players on the roster yet.
+            </div>
+            <div style={{ color: '#666', fontSize: '0.8rem', marginBottom: '0.5rem' }}>Browse previous seasons:</div>
+            <button className="year-btn" onClick={() => { set_season(s => s - 1); set_selected_round(null); }}>
+              &larr; {season - 1}
+            </button>
+          </div>
+        )}
+
+        {/* Player bar */}
+        {(player_name || is_admin) && (
+          <div className="player-bar">
+            <span className="player-name">
+              {player_name ? <>Playing as: <strong>{player_name}</strong></> : <span style={{ color: '#555' }}>Not playing</span>}
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {player_name && (
+                <button className="change-name" onClick={reset_player}>
+                  Not {player_name}?
+                </button>
+              )}
               {is_admin && (
                 <button
                   onClick={() => set_show_roster(prev => !prev)}
