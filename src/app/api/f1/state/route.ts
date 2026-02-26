@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   get_player_round_states, get_prediction, get_score,
   get_cached_schedule, get_roster, get_predictions_for_session,
-  get_all_player_states_for_round,
+  get_all_player_states_for_round, set_player_state,
 } from '@/lib/f1/db';
 import { STANDARD_WEEKEND, SPRINT_WEEKEND } from '@/lib/f1/types';
 import type { SessionType } from '@/lib/f1/types';
@@ -21,7 +21,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Determine session order based on sprint weekend
     const schedule = await get_cached_schedule(season);
     const race = schedule?.find(r => r.round === round);
     const session_order: SessionType[] = race?.is_sprint_weekend
@@ -31,18 +30,16 @@ export async function GET(request: NextRequest) {
     const roster = await get_roster(season);
     const has_roster = roster.length > 0;
 
-    // f1_player_state is used ONLY to detect 'revealed' (player explicitly triggered reveal)
+    // f1_player_state used only to detect 'revealed' (player explicitly triggered reveal)
     const states = await get_player_round_states(season, round, player_name);
     const state_map = new Map(states.map(s => [s.session_type, s.state]));
 
-    // Get all player states for group info
     const all_states = has_roster
       ? await get_all_player_states_for_round(season, round)
       : [];
-    void all_states; // used for future group features
+    void all_states;
 
-    // Build session info with step-lock logic
-    let previous_revealed = true; // first session is always unlocked
+    let previous_revealed = true;
 
     const sessions = [];
     for (const st of session_order) {
@@ -50,25 +47,35 @@ export async function GET(request: NextRequest) {
 
       const prediction = await get_prediction(season, round, st, player_name);
 
+      // Fetch score once — used for both state derivation and response
+      let score_obj = null;
+      if (prediction) {
+        score_obj = await get_score(prediction.id);
+      }
+
       // Derive effective state from prediction data.
-      // f1_player_state is only consulted to confirm the player has triggered reveal.
+      // Auto-transition to 'revealed' if another player's reveal already scored this prediction.
       let effective_state: string;
       if (!prediction || !prediction.is_locked) {
-        // No pick or pick saved but not locked → predicting
         effective_state = 'predicting';
       } else {
-        // Pick is locked — revealed only if player explicitly triggered reveal
         const db_state = state_map.get(st);
-        effective_state = db_state === 'revealed' ? 'revealed' : 'watching';
+        if (db_state === 'revealed') {
+          effective_state = 'revealed';
+        } else if (score_obj) {
+          // Score exists (computed when another player revealed) — auto-transition
+          await set_player_state(season, round, st, player_name, 'revealed');
+          effective_state = 'revealed';
+        } else {
+          effective_state = 'watching';
+        }
       }
 
-      let score = null;
-      if (prediction) {
-        const s = await get_score(prediction.id);
-        if (s) score = { perfect_match: s.perfect_match, podium_lock: s.podium_lock, almost: s.almost, fastest_lap: s.fastest_lap, total: s.total };
-      }
+      const score = score_obj
+        ? { perfect_match: score_obj.perfect_match, podium_lock: score_obj.podium_lock, almost: score_obj.almost, fastest_lap: score_obj.fastest_lap, total: score_obj.total }
+        : null;
 
-      // Group state: who has LOCKED, who is missing
+      // Group state: show ALL saved picks (not just locked) so players can see each other's choices
       let group = null;
       if (has_roster) {
         const session_predictions = await get_predictions_for_session(season, round, st);
@@ -79,13 +86,14 @@ export async function GET(request: NextRequest) {
         group = {
           all_predicted: all_locked,
           missing: missing_lock,
-          predictions: all_locked
-            ? await Promise.all(session_predictions.filter(p => p.is_locked).map(async p => {
+          predictions: session_predictions.length > 0
+            ? await Promise.all(session_predictions.map(async p => {
                 const p_score = effective_state === 'revealed' ? await get_score(p.id) : null;
                 return {
                   player_name: p.player_name,
                   p1: p.p1, p2: p.p2, p3: p.p3,
                   fastest_lap: p.fastest_lap,
+                  is_locked: p.is_locked,
                   score: p_score ? { perfect_match: p_score.perfect_match, podium_lock: p_score.podium_lock, almost: p_score.almost, fastest_lap: p_score.fastest_lap, total: p_score.total } : null,
                 };
               }))

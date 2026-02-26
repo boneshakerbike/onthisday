@@ -8,6 +8,7 @@ interface GroupPick {
   p2: string;
   p3: string;
   fastest_lap: string | null;
+  is_locked?: boolean;
 }
 
 interface GroupPicksProps {
@@ -24,6 +25,8 @@ function driver_label(driver_id: string, drivers: F1Driver[]): string {
 export default function GroupPicks({ predictions, drivers, show_fastest_lap }: GroupPicksProps) {
   if (predictions.length === 0) return null;
 
+  const all_locked = predictions.every(p => p.is_locked);
+
   return (
     <div style={{
       marginTop: '0.75rem',
@@ -33,7 +36,7 @@ export default function GroupPicks({ predictions, drivers, show_fastest_lap }: G
       borderRadius: '8px',
     }}>
       <div style={{ color: '#e10600', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        All Picks Locked In
+        {all_locked ? 'All Picks Locked In' : 'Picks So Far'}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${predictions.length}, 1fr)`, gap: '0.5rem' }}>
         {predictions.map(pred => (
@@ -42,9 +45,15 @@ export default function GroupPicks({ predictions, drivers, show_fastest_lap }: G
             borderRadius: '6px',
             padding: '0.5rem',
             textAlign: 'center',
+            opacity: pred.is_locked ? 1 : 0.7,
           }}>
-            <div style={{ color: '#e0e0e0', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.4rem' }}>
-              {pred.player_name}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem', marginBottom: '0.4rem' }}>
+              <span style={{ color: '#e0e0e0', fontSize: '0.8rem', fontWeight: 700 }}>
+                {pred.player_name}
+              </span>
+              <span style={{ fontSize: '0.65rem', color: pred.is_locked ? '#00ff88' : '#888' }}>
+                {pred.is_locked ? '🔒' : '·'}
+              </span>
             </div>
             <div style={{ color: '#ffffff', fontSize: '0.85rem', fontWeight: 600 }}>
               P1: {driver_label(pred.p1, drivers)}

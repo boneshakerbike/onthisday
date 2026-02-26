@@ -541,8 +541,13 @@ export default function F1Page() {
           />
         )}
 
+        {/* Leaderboard — loads independently, not gated on schedule fetch */}
+        {!selected_round && (
+          <Leaderboard standings={standings} season={season} />
+        )}
+
         {/* Loading / Error */}
-        {loading && (
+        {loading && !selected_round && (
           <div style={{ textAlign: 'center', color: '#888', padding: '2rem' }}>
             Loading {season} schedule...
           </div>
@@ -579,7 +584,6 @@ export default function F1Page() {
               />
             ) : (
               <>
-                <Leaderboard standings={standings} season={season} />
                 {races.length > 0 ? (
                   <SeasonGrid
                     races={races}

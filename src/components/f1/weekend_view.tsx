@@ -11,6 +11,7 @@ interface GroupPick {
   p2: string;
   p3: string;
   fastest_lap: string | null;
+  is_locked?: boolean;
   score?: { perfect_match: number; podium_lock: number; almost: number; fastest_lap: number; total: number } | null;
 }
 
@@ -199,22 +200,27 @@ export default function WeekendView({
                     </span>
                   )}
                   {is_watching && (!session.group || session.group.all_predicted) && (
-                    <button
-                      onClick={() => on_reveal(session.session_type)}
-                      disabled={revealing === session.session_type}
-                      style={{
-                        background: revealing === session.session_type ? '#444' : '#ffffff',
-                        color: revealing === session.session_type ? '#888' : '#15151e',
-                        border: 'none',
-                        borderRadius: '6px',
-                        padding: '0.4rem 0.75rem',
-                        fontWeight: 700,
-                        cursor: revealing === session.session_type ? 'wait' : 'pointer',
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      {revealing === session.session_type ? 'Fetching...' : 'Reveal Results'}
-                    </button>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ color: '#666', fontSize: '0.75rem', marginBottom: '0.35rem' }}>
+                        Watch the {session_labels[session.session_type]?.toLowerCase() || session.session_type}, then reveal when ready.
+                      </div>
+                      <button
+                        onClick={() => on_reveal(session.session_type)}
+                        disabled={revealing === session.session_type}
+                        style={{
+                          background: revealing === session.session_type ? '#444' : '#ffffff',
+                          color: revealing === session.session_type ? '#888' : '#15151e',
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '0.4rem 0.75rem',
+                          fontWeight: 700,
+                          cursor: revealing === session.session_type ? 'wait' : 'pointer',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        {revealing === session.session_type ? 'Fetching...' : 'Reveal Results'}
+                      </button>
+                    </div>
                   )}
                   {is_revealed && (
                     <span style={{ color: '#00ff88', fontSize: '0.8rem' }}>Revealed</span>
@@ -276,26 +282,15 @@ export default function WeekendView({
                 />
               ) : null}
 
-              {/* Watching state - show group picks or locked prediction */}
-              {is_watching && session.group?.all_predicted && session.group.predictions && (
+              {/* Group picks — visible in predicting and watching states (before reveal) */}
+              {(is_predicting || is_watching) && !show_form && session.group?.predictions && session.group.predictions.length > 0 && (
                 <GroupPicks
                   predictions={session.group.predictions}
                   drivers={drivers}
                   show_fastest_lap={session.session_type === 'race'}
                 />
               )}
-              {is_watching && !show_form && !session.group?.all_predicted && session.prediction && (
-                <div style={{
-                  marginTop: '0.5rem',
-                  padding: '0.5rem',
-                  background: 'rgba(255,255,255,0.03)',
-                  borderRadius: '6px',
-                  color: '#888',
-                  fontSize: '0.85rem',
-                }}>
-                  Prediction locked. Waiting for all players to lock in.
-                </div>
-              )}
+              {/* Solo watching — no group */}
               {is_watching && !show_form && !session.group && session.prediction && (
                 <div style={{
                   marginTop: '0.5rem',
