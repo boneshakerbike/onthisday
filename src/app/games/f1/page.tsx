@@ -7,6 +7,8 @@ import WeekendView from '@/components/f1/weekend_view';
 import Leaderboard from '@/components/f1/leaderboard';
 import RosterManager from '@/components/f1/roster_manager';
 import PlayerPicker from '@/components/f1/player_picker';
+import ToastStack from '@/components/f1/toast_stack';
+import type { ToastItem } from '@/components/f1/toast_stack';
 import type { F1RaceSchedule, F1Driver, F1DriverResult, SessionType } from '@/lib/f1/types';
 
 interface SessionInfo {
@@ -55,6 +57,10 @@ export default function F1Page() {
   const [completed_rounds, set_completed_rounds] = useState<number[]>([]);
   const [show_roster, set_show_roster] = useState(false);
   const [setup_banner_dismissed, set_setup_banner_dismissed] = useState(false);
+  const [toasts, set_toasts] = useState<ToastItem[]>([]);
+  const toast_counter = useRef(0);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const prev_sessions_ref = useRef<any[] | null>(null);
   const initialized_from_url = useRef(false);
 
   // Read season/round from URL params on mount (prevents "bounces to 2026" on refresh)
@@ -81,6 +87,7 @@ export default function F1Page() {
     set_revealed_data({});
     set_active_form(null);
     set_sessions([]);
+    prev_sessions_ref.current = null; // reset diff baseline on round change
   }, [selected_round]);
 
   // Load player identity from localStorage; if no claimed ID, picker will show after roster loads
@@ -189,14 +196,50 @@ export default function F1Page() {
 
   useEffect(() => { refresh_leaderboard(); }, [refresh_leaderboard]);
 
-  // Fetch player state for selected round
+  // Add a toast (max 3 stacked, auto-dismissed after 4s)
+  const add_toast = useCallback((message: string) => {
+    const id = ++toast_counter.current;
+    set_toasts(prev => [...prev.slice(-2), { id, message }]);
+    setTimeout(() => set_toasts(prev => prev.filter(t => t.id !== id)), 4000);
+  }, []);
+
+  // Fetch player state for selected round; diff against prev poll to fire toasts
   const refresh_state = useCallback(() => {
     if (!selected_round || !player_name) return;
     fetch(`/api/f1/state?season=${season}&round=${selected_round}&player=${encodeURIComponent(player_name)}`)
       .then(res => res.json())
-      .then(data => set_sessions(data.sessions || []))
+      .then(data => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const new_sessions: any[] = data.sessions || [];
+        const prev = prev_sessions_ref.current;
+        if (prev !== null) {
+          for (const ns of new_sessions) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const ps = prev.find((s: any) => s.session_type === ns.session_type);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const new_preds: any[] = ns.group?.predictions || [];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const prev_preds: any[] = ps?.group?.predictions || [];
+            const label = session_type_label(ns.session_type);
+            for (const np of new_preds) {
+              if (np.player_name === player_name) continue; // never toast own actions
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const pp = prev_preds.find((p: any) => p.player_name === np.player_name);
+              if (!pp) {
+                add_toast(`${np.player_name} saved picks for ${label}`);
+              } else if (!pp.is_locked && np.is_locked) {
+                add_toast(`${np.player_name} locked in for ${label}`);
+              } else if (!pp.score && np.score) {
+                add_toast(`${np.player_name} revealed ${label} results`);
+              }
+            }
+          }
+        }
+        prev_sessions_ref.current = new_sessions;
+        set_sessions(new_sessions);
+      })
       .catch(() => {});
-  }, [season, selected_round, player_name]);
+  }, [season, selected_round, player_name, add_toast]);
 
   useEffect(() => { refresh_state(); }, [refresh_state]);
 
@@ -624,6 +667,15 @@ export default function F1Page() {
         </div>
       </div>
       </div>
+      <ToastStack toasts={toasts} on_dismiss={(id) => set_toasts(prev => prev.filter(t => t.id !== id))} />
     </>
   );
+}
+
+function session_type_label(st: string): string {
+  const labels: Record<string, string> = {
+    qualifying: 'Qualifying', race: 'Race',
+    sprint: 'Sprint', sprint_qualifying: 'Sprint Qualifying',
+  };
+  return labels[st] || st;
 }
