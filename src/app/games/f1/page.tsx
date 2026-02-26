@@ -43,6 +43,8 @@ export default function F1Page() {
   const [submitting, set_submitting] = useState(false);
   const [revealing, set_revealing] = useState<string | null>(null);
   const [player_name, set_player_name] = useState('');
+  const [player_id, set_player_id] = useState('');
+  const [name_resolving, set_name_resolving] = useState(true);
   const [show_name_prompt, set_show_name_prompt] = useState(false);
   const [loading, set_loading] = useState(true);
   const [error, set_error] = useState<string | null>(null);
@@ -79,31 +81,69 @@ export default function F1Page() {
     set_sessions([]);
   }, [selected_round]);
 
-  // Load player name from localStorage (don't show prompt yet — wait for roster)
+  // Load player identity: get/generate player_id, then resolve name from server (with localStorage migration)
   useEffect(() => {
-    const saved = localStorage.getItem('f1_player_name');
-    if (saved) {
-      set_player_name(saved);
+    let id = localStorage.getItem('f1_player_id');
+    if (!id) {
+      id = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+      id = id.slice(0, 12);
+      localStorage.setItem('f1_player_id', id);
     }
+    set_player_id(id);
+
+    fetch(`/api/f1/player?id=${encodeURIComponent(id)}`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.display_name) {
+          // Server has the name — use it, keep localStorage in sync
+          set_player_name(data.display_name);
+          localStorage.setItem('f1_player_name', data.display_name);
+        } else {
+          // No server name — migrate from localStorage if present
+          const local_name = localStorage.getItem('f1_player_name');
+          if (local_name) {
+            set_player_name(local_name);
+            fetch('/api/f1/player', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ player_id: id, display_name: local_name }),
+            }).catch(() => {});
+          }
+        }
+        set_name_resolving(false);
+      })
+      .catch(() => {
+        // Network error — fall back to localStorage
+        const local_name = localStorage.getItem('f1_player_name');
+        if (local_name) set_player_name(local_name);
+        set_name_resolving(false);
+      });
   }, []);
 
-  // Once roster is loaded, decide whether to show name prompt
+  // Once roster is loaded and name is resolved, decide whether to show name prompt
   useEffect(() => {
-    if (!roster_loaded) return;
+    if (!roster_loaded || name_resolving) return;
     if (!player_name) {
       set_show_name_prompt(true);
     } else if (roster.length > 0 && !roster.includes(player_name)) {
       set_show_name_prompt(true);
     }
-  }, [roster_loaded, roster, player_name]);
+  }, [roster_loaded, name_resolving, roster, player_name]);
 
-  // Save player name
+  // Save player name to localStorage + server
   const save_player_name = (name: string) => {
     const trimmed = name.trim();
     if (!trimmed) return;
     localStorage.setItem('f1_player_name', trimmed);
     set_player_name(trimmed);
     set_show_name_prompt(false);
+    if (player_id) {
+      fetch('/api/f1/player', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ player_id, display_name: trimmed }),
+      }).catch(() => {});
+    }
   };
 
   // Fetch season progress + roster

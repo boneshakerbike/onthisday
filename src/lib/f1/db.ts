@@ -144,6 +144,14 @@ async function init_f1_schema(): Promise<void> {
       PRIMARY KEY (season, player_name)
     )
   `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS f1_players (
+      player_id TEXT PRIMARY KEY,
+      display_name TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 }
 
 async function ensure_f1_schema(): Promise<void> {
@@ -550,6 +558,30 @@ export async function remove_from_roster(season: number, player_name: string): P
   await db.execute({
     sql: 'DELETE FROM f1_roster WHERE season = ? AND player_name = ?',
     args: [season, player_name],
+  });
+}
+
+// —— Player Identity ——————————————————————————————————
+
+export async function get_player_display_name(player_id: string): Promise<string | null> {
+  await ensure_f1_schema();
+  const db = get_client();
+  const result = await db.execute({
+    sql: 'SELECT display_name FROM f1_players WHERE player_id = ?',
+    args: [player_id],
+  });
+  if (result.rows.length === 0) return null;
+  return result.rows[0].display_name as string;
+}
+
+export async function upsert_player_name(player_id: string, display_name: string): Promise<void> {
+  await ensure_f1_schema();
+  const db = get_client();
+  await db.execute({
+    sql: `INSERT INTO f1_players (player_id, display_name)
+          VALUES (?, ?)
+          ON CONFLICT(player_id) DO UPDATE SET display_name = excluded.display_name`,
+    args: [player_id, display_name],
   });
 }
 
