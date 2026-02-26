@@ -19,6 +19,8 @@ interface GroupPick {
 interface GroupState {
   all_predicted: boolean;
   missing: string[];
+  all_saved: boolean;
+  missing_save: string[];
   predictions: GroupPick[] | null;
 }
 
@@ -51,6 +53,7 @@ interface WeekendViewProps {
   submitting: boolean;
   revealing: string | null;
   on_back: () => void;
+  roster_empty?: boolean;
 }
 
 const session_labels: Record<string, string> = {
@@ -68,7 +71,7 @@ function format_date(date_str: string): string {
 export default function WeekendView({
   race, sessions, drivers, revealed_data, active_form,
   on_predict_click, on_predict_cancel, on_predict_submit, on_lock,
-  on_reveal, submitting, revealing, on_back,
+  on_reveal, submitting, revealing, on_back, roster_empty = false,
 }: WeekendViewProps) {
   return (
     <div>
@@ -144,58 +147,73 @@ export default function WeekendView({
                   )}
                   {/* predicting + no saved picks: show Make Prediction */}
                   {is_predicting && !show_form && !session.prediction && (
-                    <button
-                      onClick={() => on_predict_click(session.session_type)}
-                      style={{
-                        background: '#e10600',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '6px',
-                        padding: '0.4rem 0.75rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      Make Prediction
-                    </button>
-                  )}
-                  {/* predicting + saved picks: Edit Picks + Lock In */}
-                  {is_predicting && !show_form && session.prediction && (
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    roster_empty ? (
+                      <span style={{ color: '#555', fontSize: '0.8rem' }}>Season not set up</span>
+                    ) : (
                       <button
                         onClick={() => on_predict_click(session.session_type)}
                         style={{
-                          background: 'none',
-                          border: '1px solid rgba(225,6,0,0.3)',
-                          color: '#e10600',
-                          borderRadius: '4px',
-                          padding: '0.3rem 0.6rem',
-                          cursor: 'pointer',
-                          fontSize: '0.8rem',
-                          fontWeight: 600,
-                        }}
-                      >
-                        Edit Picks
-                      </button>
-                      <button
-                        onClick={() => on_lock(session.session_type)}
-                        disabled={submitting}
-                        style={{
-                          background: submitting ? '#444' : '#e10600',
-                          color: submitting ? '#888' : '#ffffff',
+                          background: '#e10600',
+                          color: '#ffffff',
                           border: 'none',
-                          borderRadius: '4px',
-                          padding: '0.3rem 0.6rem',
+                          borderRadius: '6px',
+                          padding: '0.4rem 0.75rem',
                           fontWeight: 700,
-                          cursor: submitting ? 'wait' : 'pointer',
-                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem',
                         }}
                       >
-                        Lock In
+                        Make Prediction
                       </button>
-                    </div>
+                    )
                   )}
+                  {/* predicting + saved picks: Edit Picks + Lock In */}
+                  {is_predicting && !show_form && session.prediction && (() => {
+                    const wait_for_saves = !!(session.group && !session.group.all_saved);
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.3rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                          <button
+                            onClick={() => on_predict_click(session.session_type)}
+                            style={{
+                              background: 'none',
+                              border: '1px solid rgba(225,6,0,0.3)',
+                              color: '#e10600',
+                              borderRadius: '4px',
+                              padding: '0.3rem 0.6rem',
+                              cursor: 'pointer',
+                              fontSize: '0.8rem',
+                              fontWeight: 600,
+                            }}
+                          >
+                            Edit Picks
+                          </button>
+                          <button
+                            onClick={() => on_lock(session.session_type)}
+                            disabled={submitting || wait_for_saves}
+                            title={wait_for_saves ? 'Waiting for all players to save picks first' : undefined}
+                            style={{
+                              background: submitting || wait_for_saves ? '#333' : '#e10600',
+                              color: submitting || wait_for_saves ? '#666' : '#ffffff',
+                              border: 'none',
+                              borderRadius: '4px',
+                              padding: '0.3rem 0.6rem',
+                              fontWeight: 700,
+                              cursor: submitting ? 'wait' : wait_for_saves ? 'not-allowed' : 'pointer',
+                              fontSize: '0.8rem',
+                            }}
+                          >
+                            Lock In
+                          </button>
+                        </div>
+                        {wait_for_saves && (
+                          <span style={{ color: '#666', fontSize: '0.72rem' }}>
+                            Waiting for {session.group!.missing_save.join(', ')} to save picks
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {is_watching && session.group && !session.group.all_predicted && (
                     <span style={{ color: '#e10600', fontSize: '0.8rem' }}>
                       Waiting for {session.group.missing.join(', ')}

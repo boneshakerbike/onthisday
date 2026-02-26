@@ -622,6 +622,7 @@ export default function F1Page() {
                 on_reveal={handle_reveal}
                 submitting={submitting}
                 revealing={revealing}
+                roster_empty={roster.length === 0}
                 on_back={() => {
                   set_selected_round(null);
                   set_sessions([]);

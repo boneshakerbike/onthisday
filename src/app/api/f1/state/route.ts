@@ -80,12 +80,17 @@ export async function GET(request: NextRequest) {
       if (has_roster) {
         const session_predictions = await get_predictions_for_session(season, round, st);
         const locked_players = new Set(session_predictions.filter(p => p.is_locked).map(p => p.player_name));
+        const saved_players = new Set(session_predictions.map(p => p.player_name));
         const missing_lock = roster.filter(p => !locked_players.has(p));
+        const missing_save = roster.filter(p => !saved_players.has(p));
         const all_locked = missing_lock.length === 0;
+        const all_saved = missing_save.length === 0;
 
         group = {
           all_predicted: all_locked,
           missing: missing_lock,
+          all_saved,
+          missing_save,
           predictions: session_predictions.length > 0
             ? await Promise.all(session_predictions.map(async p => {
                 const p_score = effective_state === 'revealed' ? await get_score(p.id) : null;

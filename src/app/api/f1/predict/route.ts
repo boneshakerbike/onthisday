@@ -16,9 +16,15 @@ export async function POST(request: NextRequest) {
 
     const st = session_type as SessionType;
 
-    // Roster check: if roster exists, only rostered players can predict
+    // Roster check: season must have a roster before accepting predictions
     const roster = await get_roster(season);
-    if (roster.length > 0 && !roster.includes(player_name)) {
+    if (roster.length === 0) {
+      return NextResponse.json(
+        { error: 'No roster set up for this season' },
+        { status: 400 }
+      );
+    }
+    if (!roster.includes(player_name)) {
       return NextResponse.json(
         { error: 'You are not on the roster for this season' },
         { status: 403 }
