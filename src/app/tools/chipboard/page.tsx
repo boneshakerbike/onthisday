@@ -83,6 +83,9 @@ export default function ChipboardPage() {
   const [plan_editing_id, set_plan_editing_id] = useState<string | null>(null);
   const [plan_draft, set_plan_draft] = useState('');
 
+  // Copy ID state
+  const [copied_id, set_copied_id] = useState<string | null>(null);
+
   // Compact state
   const [compact_loading, set_compact_loading] = useState<string | null>(null);
   const [compact_preview, set_compact_preview] = useState<{
@@ -595,7 +598,19 @@ export default function ChipboardPage() {
               {status_labels[s.status]}
             </span>
             <span className="text-xs text-gray-500">{format_date(s.created_at)}</span>
-            <span className="text-xs text-gray-600 font-mono">{s.id}</span>
+            <button
+              className={`text-xs font-mono px-1 py-0.5 rounded border transition-colors ${copied_id === s.id ? 'text-green-400 border-green-500/40 bg-green-500/10' : 'text-gray-500 border-white/10 bg-white/5 hover:text-gray-300 hover:border-white/20'}`}
+              title="Copy ID"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(s.id).then(() => {
+                  set_copied_id(s.id);
+                  setTimeout(() => set_copied_id(null), 1500);
+                });
+              }}
+            >
+              {copied_id === s.id ? 'Copied!' : s.id}
+            </button>
             {s.assigned_to && (
               <span className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded">
                 {s.assigned_to}
