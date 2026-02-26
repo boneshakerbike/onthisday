@@ -6,6 +6,7 @@ import SeasonGrid from '@/components/f1/season_grid';
 import WeekendView from '@/components/f1/weekend_view';
 import Leaderboard from '@/components/f1/leaderboard';
 import RosterManager from '@/components/f1/roster_manager';
+import PlayerPicker from '@/components/f1/player_picker';
 import type { F1RaceSchedule, F1Driver, F1DriverResult, SessionType } from '@/lib/f1/types';
 
 interface SessionInfo {
@@ -81,69 +82,61 @@ export default function F1Page() {
     set_sessions([]);
   }, [selected_round]);
 
-  // Load player identity: get/generate player_id, then resolve name from server (with localStorage migration)
+  // Load player identity from localStorage; if no claimed ID, picker will show after roster loads
   useEffect(() => {
-    let id = localStorage.getItem('f1_player_id');
+    const id = localStorage.getItem('f1_player_id');
     if (!id) {
-      id = Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
-      id = id.slice(0, 12);
-      localStorage.setItem('f1_player_id', id);
+      set_name_resolving(false);
+      return;
     }
     set_player_id(id);
-
     fetch(`/api/f1/player?id=${encodeURIComponent(id)}`)
       .then(res => res.ok ? res.json() : null)
       .then(data => {
         if (data?.display_name) {
-          // Server has the name — use it, keep localStorage in sync
           set_player_name(data.display_name);
           localStorage.setItem('f1_player_name', data.display_name);
-        } else {
-          // No server name — migrate from localStorage if present
-          const local_name = localStorage.getItem('f1_player_name');
-          if (local_name) {
-            set_player_name(local_name);
-            fetch('/api/f1/player', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ player_id: id, display_name: local_name }),
-            }).catch(() => {});
-          }
         }
+        // If server has no record for this id, player_name stays empty → picker shows
         set_name_resolving(false);
       })
       .catch(() => {
-        // Network error — fall back to localStorage
         const local_name = localStorage.getItem('f1_player_name');
         if (local_name) set_player_name(local_name);
         set_name_resolving(false);
       });
   }, []);
 
-  // Once roster is loaded and name is resolved, decide whether to show name prompt
+  // Once roster is loaded and identity is resolved, show picker if no player claimed
   useEffect(() => {
     if (!roster_loaded || name_resolving) return;
-    if (!player_name) {
-      set_show_name_prompt(true);
-    } else if (roster.length > 0 && !roster.includes(player_name)) {
+    const has_id = !!localStorage.getItem('f1_player_id');
+    if (!has_id || !player_name) {
       set_show_name_prompt(true);
     }
-  }, [roster_loaded, name_resolving, roster, player_name]);
+  }, [roster_loaded, name_resolving, player_name]);
 
-  // Save player name to localStorage + server
-  const save_player_name = (name: string) => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    localStorage.setItem('f1_player_name', trimmed);
-    set_player_name(trimmed);
+  // Claim a roster name as this device's identity
+  const claim_player = (name: string) => {
+    localStorage.setItem('f1_player_id', name);
+    localStorage.setItem('f1_player_name', name);
+    set_player_id(name);
+    set_player_name(name);
     set_show_name_prompt(false);
-    if (player_id) {
-      fetch('/api/f1/player', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ player_id, display_name: trimmed }),
-      }).catch(() => {});
-    }
+    fetch('/api/f1/player', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ player_id: name, display_name: name }),
+    }).catch(() => {});
+  };
+
+  // Reset device association — clears localStorage, shows picker
+  const reset_player = () => {
+    localStorage.removeItem('f1_player_id');
+    localStorage.removeItem('f1_player_name');
+    set_player_id('');
+    set_player_name('');
+    set_show_name_prompt(true);
   };
 
   // Fetch season progress + roster
@@ -391,49 +384,6 @@ export default function F1Page() {
           cursor: pointer;
           font-size: 0.75rem;
         }
-        .name-prompt {
-          background: rgba(0,0,0,0.85);
-          position: fixed;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-        }
-        .name-modal {
-          background: #1e1e28;
-          border: 1px solid rgba(225,6,0,0.4);
-          border-radius: 12px;
-          padding: 2rem;
-          text-align: center;
-          max-width: 320px;
-          width: 90%;
-        }
-        .name-input {
-          width: 100%;
-          background: #15151e;
-          color: #e0e0e0;
-          border: 1px solid rgba(225,6,0,0.3);
-          border-radius: 6px;
-          padding: 0.6rem;
-          font-size: 1rem;
-          margin: 1rem 0;
-          text-align: center;
-        }
-        .name-input:focus {
-          outline: none;
-          border-color: #e10600;
-        }
-        .name-submit {
-          background: #e10600;
-          color: #ffffff;
-          border: none;
-          border-radius: 6px;
-          padding: 0.5rem 1.5rem;
-          font-weight: 700;
-          cursor: pointer;
-          font-size: 0.9rem;
-        }
         .other-years {
           text-align: center;
           margin-top: 2rem;
@@ -472,63 +422,9 @@ export default function F1Page() {
           <div className="f1-subtitle">Predict the podium. Avoid spoilers. Settle the score.</div>
         </div>
 
-        {/* Player name prompt */}
+        {/* Player picker */}
         {show_name_prompt && (
-          <div className="name-prompt">
-            <div className="name-modal">
-              <div style={{ color: '#e10600', fontSize: '1.1rem', fontWeight: 700 }}>
-                {roster.length > 0 ? 'Select Your Name' : 'Enter Your Name'}
-              </div>
-              <div style={{ color: '#888', fontSize: '0.8rem', marginTop: '0.5rem' }}>
-                This is how you&apos;ll appear on the leaderboard
-              </div>
-              {roster.length > 0 ? (
-                <div style={{ margin: '1rem 0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {roster.map(name => (
-                    <button
-                      key={name}
-                      onClick={() => save_player_name(name)}
-                      style={{
-                        background: 'rgba(225,6,0,0.1)',
-                        border: '1px solid rgba(225,6,0,0.3)',
-                        color: '#e0e0e0',
-                        borderRadius: '6px',
-                        padding: '0.6rem',
-                        fontSize: '1rem',
-                        cursor: 'pointer',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {name}
-                    </button>
-                  ))}
-                  <div style={{ color: '#666', fontSize: '0.75rem', textAlign: 'center', marginTop: '0.25rem' }}>
-                    Don&apos;t see your name? Ask the game admin to add you to the roster.
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <input
-                    className="name-input"
-                    placeholder="Your name"
-                    autoFocus
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') save_player_name((e.target as HTMLInputElement).value);
-                    }}
-                  />
-                  <button
-                    className="name-submit"
-                    onClick={() => {
-                      const input = document.querySelector('.name-input') as HTMLInputElement;
-                      save_player_name(input?.value || '');
-                    }}
-                  >
-                    Let&apos;s Go
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
+          <PlayerPicker roster={roster} on_claim={claim_player} />
         )}
 
         {/* Player bar */}
@@ -536,8 +432,8 @@ export default function F1Page() {
           <div className="player-bar">
             <span className="player-name">Playing as: <strong>{player_name}</strong></span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <button className="change-name" onClick={() => set_show_name_prompt(true)}>
-                Change
+              <button className="change-name" onClick={reset_player}>
+                Not {player_name}?
               </button>
               {is_admin && (
                 <button

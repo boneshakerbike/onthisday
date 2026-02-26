@@ -585,6 +585,17 @@ export async function upsert_player_name(player_id: string, display_name: string
   });
 }
 
+export async function list_all_players(): Promise<{ player_id: string; display_name: string; created_at: string }[]> {
+  await ensure_f1_schema();
+  const db = get_client();
+  const result = await db.execute('SELECT player_id, display_name, created_at FROM f1_players ORDER BY created_at ASC');
+  return result.rows.map(row => ({
+    player_id: row.player_id as string,
+    display_name: row.display_name as string,
+    created_at: row.created_at as string,
+  }));
+}
+
 export async function get_all_player_states_for_round(
   season: number, round: number
 ): Promise<F1PlayerState[]> {
