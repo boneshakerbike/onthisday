@@ -91,9 +91,10 @@ export class JolpicaAdapter implements F1DataAdapter {
   async fetch_results(
     season: number, round: number, session_type: SessionType
   ): Promise<F1SessionResult> {
+    // Sprint qualifying uses sprint results sorted by grid position (starting order = SQ finishing order)
     const endpoint = session_type === 'qualifying'
       ? `/${season}/${round}/qualifying.json`
-      : session_type === 'sprint'
+      : session_type === 'sprint' || session_type === 'sprint_qualifying'
         ? `/${season}/${round}/sprint.json`
         : `/${season}/${round}/results.json`;
 
@@ -102,6 +103,33 @@ export class JolpicaAdapter implements F1DataAdapter {
 
     if (!race) {
       throw new Error(`No results found for ${season} round ${round} ${session_type}`);
+    }
+
+    if (session_type === 'sprint_qualifying') {
+      const sprint_results = race.SprintResults || [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sorted_by_grid = [...sprint_results].sort((a: any, b: any) =>
+        parseInt(a.grid || '0', 10) - parseInt(b.grid || '0', 10)
+      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const results: F1DriverResult[] = sorted_by_grid.map((r: any, idx: number) => ({
+        position: idx + 1,
+        driver_id: r.Driver.driverId,
+        driver_code: r.Driver.code || r.Driver.driverId.substring(0, 3).toUpperCase(),
+        given_name: r.Driver.givenName,
+        family_name: r.Driver.familyName,
+        constructor_id: r.Constructor?.constructorId || '',
+        constructor_name: r.Constructor?.name || '',
+        grid: parseInt(r.grid || '0', 10),
+        laps: 0,
+        status: 'Finished',
+        time_text: null,
+        fastest_lap_rank: null,
+      }));
+      return {
+        season, round, session_type: 'sprint_qualifying' as SessionType,
+        race_name: race.raceName, results, fastest_lap_driver_id: null,
+      };
     }
 
     const raw_results = session_type === 'qualifying'

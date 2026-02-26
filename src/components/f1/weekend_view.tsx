@@ -54,6 +54,7 @@ interface WeekendViewProps {
 }
 
 const session_labels: Record<string, string> = {
+  sprint_qualifying: 'Sprint Qualifying',
   sprint: 'Sprint Race',
   qualifying: 'Qualifying',
   race: 'Grand Prix',

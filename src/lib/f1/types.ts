@@ -53,7 +53,7 @@ export interface F1Driver {
 
 // ΓöÇΓöÇ Session & State Types ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
-export type SessionType = 'qualifying' | 'sprint' | 'race';
+export type SessionType = 'sprint_qualifying' | 'qualifying' | 'sprint' | 'race';
 
 export type PlayerState = 'predicting' | 'watching' | 'revealed';
 
@@ -101,7 +101,7 @@ export const POINTS = {
 
 // Session order for step-lock progression
 export const STANDARD_WEEKEND: SessionType[] = ['qualifying', 'race'];
-export const SPRINT_WEEKEND: SessionType[] = ['sprint', 'qualifying', 'race'];
+export const SPRINT_WEEKEND: SessionType[] = ['sprint_qualifying', 'sprint', 'qualifying', 'race'];
 
 // ΓöÇΓöÇ Adapter Interface ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
 
