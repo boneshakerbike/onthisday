@@ -7,8 +7,8 @@ import WeekendView from '@/components/f1/weekend_view';
 import Leaderboard from '@/components/f1/leaderboard';
 import RosterManager from '@/components/f1/roster_manager';
 import PlayerPicker from '@/components/f1/player_picker';
-import ToastStack from '@/components/f1/toast_stack';
-import type { ToastItem } from '@/components/f1/toast_stack';
+import ActivityHud from '@/components/f1/activity_hud';
+import type { ActivityEntry } from '@/components/f1/activity_hud';
 import type { F1RaceSchedule, F1Driver, F1DriverResult, SessionType } from '@/lib/f1/types';
 
 interface SessionInfo {
@@ -57,8 +57,9 @@ export default function F1Page() {
   const [completed_rounds, set_completed_rounds] = useState<number[]>([]);
   const [show_roster, set_show_roster] = useState(false);
   const [setup_banner_dismissed, set_setup_banner_dismissed] = useState(false);
-  const [toasts, set_toasts] = useState<ToastItem[]>([]);
-  const toast_counter = useRef(0);
+  const [activity, set_activity] = useState<ActivityEntry[]>([]);
+  const activity_counter = useRef(0);
+  const drivers_ref = useRef<F1Driver[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const prev_sessions_ref = useRef<any[] | null>(null);
   const initialized_from_url = useRef(false);
@@ -182,7 +183,7 @@ export default function F1Page() {
   useEffect(() => {
     fetch(`/api/f1/drivers?season=${season}`)
       .then(res => res.json())
-      .then(data => set_drivers(data.drivers || []))
+      .then(data => { const d = data.drivers || []; set_drivers(d); drivers_ref.current = d; })
       .catch(() => {}); // non-critical, form will show empty
   }, [season]);
 
@@ -196,14 +197,13 @@ export default function F1Page() {
 
   useEffect(() => { refresh_leaderboard(); }, [refresh_leaderboard]);
 
-  // Add a toast (max 3 stacked, auto-dismissed after 4s)
-  const add_toast = useCallback((message: string) => {
-    const id = ++toast_counter.current;
-    set_toasts(prev => [...prev.slice(-2), { id, message }]);
-    setTimeout(() => set_toasts(prev => prev.filter(t => t.id !== id)), 4000);
+  // Push an entry to the activity feed (max 15, newest first)
+  const push_activity = useCallback((entry_player: string, text: string) => {
+    const id = ++activity_counter.current;
+    set_activity(prev => [{ id, ts: Date.now(), player_name: entry_player, text }, ...prev].slice(0, 15));
   }, []);
 
-  // Fetch player state for selected round; diff against prev poll to fire toasts
+  // Fetch player state for selected round; diff against prev poll to update activity feed
   const refresh_state = useCallback(() => {
     if (!selected_round || !player_name) return;
     fetch(`/api/f1/state?season=${season}&round=${selected_round}&player=${encodeURIComponent(player_name)}`)
@@ -213,6 +213,7 @@ export default function F1Page() {
         const new_sessions: any[] = data.sessions || [];
         const prev = prev_sessions_ref.current;
         if (prev !== null) {
+          const dvrs = drivers_ref.current;
           for (const ns of new_sessions) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const ps = prev.find((s: any) => s.session_type === ns.session_type);
@@ -222,15 +223,26 @@ export default function F1Page() {
             const prev_preds: any[] = ps?.group?.predictions || [];
             const label = session_type_label(ns.session_type);
             for (const np of new_preds) {
-              if (np.player_name === player_name) continue; // never toast own actions
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const pp = prev_preds.find((p: any) => p.player_name === np.player_name);
               if (!pp) {
-                add_toast(`${np.player_name} saved picks for ${label}`);
-              } else if (!pp.is_locked && np.is_locked) {
-                add_toast(`${np.player_name} locked in for ${label}`);
-              } else if (!pp.score && np.score) {
-                add_toast(`${np.player_name} revealed ${label} results`);
+                push_activity(np.player_name, `selected ${fmt_picks(np, dvrs)} for ${label}`);
+              } else {
+                if (pp.p1 !== np.p1 || pp.p2 !== np.p2 || pp.p3 !== np.p3) {
+                  const changed = (['p1', 'p2', 'p3'] as const).filter(pos => pp[pos] !== np[pos]);
+                  if (changed.length === 1) {
+                    const pos = changed[0].toUpperCase();
+                    push_activity(np.player_name, `changed ${pos} from ${driver_name(pp[changed[0]], dvrs)} to ${driver_name(np[changed[0]], dvrs)} for ${label}`);
+                  } else {
+                    push_activity(np.player_name, `updated picks to ${fmt_picks(np, dvrs)} for ${label}`);
+                  }
+                }
+                if (!pp.is_locked && np.is_locked) {
+                  push_activity(np.player_name, `locked in for ${label}`);
+                }
+                if (!pp.score && np.score) {
+                  push_activity(np.player_name, `revealed ${label} results`);
+                }
               }
             }
           }
@@ -239,7 +251,7 @@ export default function F1Page() {
         set_sessions(new_sessions);
       })
       .catch(() => {});
-  }, [season, selected_round, player_name, add_toast]);
+  }, [season, selected_round, player_name, push_activity]);
 
   useEffect(() => { refresh_state(); }, [refresh_state]);
 
@@ -668,7 +680,7 @@ export default function F1Page() {
         </div>
       </div>
       </div>
-      <ToastStack toasts={toasts} on_dismiss={(id) => set_toasts(prev => prev.filter(t => t.id !== id))} />
+      <ActivityHud entries={activity} />
     </>
   );
 }
@@ -679,4 +691,13 @@ function session_type_label(st: string): string {
     sprint: 'Sprint', sprint_qualifying: 'Sprint Qualifying',
   };
   return labels[st] || st;
+}
+
+function driver_name(driver_id: string, drivers: F1Driver[]): string {
+  return drivers.find(d => d.driver_id === driver_id)?.family_name || driver_id;
+}
+
+function fmt_picks(pred: { p1: string; p2: string; p3: string }, drivers: F1Driver[]): string {
+  const n = (id: string) => driver_name(id, drivers);
+  return `${n(pred.p1)} P1, ${n(pred.p2)} P2, ${n(pred.p3)} P3`;
 }
