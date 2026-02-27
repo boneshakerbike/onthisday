@@ -62,6 +62,8 @@ export default function F1Page() {
   const drivers_ref = useRef<F1Driver[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const prev_sessions_ref = useRef<any[] | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const selected_round_ref = useRef<any>(null); // mirrors selected_round without being a dep of refresh_state
   const initialized_from_url = useRef(false);
 
   // Read season/round from URL params on mount (prevents "bounces to 2026" on refresh)
@@ -88,8 +90,13 @@ export default function F1Page() {
     set_revealed_data({});
     set_active_form(null);
     set_sessions([]);
-    prev_sessions_ref.current = null; // reset diff baseline on round change
+    selected_round_ref.current = selected_round; // keep ref in sync
   }, [selected_round]);
+
+  // Reset HUD baseline when active round changes (not on browse navigation)
+  useEffect(() => {
+    prev_sessions_ref.current = null;
+  }, [active_round]);
 
   // Load player identity from localStorage; if no claimed ID, picker will show after roster loads
   useEffect(() => {
@@ -203,10 +210,10 @@ export default function F1Page() {
     set_activity(prev => [{ id, ts: Date.now(), player_name: entry_player, text }, ...prev].slice(0, 15));
   }, []);
 
-  // Fetch player state for selected round; diff against prev poll to update activity feed
+  // Fetch player state for active round; diff against prev poll to update activity feed
   const refresh_state = useCallback(() => {
-    if (!selected_round || !player_name) return;
-    fetch(`/api/f1/state?season=${season}&round=${selected_round}&player=${encodeURIComponent(player_name)}`)
+    if (!active_round || !player_name) return;
+    fetch(`/api/f1/state?season=${season}&round=${active_round}&player=${encodeURIComponent(player_name)}`)
       .then(res => res.json())
       .then(data => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -269,19 +276,31 @@ export default function F1Page() {
           }
         }
         prev_sessions_ref.current = new_sessions;
-        set_sessions(new_sessions);
+        // Only update weekend view sessions when viewing the active round
+        if (selected_round_ref.current === active_round) set_sessions(new_sessions);
       })
       .catch(() => {});
-  }, [season, selected_round, player_name, push_activity]);
+  }, [season, active_round, player_name, push_activity]);
 
   useEffect(() => { refresh_state(); }, [refresh_state]);
 
-  // Poll group state every 5s when viewing a weekend (so other players' picks appear live)
+  // Poll group state every 5s when active round is known (HUD always tracks active round)
   useEffect(() => {
-    if (!selected_round || !player_name) return;
+    if (!active_round || !player_name) return;
     const interval = setInterval(refresh_state, 5000);
     return () => clearInterval(interval);
-  }, [selected_round, player_name, refresh_state]);
+  }, [active_round, player_name, refresh_state]);
+
+  // Fetch session data for the currently viewed round (weekend view display only)
+  const refresh_viewed_round = useCallback(() => {
+    if (!selected_round || !player_name) return;
+    fetch(`/api/f1/state?season=${season}&round=${selected_round}&player=${encodeURIComponent(player_name)}`)
+      .then(res => res.json())
+      .then(data => { set_sessions(data.sessions || []); })
+      .catch(() => {});
+  }, [season, selected_round, player_name]);
+
+  useEffect(() => { refresh_viewed_round(); }, [refresh_viewed_round]);
 
   // Poll leaderboard + season progress every 10s on calendar view
   useEffect(() => {
