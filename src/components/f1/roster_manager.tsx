@@ -4,14 +4,49 @@ import { useState } from 'react';
 
 interface RosterManagerProps {
   season: number;
+  round: number | null;
   roster: string[];
   on_roster_change: (roster: string[]) => void;
   on_season_reset?: () => void;
 }
 
-export default function RosterManager({ season, roster, on_roster_change, on_season_reset }: RosterManagerProps) {
+export default function RosterManager({ season, round, roster, on_roster_change, on_season_reset }: RosterManagerProps) {
   const [new_name, set_new_name] = useState('');
   const [busy, set_busy] = useState(false);
+  const [poke_result, set_poke_result] = useState<string | null>(null);
+
+  const poke_the_bear = async () => {
+    if (!round) { alert('Select a round first'); return; }
+    set_busy(true);
+    set_poke_result(null);
+    try {
+      const res = await fetch('/api/f1/mr-bear/poke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ season, round }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        set_poke_result(data.error || 'Failed');
+        return;
+      }
+      if (data.generated.length === 0) {
+        set_poke_result('Mr Bear already has picks for this weekend');
+      } else {
+        const parts = data.generated.map((st: string) => {
+          const p = data.picks[st];
+          const label = st === 'race' ? 'Race' : st === 'qualifying' ? 'Qual' : st === 'sprint' ? 'Sprint' : 'SQ';
+          const fl = p.fastest_lap ? `, FL: ${p.fastest_lap}` : '';
+          return `${label}: ${p.p1}, ${p.p2}, ${p.p3}${fl}`;
+        });
+        set_poke_result(`Mr Bear picked — ${parts.join(' | ')}`);
+      }
+    } catch {
+      set_poke_result('Failed to poke the bear');
+    } finally {
+      set_busy(false);
+    }
+  };
 
   const reset_season = async () => {
     if (!confirm(`Reset all predictions, scores, and player states for ${season}? This cannot be undone.`)) return;
@@ -164,6 +199,35 @@ export default function RosterManager({ season, roster, on_roster_change, on_sea
           Add
         </button>
       </div>
+      {roster.includes('Mr Bear') && (
+        <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              onClick={poke_the_bear}
+              disabled={busy || !round}
+              style={{
+                background: 'rgba(139,90,43,0.2)',
+                border: '1px solid rgba(139,90,43,0.4)',
+                color: '#d4a574',
+                borderRadius: '6px',
+                padding: '0.35rem 0.75rem',
+                cursor: busy || !round ? 'not-allowed' : 'pointer',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                opacity: busy || !round ? 0.5 : 1,
+              }}
+            >
+              Poke the Bear
+            </button>
+            {!round && <span style={{ color: '#555', fontSize: '0.7rem' }}>Select a round first</span>}
+          </div>
+          {poke_result && (
+            <div style={{ color: '#d4a574', fontSize: '0.75rem', marginTop: '0.35rem' }}>
+              {poke_result}
+            </div>
+          )}
+        </div>
+      )}
       <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         <button
           onClick={reset_season}

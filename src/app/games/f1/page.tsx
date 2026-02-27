@@ -626,6 +626,7 @@ export default function F1Page() {
         {show_roster && is_admin && (
           <RosterManager
             season={season}
+            round={selected_round}
             roster={roster}
             on_roster_change={(new_roster) => {
               set_roster(new_roster);
@@ -675,6 +676,7 @@ export default function F1Page() {
                 submitting={submitting}
                 revealing={revealing}
                 roster_empty={roster.length === 0}
+                is_admin={is_admin}
                 on_back={() => {
                   set_selected_round(null);
                   set_sessions([]);

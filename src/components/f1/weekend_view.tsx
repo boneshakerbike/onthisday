@@ -54,6 +54,7 @@ interface WeekendViewProps {
   revealing: string | null;
   on_back: () => void;
   roster_empty?: boolean;
+  is_admin?: boolean;
 }
 
 const session_labels: Record<string, string> = {
@@ -71,7 +72,7 @@ function format_date(date_str: string): string {
 export default function WeekendView({
   race, sessions, drivers, revealed_data, active_form,
   on_predict_click, on_predict_cancel, on_predict_submit, on_lock,
-  on_reveal, submitting, revealing, on_back, roster_empty = false,
+  on_reveal, submitting, revealing, on_back, roster_empty = false, is_admin = false,
 }: WeekendViewProps) {
   return (
     <div>
@@ -206,11 +207,19 @@ export default function WeekendView({
                             Lock In
                           </button>
                         </div>
-                        {wait_for_saves && (
-                          <span style={{ color: '#666', fontSize: '0.72rem' }}>
-                            Waiting for {session.group!.missing_save.join(', ')} to save picks
-                          </span>
-                        )}
+                        {wait_for_saves && (() => {
+                          const missing = session.group!.missing_save;
+                          const bear_blocking = missing.includes('Mr Bear');
+                          const only_bear = missing.length === 1 && bear_blocking;
+                          if (only_bear && is_admin) {
+                            return <span style={{ color: '#d4a574', fontSize: '0.72rem' }}>Go poke the bear 🐻</span>;
+                          }
+                          return (
+                            <span style={{ color: '#666', fontSize: '0.72rem' }}>
+                              Waiting for {missing.join(', ')} to save picks
+                            </span>
+                          );
+                        })()}
                       </div>
                     );
                   })()}
