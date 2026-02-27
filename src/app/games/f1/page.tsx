@@ -212,37 +212,35 @@ export default function F1Page() {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const new_sessions: any[] = data.sessions || [];
         const prev = prev_sessions_ref.current;
-        if (prev !== null) {
-          const dvrs = drivers_ref.current;
-          for (const ns of new_sessions) {
+        const dvrs = drivers_ref.current;
+        for (const ns of new_sessions) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const ps = prev?.find((s: any) => s.session_type === ns.session_type);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const new_preds: any[] = ns.group?.predictions || [];
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const prev_preds: any[] = ps?.group?.predictions || [];
+          const label = session_type_label(ns.session_type);
+          for (const np of new_preds) {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const ps = prev.find((s: any) => s.session_type === ns.session_type);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const new_preds: any[] = ns.group?.predictions || [];
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const prev_preds: any[] = ps?.group?.predictions || [];
-            const label = session_type_label(ns.session_type);
-            for (const np of new_preds) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const pp = prev_preds.find((p: any) => p.player_name === np.player_name);
-              if (!pp) {
-                push_activity(np.player_name, `selected ${fmt_picks(np, dvrs)} for ${label}`);
-              } else {
-                if (pp.p1 !== np.p1 || pp.p2 !== np.p2 || pp.p3 !== np.p3) {
-                  const changed = (['p1', 'p2', 'p3'] as const).filter(pos => pp[pos] !== np[pos]);
-                  if (changed.length === 1) {
-                    const pos = changed[0].toUpperCase();
-                    push_activity(np.player_name, `changed ${pos} from ${driver_name(pp[changed[0]], dvrs)} to ${driver_name(np[changed[0]], dvrs)} for ${label}`);
-                  } else {
-                    push_activity(np.player_name, `updated picks to ${fmt_picks(np, dvrs)} for ${label}`);
-                  }
+            const pp = prev_preds.find((p: any) => p.player_name === np.player_name);
+            if (!pp) {
+              push_activity(np.player_name, `selected ${fmt_picks(np, dvrs)} for ${label}`);
+            } else {
+              if (pp.p1 !== np.p1 || pp.p2 !== np.p2 || pp.p3 !== np.p3) {
+                const changed = (['p1', 'p2', 'p3'] as const).filter(pos => pp[pos] !== np[pos]);
+                if (changed.length === 1) {
+                  const pos = changed[0].toUpperCase();
+                  push_activity(np.player_name, `changed ${pos} from ${driver_name(pp[changed[0]], dvrs)} to ${driver_name(np[changed[0]], dvrs)} for ${label}`);
+                } else {
+                  push_activity(np.player_name, `updated picks to ${fmt_picks(np, dvrs)} for ${label}`);
                 }
-                if (!pp.is_locked && np.is_locked) {
-                  push_activity(np.player_name, `locked in for ${label}`);
-                }
-                if (!pp.score && np.score) {
-                  push_activity(np.player_name, `revealed ${label} results`);
-                }
+              }
+              if (!pp.is_locked && np.is_locked) {
+                push_activity(np.player_name, `locked in for ${label}`);
+              }
+              if (!pp.score && np.score) {
+                push_activity(np.player_name, `revealed ${label} results`);
               }
             }
           }
