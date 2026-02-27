@@ -152,6 +152,20 @@ async function init_f1_schema(): Promise<void> {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS f1_mr_bear_staged (
+      season INTEGER NOT NULL,
+      round INTEGER NOT NULL,
+      session_type TEXT NOT NULL,
+      p1 TEXT NOT NULL,
+      p2 TEXT NOT NULL,
+      p3 TEXT NOT NULL,
+      fastest_lap TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (season, round, session_type)
+    )
+  `);
 }
 
 async function ensure_f1_schema(): Promise<void> {
@@ -649,12 +663,95 @@ export async function reset_season_data(season: number): Promise<{ predictions: 
     args: [season],
   });
 
+  // Delete staged Mr Bear picks
+  await db.execute({
+    sql: 'DELETE FROM f1_mr_bear_staged WHERE season = ?',
+    args: [season],
+  });
+
   return {
     predictions: pred_result.rowsAffected,
     scores: score_result.rowsAffected,
     states: state_result.rowsAffected,
     sessions: session_result.rowsAffected,
   };
+}
+
+// —— Mr Bear Staged Picks ————————————————————————————
+
+export async function get_staged_picks(
+  season: number, round: number, session_type: SessionType
+): Promise<{ p1: string; p2: string; p3: string; fastest_lap: string | null } | null> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: `SELECT p1, p2, p3, fastest_lap FROM f1_mr_bear_staged
+          WHERE season = ? AND round = ? AND session_type = ?`,
+    args: [season, round, session_type],
+  });
+
+  if (result.rows.length === 0) return null;
+  const row = result.rows[0];
+  return {
+    p1: row.p1 as string,
+    p2: row.p2 as string,
+    p3: row.p3 as string,
+    fastest_lap: (row.fastest_lap as string) || null,
+  };
+}
+
+export async function save_staged_picks(
+  season: number, round: number, session_type: SessionType,
+  p1: string, p2: string, p3: string, fastest_lap: string | null
+): Promise<void> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  await db.execute({
+    sql: `INSERT INTO f1_mr_bear_staged (season, round, session_type, p1, p2, p3, fastest_lap)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(season, round, session_type)
+          DO UPDATE SET p1 = excluded.p1, p2 = excluded.p2, p3 = excluded.p3,
+                        fastest_lap = excluded.fastest_lap, created_at = datetime('now')`,
+    args: [season, round, session_type, p1, p2, p3, fastest_lap],
+  });
+}
+
+export async function delete_staged_picks(
+  season: number, round: number, session_type: SessionType
+): Promise<void> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  await db.execute({
+    sql: 'DELETE FROM f1_mr_bear_staged WHERE season = ? AND round = ? AND session_type = ?',
+    args: [season, round, session_type],
+  });
+}
+
+export async function get_all_staged_picks(
+  season: number, round?: number
+): Promise<{ season: number; round: number; session_type: string; p1: string; p2: string; p3: string; fastest_lap: string | null; created_at: string }[]> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  const sql = round
+    ? 'SELECT * FROM f1_mr_bear_staged WHERE season = ? AND round = ? ORDER BY round, session_type'
+    : 'SELECT * FROM f1_mr_bear_staged WHERE season = ? ORDER BY round, session_type';
+  const args = round ? [season, round] : [season];
+
+  const result = await db.execute({ sql, args });
+  return result.rows.map(row => ({
+    season: row.season as number,
+    round: row.round as number,
+    session_type: row.session_type as string,
+    p1: row.p1 as string,
+    p2: row.p2 as string,
+    p3: row.p3 as string,
+    fastest_lap: (row.fastest_lap as string) || null,
+    created_at: row.created_at as string,
+  }));
 }
 
 // —— Leaderboard Query ———————————————————————————————
