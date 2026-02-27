@@ -222,6 +222,7 @@ export default function F1Page() {
           const prev_preds: any[] = ps?.group?.predictions || [];
           const label = session_type_label(ns.session_type);
           for (const np of new_preds) {
+            if (np.player_name === player_name) continue;
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const pp = prev_preds.find((p: any) => p.player_name === np.player_name);
             if (!pp) {
