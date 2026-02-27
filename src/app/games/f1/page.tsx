@@ -214,6 +214,27 @@ export default function F1Page() {
         const prev = prev_sessions_ref.current;
         const dvrs = drivers_ref.current;
 
+        if (!prev) {
+          // Synthesize catch-up status entries (other players only, appended not prepended)
+          const catch_up: ActivityEntry[] = [];
+          for (const ns of new_sessions) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const preds: any[] = ns.group?.predictions || [];
+            const label = session_type_label(ns.session_type);
+            for (const p of preds) {
+              if (p.player_name === player_name) continue;
+              catch_up.push({ id: ++activity_counter.current, ts: 0, player_name: p.player_name, text: `has picks for ${label}`, status: true });
+            }
+            if (ns.state === 'locked' || ns.state === 'revealed') {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              for (const p of preds.filter((p: any) => p.player_name !== player_name)) {
+                catch_up.push({ id: ++activity_counter.current, ts: 0, player_name: p.player_name, text: `locked in for ${label}`, status: true });
+              }
+            }
+          }
+          if (catch_up.length > 0) set_activity(catch_up.slice(0, 15));
+        }
+
         if (prev) for (const ns of new_sessions) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const ps = prev?.find((s: any) => s.session_type === ns.session_type);

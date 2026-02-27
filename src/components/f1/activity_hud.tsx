@@ -10,9 +10,10 @@ import { useState, useEffect } from 'react';
 
 export interface ActivityEntry {
   id: number;
-  ts: number;          // Date.now() at creation
+  ts: number;          // Date.now() at creation (0 for status entries)
   player_name: string;
   text: string;        // pre-formatted action description
+  status?: boolean;    // true = catch-up summary on load, not a live action
 }
 
 interface ActivityHudProps {
@@ -113,13 +114,16 @@ export default function ActivityHud({ entries }: ActivityHudProps) {
                   borderBottom: '1px solid rgba(255,255,255,0.04)',
                   fontSize: '0.72rem',
                   lineHeight: 1.4,
+                  opacity: e.status ? 0.5 : 1,
                 }}>
                   <span style={{ color: '#fff', fontWeight: 600 }}>{e.player_name}</span>
                   {' '}
                   <span style={{ color: '#999' }}>{e.text}</span>
-                  <div style={{ color: '#444', fontSize: '0.62rem', marginTop: '0.1rem' }}>
-                    {relative_time(e.ts)}
-                  </div>
+                  {!e.status && (
+                    <div style={{ color: '#444', fontSize: '0.62rem', marginTop: '0.1rem' }}>
+                      {relative_time(e.ts)}
+                    </div>
+                  )}
                 </div>
               ))
             )}
