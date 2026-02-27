@@ -43,8 +43,9 @@ def backtest_round(year, round_num):
             # add fastest lap for race
             if session_type == "race":
                 try:
+                    from .data import _load_session
                     session = fastf1.get_session(year, round_num, "Race")
-                    session.load()
+                    _load_session(session, round_num)
                     laps = session.laps
                     fastest = laps.loc[laps["LapTime"].idxmin()]
                     actual["fastest_lap"] = fastest["Driver"]

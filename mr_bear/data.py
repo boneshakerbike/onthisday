@@ -1,11 +1,28 @@
 # mr_bear/data.py — FastF1 data fetching
 
+import time
 import fastf1
 
 
 def is_sprint_weekend(year, round_num):
     event = fastf1.get_event(year, round_num)
-    return "Sprint" in str(event.get("EventFormat", ""))
+    fmt = str(getattr(event, "EventFormat", event.get("EventFormat", "")))
+    return "sprint" in fmt.lower()
+
+
+def _load_session(session, round_num=None):
+    try:
+        session.load()
+    except Exception as e:
+        if "429" in str(e) or "rate" in str(e).lower() or "limit" in str(e).lower():
+            msg = f"Rate limited"
+            if round_num:
+                msg += f" at round {round_num}"
+            msg += ". Re-run later — cached rounds will be instant."
+            print(f"  {msg}")
+            raise
+        raise
+    time.sleep(1)
 
 
 def get_driver_name_map(session):
@@ -40,7 +57,7 @@ def get_practice_ranking(year, round_num, target):
 
 def get_full_classification(year, round_num, session_name):
     session = fastf1.get_session(year, round_num, session_name)
-    session.load()
+    _load_session(session, round_num)
     results = session.results.sort_values("Position")
     return [row["Abbreviation"] for _, row in results.iterrows()
             if row["Position"] == row["Position"]]  # exclude NaN
@@ -48,7 +65,7 @@ def get_full_classification(year, round_num, session_name):
 
 def _best_laps(year, round_num, session_name):
     session = fastf1.get_session(year, round_num, session_name)
-    session.load()
+    _load_session(session, round_num)
     names = get_driver_name_map(session)
     laps = session.laps.pick_accurate()
     best = laps.groupby("Driver")["LapTime"].min().dropna().sort_values()
@@ -58,7 +75,7 @@ def _best_laps(year, round_num, session_name):
 
 def _grid_order(year, round_num, session_name):
     session = fastf1.get_session(year, round_num, session_name)
-    session.load()
+    _load_session(session, round_num)
     names = get_driver_name_map(session)
     results = session.results.sort_values("Position")
     out = []
