@@ -213,7 +213,8 @@ export default function F1Page() {
         const new_sessions: any[] = data.sessions || [];
         const prev = prev_sessions_ref.current;
         const dvrs = drivers_ref.current;
-        for (const ns of new_sessions) {
+
+        if (prev) for (const ns of new_sessions) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const ps = prev?.find((s: any) => s.session_type === ns.session_type);
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
