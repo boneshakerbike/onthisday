@@ -91,7 +91,7 @@ export default function ResultsTable({
       {/* Column headers */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: show_fl ? '1fr 60px 60px 60px 50px 50px' : '1fr 60px 60px 60px 50px',
+        gridTemplateColumns: show_fl ? '1fr 48px 48px 48px 42px 44px' : '1fr 60px 60px 60px 50px',
         padding: '0.4rem 0.75rem',
         borderBottom: '1px solid rgba(255,255,255,0.05)',
       }}>
@@ -112,7 +112,7 @@ export default function ResultsTable({
         return (
           <div key={pred.player_name} style={{
             display: 'grid',
-            gridTemplateColumns: show_fl ? '1fr 60px 60px 60px 50px 50px' : '1fr 60px 60px 60px 50px',
+            gridTemplateColumns: show_fl ? '1fr 48px 48px 48px 42px 44px' : '1fr 60px 60px 60px 50px',
             padding: '0.5rem 0.75rem',
             borderBottom: idx < sorted.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none',
             background: 'transparent',
