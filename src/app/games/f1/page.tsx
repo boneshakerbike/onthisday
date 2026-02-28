@@ -255,9 +255,19 @@ export default function F1Page() {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const pp = prev_preds.find((p: any) => p.player_name === np.player_name);
             if (!pp) {
-              push_activity(np.player_name, `selected ${fmt_picks(np, dvrs)} for ${label}`);
+              // New prediction — collapse save+lock into one entry if already locked
+              if (np.is_locked) {
+                push_activity(np.player_name, `locked in ${fmt_picks(np, dvrs)} for ${label}`);
+              } else {
+                push_activity(np.player_name, `selected ${fmt_picks(np, dvrs)} for ${label}`);
+              }
             } else {
-              if (pp.p1 !== np.p1 || pp.p2 !== np.p2 || pp.p3 !== np.p3) {
+              const picks_changed = pp.p1 !== np.p1 || pp.p2 !== np.p2 || pp.p3 !== np.p3;
+              const just_locked = !pp.is_locked && np.is_locked;
+              // Collapse pick change + lock into one entry
+              if (picks_changed && just_locked) {
+                push_activity(np.player_name, `locked in ${fmt_picks(np, dvrs)} for ${label}`);
+              } else if (picks_changed) {
                 const changed = (['p1', 'p2', 'p3'] as const).filter(pos => pp[pos] !== np[pos]);
                 if (changed.length === 1) {
                   const pos = changed[0].toUpperCase();
@@ -265,8 +275,7 @@ export default function F1Page() {
                 } else {
                   push_activity(np.player_name, `updated picks to ${fmt_picks(np, dvrs)} for ${label}`);
                 }
-              }
-              if (!pp.is_locked && np.is_locked) {
+              } else if (just_locked) {
                 push_activity(np.player_name, `locked in for ${label}`);
               }
               if (!pp.score && np.score) {
