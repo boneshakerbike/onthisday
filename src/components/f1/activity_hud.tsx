@@ -69,9 +69,9 @@ export default function ActivityHud({ entries }: ActivityHudProps) {
         <div
           onClick={() => set_expanded(e => !e)}
           style={{
-            background: '#1e1e28',
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderBottom: expanded ? 'none' : '1px solid rgba(255,255,255,0.12)',
+            background: '#1e1e2e',
+            border: '1px solid #2a2a3a',
+            borderBottom: expanded ? 'none' : '1px solid #2a2a3a',
             borderRadius: expanded ? '8px 8px 0 0' : '8px 8px 0 0',
             padding: '0.45rem 0.75rem',
             cursor: 'pointer',
@@ -83,7 +83,7 @@ export default function ActivityHud({ entries }: ActivityHudProps) {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <span style={{ color: '#e10600', fontSize: '0.6rem' }}>●</span>
-            <span style={{ color: '#999', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <span style={{ color: '#a1a1aa', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               Live Activity
             </span>
             {entries.length > 0 && (
@@ -97,7 +97,7 @@ export default function ActivityHud({ entries }: ActivityHudProps) {
         {expanded && (
           <div style={{
             background: '#15151e',
-            border: '1px solid rgba(255,255,255,0.08)',
+            border: '1px solid #2a2a3a',
             borderTop: 'none',
             borderRadius: '0 0 0 0',
             maxHeight: '240px',

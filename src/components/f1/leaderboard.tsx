@@ -42,13 +42,13 @@ function ScoringRules() {
         }}>
           <div style={{ color: '#e0e0e0', marginBottom: '0.5rem', fontWeight: 600 }}>Predict the top 3 for each session</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '0.25rem 0.75rem' }}>
-            <span style={{ color: '#00ff88', fontWeight: 700 }}>+5</span>
+            <span style={{ color: '#00d672', fontWeight: 700 }}>+5</span>
             <span style={{ color: '#ccc' }}>Perfect Match — right driver, right position</span>
-            <span style={{ color: '#ffaa00', fontWeight: 700 }}>+2</span>
+            <span style={{ color: '#d4a017', fontWeight: 700 }}>+2</span>
             <span style={{ color: '#ccc' }}>Podium Lock — right driver, wrong position</span>
             <span style={{ color: '#888', fontWeight: 700 }}>+1</span>
             <span style={{ color: '#ccc' }}>Almost — driver finishes P4 or P5</span>
-            <span style={{ color: '#A855F7', fontWeight: 700 }}>+3</span>
+            <span style={{ color: '#7c3aed', fontWeight: 700 }}>+3</span>
             <span style={{ color: '#ccc' }}>Fastest Lap — bonus for race sessions only</span>
           </div>
           <div style={{ color: '#666', fontSize: '0.75rem', marginTop: '0.5rem' }}>
@@ -85,19 +85,21 @@ export default function Leaderboard({ standings, season }: LeaderboardProps) {
         Championship Standings
       </h3>
       <div style={{
-        background: 'rgba(255,255,255,0.03)',
+        background: '#1e1e2e',
+        border: '1px solid #2a2a3a',
         borderRadius: '10px',
         overflow: 'hidden',
       }}>
         <div style={{
           display: 'grid',
           gridTemplateColumns: '40px 1fr 80px 80px',
-          padding: '0.5rem 0.75rem',
-          color: '#666',
+          padding: '0.6rem 0.85rem',
+          color: '#a1a1aa',
           fontSize: '0.7rem',
           fontWeight: 700,
           textTransform: 'uppercase',
-          borderBottom: '1px solid rgba(255,255,255,0.05)',
+          letterSpacing: '0.04em',
+          borderBottom: '1px solid #2a2a3a',
         }}>
           <div>POS</div>
           <div>PLAYER</div>
@@ -108,9 +110,9 @@ export default function Leaderboard({ standings, season }: LeaderboardProps) {
           <div key={entry.player_name} style={{
             display: 'grid',
             gridTemplateColumns: '40px 1fr 80px 80px',
-            padding: '0.6rem 0.75rem',
-            borderBottom: i < standings.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none',
-            background: i === 0 ? 'rgba(225,6,0,0.08)' : 'transparent',
+            padding: '0.65rem 0.85rem',
+            borderBottom: i < standings.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+            background: i === 0 ? 'rgba(225,6,0,0.06)' : i % 2 === 1 ? 'rgba(255,255,255,0.015)' : 'transparent',
           }}>
             <div style={{
               color: i === 0 ? '#ffd700' : i === 1 ? '#c0c0c0' : i === 2 ? '#cd7f32' : '#888',
@@ -119,10 +121,10 @@ export default function Leaderboard({ standings, season }: LeaderboardProps) {
             }}>
               {i + 1}
             </div>
-            <div style={{ color: '#e0e0e0', fontSize: '0.9rem' }}>
+            <div style={{ color: '#ffffff', fontSize: '0.9rem', fontWeight: 500 }}>
               {entry.player_name}
             </div>
-            <div style={{ color: '#888', fontSize: '0.85rem', textAlign: 'right' }}>
+            <div style={{ color: '#a1a1aa', fontSize: '0.85rem', textAlign: 'right' }}>
               {entry.sessions_played}
             </div>
             <div style={{

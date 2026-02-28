@@ -139,9 +139,9 @@ export default function RosterManager({ season, round, roster, on_roster_change,
     <div style={{
       marginBottom: '1.5rem',
       padding: '0.75rem',
-      background: 'rgba(225,6,0,0.05)',
-      border: '1px solid rgba(225,6,0,0.2)',
-      borderRadius: '8px',
+      background: '#1e1e2e',
+      border: '1px solid #2a2a3a',
+      borderRadius: '10px',
     }}>
       <div style={{ color: '#e10600', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.25rem' }}>
         Roster Manager

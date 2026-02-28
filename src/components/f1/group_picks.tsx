@@ -31,11 +31,11 @@ export default function GroupPicks({ predictions, drivers, show_fastest_lap }: G
     <div style={{
       marginTop: '0.75rem',
       padding: '0.75rem',
-      background: 'rgba(225,6,0,0.05)',
-      border: '1px solid rgba(225,6,0,0.15)',
-      borderRadius: '8px',
+      background: '#1e1e2e',
+      border: '1px solid #2a2a3a',
+      borderRadius: '10px',
     }}>
-      <div style={{ color: '#e10600', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+      <div style={{ color: '#a1a1aa', fontSize: '0.75rem', fontWeight: 700, marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
         {all_locked ? 'All Picks Locked In' : 'Picks So Far'}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${predictions.length}, 1fr)`, gap: '0.5rem' }}>
@@ -51,7 +51,7 @@ export default function GroupPicks({ predictions, drivers, show_fastest_lap }: G
               <span style={{ color: '#e0e0e0', fontSize: '0.8rem', fontWeight: 700 }}>
                 {pred.player_name}
               </span>
-              <span style={{ fontSize: '0.65rem', color: pred.is_locked ? '#00ff88' : '#888' }}>
+              <span style={{ fontSize: '0.65rem', color: pred.is_locked ? '#00d672' : '#888' }}>
                 {pred.is_locked ? '🔒' : '·'}
               </span>
             </div>
@@ -65,7 +65,7 @@ export default function GroupPicks({ predictions, drivers, show_fastest_lap }: G
               P3: {driver_label(pred.p3, drivers)}
             </div>
             {show_fastest_lap && pred.fastest_lap && (
-              <div style={{ color: '#A855F7', fontSize: '0.8rem', marginTop: '0.25rem' }}>
+              <div style={{ color: '#7c3aed', fontSize: '0.8rem', marginTop: '0.25rem' }}>
                 FL: {driver_label(pred.fastest_lap, drivers)}
               </div>
             )}

@@ -45,8 +45,8 @@ export default function SeasonGrid({ races, on_select_round, active_round, compl
       </h3>
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-        gap: '0.75rem',
+        gridTemplateColumns: 'repeat(3, 1fr)',
+        gap: '1rem',
       }}>
         {races.map(race => {
           const is_completed = completed_set.has(race.round);
@@ -61,10 +61,10 @@ export default function SeasonGrid({ races, on_select_round, active_round, compl
                 on_select_round(race.round);
               }}
               style={{
-                background: is_future ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${is_active ? 'rgba(225,6,0,0.4)' : is_completed ? 'rgba(0,255,136,0.2)' : 'rgba(255,255,255,0.1)'}`,
-                borderRadius: '8px',
-                padding: '0.75rem',
+                background: is_future ? '#191924' : '#1e1e2e',
+                border: `1px solid ${is_active ? 'rgba(225,6,0,0.4)' : is_completed ? 'rgba(0,214,114,0.25)' : '#2a2a3a'}`,
+                borderRadius: '10px',
+                padding: '0.85rem',
                 cursor: is_future ? 'not-allowed' : 'pointer',
                 textAlign: 'left',
                 transition: 'border-color 0.2s, background 0.2s',
@@ -77,23 +77,23 @@ export default function SeasonGrid({ races, on_select_round, active_round, compl
               }}
               onMouseLeave={e => {
                 if (is_future) return;
-                e.currentTarget.style.borderColor = is_active ? 'rgba(225,6,0,0.4)' : is_completed ? 'rgba(0,255,136,0.2)' : 'rgba(255,255,255,0.1)';
-                e.currentTarget.style.background = is_future ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)';
+                e.currentTarget.style.borderColor = is_active ? 'rgba(225,6,0,0.4)' : is_completed ? 'rgba(0,214,114,0.25)' : '#2a2a3a';
+                e.currentTarget.style.background = is_future ? '#191924' : '#1e1e2e';
               }}
             >
-              <div style={{ fontSize: '0.7rem', color: '#888', marginBottom: '0.25rem', display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: '0.7rem', color: '#a1a1aa', marginBottom: '0.3rem', display: 'flex', justifyContent: 'space-between' }}>
                 <span>R{race.round} {get_flag(race.country)}</span>
                 {is_completed && (
-                  <span style={{ color: '#00ff88', fontSize: '0.6rem', fontWeight: 700 }}>DONE</span>
+                  <span style={{ color: '#00d672', fontSize: '0.6rem', fontWeight: 700, background: 'rgba(0,214,114,0.1)', padding: '1px 5px', borderRadius: '3px' }}>DONE</span>
                 )}
                 {is_active && (
-                  <span style={{ color: '#e10600', fontSize: '0.6rem', fontWeight: 700 }}>NEXT</span>
+                  <span style={{ color: '#e10600', fontSize: '0.6rem', fontWeight: 700, background: 'rgba(225,6,0,0.1)', padding: '1px 5px', borderRadius: '3px' }}>NEXT</span>
                 )}
               </div>
-              <div style={{ color: is_future ? '#555' : '#e0e0e0', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+              <div style={{ color: is_future ? '#555' : '#ffffff', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.3rem' }}>
                 {race.race_name.replace(' Grand Prix', ' GP')}
               </div>
-              <div style={{ color: '#888', fontSize: '0.75rem' }}>
+              <div style={{ color: '#a1a1aa', fontSize: '0.75rem' }}>
                 {format_date(race.race_date)}
                 {race.is_sprint_weekend && (
                   <span style={{

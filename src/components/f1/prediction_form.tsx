@@ -146,8 +146,8 @@ export default function PredictionForm({
 
   return (
     <div style={{
-      background: 'rgba(225,6,0,0.05)',
-      border: '1px solid rgba(225,6,0,0.3)',
+      background: '#1e1e2e',
+      border: '1px solid #2a2a3a',
       borderRadius: '10px',
       padding: '1.25rem',
       marginTop: '0.75rem',

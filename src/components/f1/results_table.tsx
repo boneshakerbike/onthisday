@@ -33,10 +33,10 @@ function grade_pick(pick: string, position: number, podium: string[], p4_p5: str
 }
 
 const grade_colors: Record<PickGrade, string> = {
-  perfect: '#00ff88',
-  podium: '#ffaa00',
+  perfect: '#00d672',
+  podium: '#d4a017',
   almost: '#888',
-  miss: '#e10600',
+  miss: '#dc2626',
 };
 
 const grade_points: Record<PickGrade, string> = {
@@ -57,8 +57,8 @@ export default function ResultsTable({
   return (
     <div style={{
       marginTop: '0.75rem',
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.1)',
+      background: '#1e1e2e',
+      border: '1px solid #2a2a3a',
       borderRadius: '10px',
       overflow: 'hidden',
     }}>
@@ -76,13 +76,13 @@ export default function ResultsTable({
           Results
         </span>
         {results.slice(0, 3).map((r, i) => (
-          <span key={r.driver_id} style={{ color: '#00ff88', fontSize: '0.85rem', fontWeight: 600 }}>
+          <span key={r.driver_id} style={{ color: '#00d672', fontSize: '0.85rem', fontWeight: 600 }}>
             <span style={{ color: '#666', fontSize: '0.75rem' }}>P{i + 1}</span>{' '}
             {r.driver_code}
           </span>
         ))}
         {show_fl && fastest_lap_driver_id && (
-          <span style={{ color: '#A855F7', fontSize: '0.85rem', fontWeight: 600 }}>
+          <span style={{ color: '#7c3aed', fontSize: '0.85rem', fontWeight: 600 }}>
             <span style={{ color: '#666', fontSize: '0.75rem' }}>FL</span>{' '}
             {driver_code(fastest_lap_driver_id, results)}
           </span>
@@ -167,14 +167,14 @@ export default function ResultsTable({
                 {pred.fastest_lap ? (
                   <>
                     <div style={{
-                      color: fl_correct ? '#A855F7' : '#555',
+                      color: fl_correct ? '#7c3aed' : '#555',
                       fontSize: '0.85rem',
                       fontWeight: 700,
                     }}>
                       {driver_code(pred.fastest_lap, results)}
                     </div>
                     <div style={{
-                      color: fl_correct ? '#A855F7' : '#555',
+                      color: fl_correct ? '#7c3aed' : '#555',
                       fontSize: '0.65rem',
                       opacity: 0.8,
                     }}>

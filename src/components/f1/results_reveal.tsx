@@ -18,10 +18,10 @@ interface ResultsRevealProps {
 }
 
 function score_color(pick: string, position: number, actual_podium: string[], actual_p4_p5: string[]): string {
-  if (pick === actual_podium[position]) return '#00ff88'; // perfect match - green
-  if (actual_podium.includes(pick)) return '#ffaa00';     // podium lock - amber/gold
+  if (pick === actual_podium[position]) return '#00d672'; // perfect match - green
+  if (actual_podium.includes(pick)) return '#d4a017';     // podium lock - amber/gold
   if (actual_p4_p5.includes(pick)) return '#888';         // almost - gray
-  return '#e10600';                                        // miss - F1 red
+  return '#dc2626';                                        // miss - soft red
 }
 
 function score_label(pick: string, position: number, actual_podium: string[], actual_p4_p5: string[]): string {
@@ -48,8 +48,8 @@ export default function ResultsReveal({
 
   return (
     <div style={{
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.1)',
+      background: '#1e1e2e',
+      border: '1px solid #2a2a3a',
       borderRadius: '10px',
       padding: '1.25rem',
       marginTop: '0.75rem',
@@ -107,7 +107,7 @@ export default function ResultsReveal({
           padding: '0.5rem',
           background: 'rgba(255,255,255,0.03)',
           borderRadius: '6px',
-          borderLeft: `3px solid ${prediction.fastest_lap === fastest_lap_driver_id ? '#A855F7' : '#555'}`,
+          borderLeft: `3px solid ${prediction.fastest_lap === fastest_lap_driver_id ? '#7c3aed' : '#555'}`,
           display: 'grid',
           gridTemplateColumns: '40px 1fr 1fr auto',
           gap: '0.5rem',
@@ -127,7 +127,7 @@ export default function ResultsReveal({
             </div>
           </div>
           <div style={{
-            color: prediction.fastest_lap === fastest_lap_driver_id ? '#A855F7' : '#555',
+            color: prediction.fastest_lap === fastest_lap_driver_id ? '#7c3aed' : '#555',
             fontWeight: 700,
             fontSize: '0.8rem',
             textAlign: 'right',

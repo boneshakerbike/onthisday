@@ -97,7 +97,7 @@ export default function WeekendView({
         <h2 style={{ color: '#ffffff', fontSize: '1.25rem', marginBottom: '0.25rem' }}>
           R{race.round} {race.race_name}
         </h2>
-        <div style={{ color: '#888', fontSize: '0.85rem' }}>
+        <div style={{ color: '#a1a1aa', fontSize: '0.85rem' }}>
           {race.circuit_name} &middot; {race.locality}, {race.country} &middot; {format_date(race.race_date)}
         </div>
       </div>
@@ -113,10 +113,10 @@ export default function WeekendView({
 
           return (
             <div key={session.session_type} style={{
-              background: is_locked ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)',
-              border: `1px solid ${is_locked ? '#333' : is_revealed ? 'rgba(0,255,136,0.3)' : 'rgba(255,255,255,0.1)'}`,
+              background: is_locked ? '#191924' : '#1e1e2e',
+              border: `1px solid ${is_locked ? '#252535' : is_revealed ? 'rgba(0,214,114,0.3)' : '#2a2a3a'}`,
               borderRadius: '10px',
-              padding: '1rem',
+              padding: '1.1rem 1.25rem',
               opacity: is_locked ? 0.5 : 1,
             }}>
               <div style={{
@@ -127,7 +127,7 @@ export default function WeekendView({
               }}>
                 <div>
                   <span style={{
-                    color: is_revealed ? '#00ff88' : is_locked ? '#555' : '#e0e0e0',
+                    color: is_revealed ? '#00d672' : is_locked ? '#555' : '#e0e0e0',
                     fontWeight: 600,
                     fontSize: '1rem',
                   }}>
@@ -252,7 +252,7 @@ export default function WeekendView({
                     </div>
                   )}
                   {is_revealed && (
-                    <span style={{ color: '#00ff88', fontSize: '0.8rem' }}>Revealed</span>
+                    <span style={{ color: '#00d672', fontSize: '0.8rem' }}>Revealed</span>
                   )}
                 </div>
               </div>

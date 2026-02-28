@@ -457,7 +457,7 @@ export default function F1Page() {
           vertical-align: baseline;
         }
         .f1-subtitle {
-          color: #888;
+          color: #a1a1aa;
           font-size: 0.85rem;
         }
         .player-bar {
@@ -466,8 +466,9 @@ export default function F1Page() {
           justify-content: space-between;
           margin-bottom: 1.5rem;
           padding: 0.5rem 0.75rem;
-          background: rgba(255,255,255,0.03);
-          border-radius: 8px;
+          background: #1e1e2e;
+          border: 1px solid #2a2a3a;
+          border-radius: 10px;
         }
         .player-name {
           color: #e0e0e0;
@@ -487,16 +488,16 @@ export default function F1Page() {
           border-top: 1px solid rgba(255,255,255,0.05);
         }
         .other-years-label {
-          color: #555;
+          color: #a1a1aa;
           font-size: 0.7rem;
           text-transform: uppercase;
           letter-spacing: 0.05em;
           margin-bottom: 0.5rem;
         }
         .year-btn {
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.08);
-          color: #666;
+          background: #1e1e2e;
+          border: 1px solid #2a2a3a;
+          color: #a1a1aa;
           border-radius: 6px;
           padding: 0.3rem 0.75rem;
           cursor: pointer;
