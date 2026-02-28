@@ -239,7 +239,7 @@ export default function F1Page() {
               }
             }
           }
-          if (catch_up.length > 0) set_activity(catch_up.slice(0, 15));
+          if (catch_up.length > 0) set_activity(catch_up.reverse().slice(0, 15));
         }
 
         if (prev) for (const ns of new_sessions) {
