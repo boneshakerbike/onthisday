@@ -21,8 +21,8 @@ export default function PlayerPicker({ roster, on_claim }: PlayerPickerProps) {
       zIndex: 1000,
     }}>
       <div style={{
-        background: '#1e1e28',
-        border: '1px solid rgba(225,6,0,0.4)',
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.1)',
         borderRadius: '12px',
         padding: '2rem',
         textAlign: 'center',

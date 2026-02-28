@@ -61,8 +61,8 @@ export default function SeasonGrid({ races, on_select_round, active_round, compl
                 on_select_round(race.round);
               }}
               style={{
-                background: is_future ? '#191924' : '#1e1e2e',
-                border: `1px solid ${is_active ? 'rgba(225,6,0,0.4)' : '#2a2a3a'}`,
+                background: is_future ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${is_active ? 'rgba(225,6,0,0.4)' : 'rgba(255,255,255,0.05)'}`,
                 borderRadius: '10px',
                 padding: '0.85rem',
                 cursor: is_future ? 'not-allowed' : 'pointer',
@@ -77,14 +77,14 @@ export default function SeasonGrid({ races, on_select_round, active_round, compl
               }}
               onMouseLeave={e => {
                 if (is_future) return;
-                e.currentTarget.style.borderColor = is_active ? 'rgba(225,6,0,0.4)' : '#2a2a3a';
-                e.currentTarget.style.background = is_future ? '#191924' : '#1e1e2e';
+                e.currentTarget.style.borderColor = is_active ? 'rgba(225,6,0,0.4)' : 'rgba(255,255,255,0.05)';
+                e.currentTarget.style.background = is_future ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)';
               }}
             >
               <div style={{ fontSize: '0.7rem', color: '#a1a1aa', marginBottom: '0.3rem', display: 'flex', justifyContent: 'space-between' }}>
                 <span>R{race.round} {get_flag(race.country)}</span>
                 {is_completed && (
-                  <span style={{ color: '#00d672', fontSize: '0.6rem', fontWeight: 700, background: 'rgba(0,214,114,0.1)', padding: '1px 5px', borderRadius: '3px' }}>DONE</span>
+                  <span style={{ color: '#a1a1aa', fontSize: '0.6rem', fontWeight: 700, background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: '3px' }}>DONE</span>
                 )}
                 {is_active && (
                   <span style={{ color: '#e10600', fontSize: '0.6rem', fontWeight: 700, background: 'rgba(225,6,0,0.1)', padding: '1px 5px', borderRadius: '3px' }}>NEXT</span>

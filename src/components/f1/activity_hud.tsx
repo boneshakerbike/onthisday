@@ -69,9 +69,9 @@ export default function ActivityHud({ entries }: ActivityHudProps) {
         <div
           onClick={() => set_expanded(e => !e)}
           style={{
-            background: '#1e1e2e',
-            border: '1px solid #2a2a3a',
-            borderBottom: expanded ? 'none' : '1px solid #2a2a3a',
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.05)',
+            borderBottom: expanded ? 'none' : '1px solid rgba(255,255,255,0.05)',
             borderRadius: expanded ? '8px 8px 0 0' : '8px 8px 0 0',
             padding: '0.45rem 0.75rem',
             cursor: 'pointer',
@@ -96,8 +96,8 @@ export default function ActivityHud({ entries }: ActivityHudProps) {
         {/* Feed */}
         {expanded && (
           <div style={{
-            background: '#15151e',
-            border: '1px solid #2a2a3a',
+            background: '#111111',
+            border: '1px solid rgba(255,255,255,0.05)',
             borderTop: 'none',
             borderRadius: '0 0 0 0',
             maxHeight: '240px',

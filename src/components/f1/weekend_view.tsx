@@ -113,8 +113,8 @@ export default function WeekendView({
 
           return (
             <div key={session.session_type} style={{
-              background: is_locked ? '#191924' : '#1e1e2e',
-              border: `1px solid ${is_locked ? '#252535' : '#2a2a3a'}`,
+              background: is_locked ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)',
+              border: `1px solid rgba(255,255,255,${is_locked ? 0.03 : 0.05})`,
               borderRadius: '10px',
               padding: '1.1rem 1.25rem',
               opacity: is_locked ? 0.5 : 1,
@@ -127,7 +127,7 @@ export default function WeekendView({
               }}>
                 <div>
                   <span style={{
-                    color: is_revealed ? '#00d672' : is_locked ? '#555' : '#e0e0e0',
+                    color: is_locked ? '#555' : '#ffffff',
                     fontWeight: 600,
                     fontSize: '1rem',
                   }}>
@@ -238,7 +238,7 @@ export default function WeekendView({
                         disabled={revealing === session.session_type}
                         style={{
                           background: revealing === session.session_type ? '#444' : '#ffffff',
-                          color: revealing === session.session_type ? '#888' : '#15151e',
+                          color: revealing === session.session_type ? '#888' : '#111111',
                           border: 'none',
                           borderRadius: '6px',
                           padding: '0.4rem 0.75rem',
@@ -252,7 +252,7 @@ export default function WeekendView({
                     </div>
                   )}
                   {is_revealed && (
-                    <span style={{ color: '#00d672', fontSize: '0.8rem' }}>Revealed</span>
+                    <span style={{ color: '#a1a1aa', fontSize: '0.8rem' }}>Revealed</span>
                   )}
                 </div>
               </div>

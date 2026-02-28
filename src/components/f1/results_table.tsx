@@ -36,7 +36,7 @@ const grade_colors: Record<PickGrade, string> = {
   perfect: '#00d672',
   podium: '#d4a017',
   almost: '#888',
-  miss: '#dc2626',
+  miss: '#444',
 };
 
 const grade_points: Record<PickGrade, string> = {
@@ -57,8 +57,8 @@ export default function ResultsTable({
   return (
     <div style={{
       marginTop: '0.75rem',
-      background: '#1e1e2e',
-      border: '1px solid #2a2a3a',
+      background: 'rgba(255,255,255,0.04)',
+      border: '1px solid rgba(255,255,255,0.05)',
       borderRadius: '10px',
       overflow: 'hidden',
     }}>
@@ -66,7 +66,7 @@ export default function ResultsTable({
       <div style={{
         padding: '0.6rem 0.75rem',
         background: 'rgba(0,255,136,0.06)',
-        borderBottom: '1px solid #2a2a3a',
+        borderBottom: '1px solid rgba(255,255,255,0.05)',
         display: 'flex',
         gap: '0.75rem',
         alignItems: 'center',
@@ -76,7 +76,7 @@ export default function ResultsTable({
           Results
         </span>
         {results.slice(0, 3).map((r, i) => (
-          <span key={r.driver_id} style={{ color: '#00d672', fontSize: '0.85rem', fontWeight: 600 }}>
+          <span key={r.driver_id} style={{ color: '#ffffff', fontSize: '0.85rem', fontWeight: 600 }}>
             <span style={{ color: '#666', fontSize: '0.75rem' }}>P{i + 1}</span>{' '}
             {r.driver_code}
           </span>
@@ -116,7 +116,7 @@ export default function ResultsTable({
             gridTemplateColumns: show_fl ? '1fr 60px 60px 60px 50px 50px' : '1fr 60px 60px 60px 50px',
             padding: '0.5rem 0.75rem',
             borderBottom: idx < sorted.length - 1 ? '1px solid rgba(255,255,255,0.03)' : 'none',
-            background: idx === 0 ? 'rgba(225,6,0,0.06)' : 'transparent',
+            background: 'transparent',
           }}>
             {/* Player name */}
             <div style={{

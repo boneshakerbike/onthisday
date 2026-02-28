@@ -85,8 +85,8 @@ export default function Leaderboard({ standings, season }: LeaderboardProps) {
         Championship Standings
       </h3>
       <div style={{
-        background: '#1e1e2e',
-        border: '1px solid #2a2a3a',
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.05)',
         borderRadius: '10px',
         overflow: 'hidden',
       }}>
@@ -99,7 +99,7 @@ export default function Leaderboard({ standings, season }: LeaderboardProps) {
           fontWeight: 700,
           textTransform: 'uppercase',
           letterSpacing: '0.04em',
-          borderBottom: '1px solid #2a2a3a',
+          borderBottom: '1px solid rgba(255,255,255,0.05)',
         }}>
           <div>POS</div>
           <div>PLAYER</div>
@@ -112,7 +112,7 @@ export default function Leaderboard({ standings, season }: LeaderboardProps) {
             gridTemplateColumns: '40px 1fr 80px 80px',
             padding: '0.65rem 0.85rem',
             borderBottom: i < standings.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
-            background: i === 0 ? 'rgba(225,6,0,0.06)' : i % 2 === 1 ? 'rgba(255,255,255,0.015)' : 'transparent',
+            background: i % 2 === 1 ? 'rgba(255,255,255,0.03)' : 'transparent',
           }}>
             <div style={{
               color: i === 0 ? '#ffd700' : i === 1 ? '#c0c0c0' : i === 2 ? '#cd7f32' : '#888',

@@ -64,9 +64,9 @@ function DriverTypeAhead({
         onFocus={() => { set_open(true); set_query(''); }}
         style={{
           width: '100%',
-          background: '#15151e',
+          background: '#111111',
           color: '#e0e0e0',
-          border: `1px solid ${value ? 'rgba(225,6,0,0.5)' : 'rgba(255,255,255,0.15)'}`,
+          border: `1px solid ${value ? 'rgba(255,255,255,0.25)' : 'rgba(255,255,255,0.1)'}`,
           borderRadius: '6px',
           padding: '0.5rem',
           fontSize: '0.9rem',
@@ -90,7 +90,7 @@ function DriverTypeAhead({
           top: '100%',
           left: 0,
           right: 0,
-          background: '#1e1e28',
+          background: '#1a1a1a',
           border: '1px solid rgba(255,255,255,0.15)',
           borderRadius: '6px',
           maxHeight: '200px',
@@ -146,8 +146,8 @@ export default function PredictionForm({
 
   return (
     <div style={{
-      background: '#1e1e2e',
-      border: '1px solid #2a2a3a',
+      background: 'rgba(255,255,255,0.04)',
+      border: '1px solid rgba(255,255,255,0.05)',
       borderRadius: '10px',
       padding: '1.25rem',
       marginTop: '0.75rem',

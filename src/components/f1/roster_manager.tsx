@@ -139,8 +139,8 @@ export default function RosterManager({ season, round, roster, on_roster_change,
     <div style={{
       marginBottom: '1.5rem',
       padding: '0.75rem',
-      background: '#1e1e2e',
-      border: '1px solid #2a2a3a',
+      background: 'rgba(255,255,255,0.04)',
+      border: '1px solid rgba(255,255,255,0.05)',
       borderRadius: '10px',
     }}>
       <div style={{ color: '#e10600', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.25rem' }}>
@@ -192,9 +192,9 @@ export default function RosterManager({ season, round, roster, on_roster_change,
           onKeyDown={e => { if (e.key === 'Enter') add_player(); }}
           style={{
             flex: 1,
-            background: '#15151e',
+            background: '#111111',
             color: '#e0e0e0',
-            border: '1px solid rgba(225,6,0,0.3)',
+            border: '1px solid rgba(255,255,255,0.1)',
             borderRadius: '6px',
             padding: '0.4rem 0.6rem',
             fontSize: '0.8rem',

@@ -436,7 +436,7 @@ export default function F1Page() {
           padding: 1.5rem 1rem;
           min-height: 100vh;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          background: #15151e;
+          background: #111111;
           color: #e0e0e0;
         }
         .f1-header {
@@ -475,8 +475,8 @@ export default function F1Page() {
           justify-content: space-between;
           margin-bottom: 1.5rem;
           padding: 0.5rem 0.75rem;
-          background: #1e1e2e;
-          border: 1px solid #2a2a3a;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.05);
           border-radius: 10px;
         }
         .player-name {
@@ -504,8 +504,8 @@ export default function F1Page() {
           margin-bottom: 0.5rem;
         }
         .year-btn {
-          background: #1e1e2e;
-          border: 1px solid #2a2a3a;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.05);
           color: #a1a1aa;
           border-radius: 6px;
           padding: 0.3rem 0.75rem;
@@ -519,7 +519,7 @@ export default function F1Page() {
         }
       `}</style>
 
-      <div style={{ background: '#15151e', minHeight: '100vh' }}>
+      <div style={{ background: '#111111', minHeight: '100vh' }}>
       <div className="f1-page">
         <div className="f1-header">
           <div className="f1-title">

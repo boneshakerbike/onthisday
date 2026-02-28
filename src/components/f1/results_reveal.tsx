@@ -21,7 +21,7 @@ function score_color(pick: string, position: number, actual_podium: string[], ac
   if (pick === actual_podium[position]) return '#00d672'; // perfect match - green
   if (actual_podium.includes(pick)) return '#d4a017';     // podium lock - amber/gold
   if (actual_p4_p5.includes(pick)) return '#888';         // almost - gray
-  return '#dc2626';                                        // miss - soft red
+  return '#444';                                            // miss - dim
 }
 
 function score_label(pick: string, position: number, actual_podium: string[], actual_p4_p5: string[]): string {
@@ -48,8 +48,8 @@ export default function ResultsReveal({
 
   return (
     <div style={{
-      background: '#1e1e2e',
-      border: '1px solid #2a2a3a',
+      background: 'rgba(255,255,255,0.04)',
+      border: '1px solid rgba(255,255,255,0.05)',
       borderRadius: '10px',
       padding: '1.25rem',
       marginTop: '0.75rem',
