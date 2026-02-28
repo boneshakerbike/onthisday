@@ -88,7 +88,6 @@ export default function Leaderboard({ standings, season }: LeaderboardProps) {
         background: 'rgba(255,255,255,0.04)',
         border: '1px solid rgba(255,255,255,0.05)',
         borderRadius: '10px',
-        overflow: 'hidden',
       }}>
         <div style={{
           display: 'grid',
