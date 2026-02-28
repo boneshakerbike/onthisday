@@ -300,13 +300,6 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
           Instruction Stripper
         </Link>
         <Link
-          href="/tools/chipboard"
-          onClick={() => set_tools_open(false)}
-          className={dropdown_item_class}
-        >
-          Chipboard
-        </Link>
-        <Link
           href="/tools/knowledge-diff"
           onClick={() => set_tools_open(false)}
           className={dropdown_item_class}

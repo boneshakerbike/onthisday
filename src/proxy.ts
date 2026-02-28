@@ -20,8 +20,7 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // Protect all routes except login, story, archive, games, privacy, terms, api/auth, api/health, api/stories, api/prompts, api/oura, and static files.
-  // api/suggestions and api/worklog are excluded from middleware but auth-gated at the route level (two-tier for suggestions, X-Worklog-Key for worklog).
   matcher: [
-    '/((?!login|story|archive|creative/archive|games|privacy|terms|api/auth|api/health|api/suggestions|api/stories|api/prompts|api/oura|api/worklog|_next/static|_next/image|favicon.ico|icon.svg).*)',
+    '/((?!login|story|archive|creative/archive|games|privacy|terms|api/auth|api/health|api/stories|api/prompts|api/oura|_next/static|_next/image|favicon.ico|icon.svg).*)',
   ],
 };
