@@ -81,7 +81,6 @@ export default function HomePage() {
       icon: '🛠️',
       color: 'purple',
       links: [
-        { label: 'Chipboard', href: '/tools/chipboard' },
         { label: 'What Am I Trying To Say', href: '/tools/text-cleaner' },
         { label: 'Markdown', href: '/tools/markdown' },
         { label: 'Instruction Stripper', href: '/tools/instruction-stripper' },
@@ -179,7 +178,7 @@ export default function HomePage() {
                         <table className="w-full text-sm">
                           <thead><tr className="text-left border-b border-white/10"><th className="py-2 pr-4 text-gray-400">Action</th><th className="py-2 pr-4 text-gray-400">Admin</th><th className="py-2 text-gray-400">Guest</th></tr></thead>
                           <tbody className="text-gray-300">
-                            {[['Use all tools & pages','✓','✓'],['F1: make predictions','✓','✓'],['Chipboard: create & edit','✓','✓'],['Generate AI stories','✓','✓'],['F1: manage roster & reset','✓','✗'],['Chipboard: delete items','✓','✗']].map(([action, adm, gst]) => (
+                            {[['Use all tools & pages','✓','✓'],['F1: make predictions','✓','✓'],['Generate AI stories','✓','✓'],['F1: manage roster & reset','✓','✗']].map(([action, adm, gst]) => (
                               <tr key={action} className="border-b border-white/5">
                                 <td className="py-1.5 pr-4">{action}</td>
                                 <td className={`py-1.5 pr-4 ${adm === '✓' ? 'text-green-400' : 'text-red-400'}`}>{adm}</td>
@@ -219,15 +218,6 @@ export default function HomePage() {
                         <li>Save and redeploy</li>
                       </ol>
                     </AdminSection>
-                    <AdminSection title="Reviewer Agent Keys (Chipboard Read-Only)">
-                      <p className="mb-3">Read-only keys for reviewer agents. Grants <strong>GET</strong> access to <code className="bg-white/10 px-1 rounded">/api/suggestions</code> only.</p>
-                      <h4 className="font-medium text-cyan-400 mt-3 mb-2">Agent setup</h4>
-                      <code className="bg-white/10 px-2 py-1 rounded text-xs block mb-1">export CHIPBOARD_READ_KEY=&quot;&lt;key&gt;&quot;</code>
-                      <code className="bg-white/10 px-2 py-1 rounded text-xs block mb-3">curl -H &quot;X-Chipboard-Key: $CHIPBOARD_READ_KEY&quot; https://8i11.vercel.app/api/suggestions</code>
-                      <h4 className="font-medium text-cyan-400 mt-3 mb-2">Add/revoke keys</h4>
-                      <p className="text-gray-300 text-sm">Edit <code className="bg-white/10 px-1 rounded">CHIPBOARD_READ_KEYS</code> in Vercel env vars (comma-separated). Save and redeploy.</p>
-                      <p className="text-gray-400 text-sm mt-2">Generate: <code className="bg-white/10 px-1 rounded">python3 -c &quot;import secrets; print(secrets.token_urlsafe(32))&quot;</code></p>
-                    </AdminSection>
                     <AdminSection title="Environment Variables Reference">
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
@@ -237,7 +227,6 @@ export default function HomePage() {
                               ['','Auth',''],
                               ['GUEST_PINS','Comma-separated guest PINs (agent + human access)',''],
                               ['GUEST_PIN','Legacy single PIN (still works)',''],
-                              ['CHIPBOARD_READ_KEYS','Read-only keys for reviewer agents (Chipboard GET only)',''],
                               ['ALLOWED_GITHUB_USERS','Comma-separated GitHub login names allowed to authenticate',''],
                               ['GITHUB_CLIENT_ID','GitHub OAuth app ID',''],
                               ['GITHUB_CLIENT_SECRET','GitHub OAuth app secret',''],
@@ -246,11 +235,9 @@ export default function HomePage() {
                               ['TURSO_DATABASE_URL','Production Turso (libSQL) database URL',''],
                               ['TURSO_AUTH_TOKEN','Production Turso auth token',''],
                               ['','AI & Integrations',''],
-                              ['ANTHROPIC_API_KEY','Claude API key (stories, prompt review, Chipboard AI)',''],
+                              ['ANTHROPIC_API_KEY','Claude API key (stories, prompt review)',''],
                               ['OURA_CLIENT_ID','Oura Ring OAuth app ID',''],
                               ['OURA_CLIENT_SECRET','Oura Ring OAuth app secret',''],
-                              ['','Agents',''],
-                              ['WORKLOG_API_KEY','Agent worklog read/write (X-Worklog-Key header)',''],
                             ].map((row, i) => row[0] === '' ? (
                               <tr key={i}><td colSpan={2} className="py-2 pr-4 font-medium text-gray-400 pt-3">{row[1]}</td></tr>
                             ) : (
