@@ -1,7 +1,7 @@
 /**
  * Mr Bear staged picks API
  * POST — stage picks for auto-insert (guest PIN required)
- * GET  — list staged picks (guest PIN or chipboard key)
+ * GET  — list staged picks (guest PIN required)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -14,14 +14,6 @@ function check_pin(request: NextRequest): boolean {
   const valid = (process.env.GUEST_PINS || process.env.GUEST_PIN || '')
     .split(',').map(p => p.trim()).filter(Boolean);
   return valid.includes(pin);
-}
-
-function check_chipboard_key(request: NextRequest): boolean {
-  const key = request.headers.get('X-Chipboard-Key');
-  if (!key) return false;
-  const valid = (process.env.CHIPBOARD_READ_KEYS || '')
-    .split(',').map(k => k.trim()).filter(Boolean);
-  return valid.includes(key);
 }
 
 export async function POST(request: NextRequest) {
@@ -50,7 +42,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    if (!check_pin(request) && !check_chipboard_key(request)) {
+    if (!check_pin(request)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
