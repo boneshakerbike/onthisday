@@ -97,6 +97,25 @@ export default function RosterManager({ season, round, roster, on_roster_change,
     }
   };
 
+  const add_mr_bear = async () => {
+    set_busy(true);
+    try {
+      const res = await fetch('/api/f1/roster', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ season, player_name: 'Mr Bear' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        on_roster_change(data.roster);
+      }
+    } catch {
+      alert('Failed to add Mr Bear');
+    } finally {
+      set_busy(false);
+    }
+  };
+
   const remove_player = async (name: string) => {
     set_busy(true);
     try {
@@ -165,7 +184,7 @@ export default function RosterManager({ season, round, roster, on_roster_change,
           <span style={{ color: '#666', fontSize: '0.8rem' }}>No players added yet</span>
         )}
       </div>
-      <div style={{ display: 'flex', gap: '0.4rem' }}>
+      <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
         <input
           value={new_name}
           onChange={e => set_new_name(e.target.value)}
@@ -198,6 +217,26 @@ export default function RosterManager({ season, round, roster, on_roster_change,
         >
           Add
         </button>
+        {!roster.includes('Mr Bear') && (
+          <button
+            onClick={() => { set_new_name(''); add_mr_bear(); }}
+            disabled={busy}
+            style={{
+              background: 'rgba(139,90,43,0.2)',
+              border: '1px solid rgba(139,90,43,0.4)',
+              color: '#d4a574',
+              borderRadius: '6px',
+              padding: '0.4rem 0.75rem',
+              fontWeight: 600,
+              cursor: busy ? 'not-allowed' : 'pointer',
+              fontSize: '0.8rem',
+              opacity: busy ? 0.5 : 1,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            + Mr Bear
+          </button>
+        )}
       </div>
       {roster.includes('Mr Bear') && (
         <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
