@@ -91,7 +91,7 @@ export default function Leaderboard({ standings, season }: LeaderboardProps) {
       }}>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '40px 1fr 80px 80px',
+          gridTemplateColumns: '32px 1fr 56px 56px',
           padding: '0.6rem 0.85rem',
           color: '#a1a1aa',
           fontSize: '0.7rem',
@@ -108,7 +108,7 @@ export default function Leaderboard({ standings, season }: LeaderboardProps) {
         {standings.map((entry, i) => (
           <div key={entry.player_name} style={{
             display: 'grid',
-            gridTemplateColumns: '40px 1fr 80px 80px',
+            gridTemplateColumns: '32px 1fr 56px 56px',
             padding: '0.65rem 0.85rem',
             borderBottom: i < standings.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
             background: i % 2 === 1 ? 'rgba(255,255,255,0.03)' : 'transparent',
