@@ -114,7 +114,7 @@ export default function WeekendView({
           return (
             <div key={session.session_type} style={{
               background: is_locked ? '#191924' : '#1e1e2e',
-              border: `1px solid ${is_locked ? '#252535' : is_revealed ? 'rgba(0,214,114,0.3)' : '#2a2a3a'}`,
+              border: `1px solid ${is_locked ? '#252535' : '#2a2a3a'}`,
               borderRadius: '10px',
               padding: '1.1rem 1.25rem',
               opacity: is_locked ? 0.5 : 1,

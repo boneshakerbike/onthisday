@@ -66,7 +66,7 @@ export default function ResultsTable({
       <div style={{
         padding: '0.6rem 0.75rem',
         background: 'rgba(0,255,136,0.06)',
-        borderBottom: '1px solid rgba(0,255,136,0.15)',
+        borderBottom: '1px solid #2a2a3a',
         display: 'flex',
         gap: '0.75rem',
         alignItems: 'center',

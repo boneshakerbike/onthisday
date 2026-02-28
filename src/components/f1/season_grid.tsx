@@ -62,7 +62,7 @@ export default function SeasonGrid({ races, on_select_round, active_round, compl
               }}
               style={{
                 background: is_future ? '#191924' : '#1e1e2e',
-                border: `1px solid ${is_active ? 'rgba(225,6,0,0.4)' : is_completed ? 'rgba(0,214,114,0.25)' : '#2a2a3a'}`,
+                border: `1px solid ${is_active ? 'rgba(225,6,0,0.4)' : '#2a2a3a'}`,
                 borderRadius: '10px',
                 padding: '0.85rem',
                 cursor: is_future ? 'not-allowed' : 'pointer',
@@ -77,7 +77,7 @@ export default function SeasonGrid({ races, on_select_round, active_round, compl
               }}
               onMouseLeave={e => {
                 if (is_future) return;
-                e.currentTarget.style.borderColor = is_active ? 'rgba(225,6,0,0.4)' : is_completed ? 'rgba(0,214,114,0.25)' : '#2a2a3a';
+                e.currentTarget.style.borderColor = is_active ? 'rgba(225,6,0,0.4)' : '#2a2a3a';
                 e.currentTarget.style.background = is_future ? '#191924' : '#1e1e2e';
               }}
             >
