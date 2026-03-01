@@ -1,6 +1,7 @@
 /**
  * NavTabs - Main navigation header
  * Tabs: Home | Creative | Tools | Health | Games
+ * Tools dropdown sourced from src/lib/tools.ts
  */
 
 'use client';
@@ -9,6 +10,7 @@ import { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
+import { TOOLS } from '@/lib/tools';
 
 interface NavTabsProps {
   theme?: 'dark' | 'light';
@@ -271,49 +273,23 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
       </div>
     )}
 
-    {/* Tools dropdown menu */}
+    {/* Tools dropdown menu — items sourced from src/lib/tools.ts */}
     {tools_open && (
       <div
         ref={tools_menu_ref}
         style={{ position: 'fixed', top: tools_pos.top, left: tools_pos.left }}
         className={dropdown_class}
       >
-        <Link
-          href="/tools/text-cleaner"
-          onClick={() => set_tools_open(false)}
-          className={dropdown_item_class}
-        >
-          What Am I Trying To Say
-        </Link>
-        <Link
-          href="/tools/markdown"
-          onClick={() => set_tools_open(false)}
-          className={dropdown_item_class}
-        >
-          Markdown Converter
-        </Link>
-        <Link
-          href="/tools/instruction-stripper"
-          onClick={() => set_tools_open(false)}
-          className={dropdown_item_class}
-        >
-          Instruction Stripper
-        </Link>
-        <Link
-          href="/tools/knowledge-diff"
-          onClick={() => set_tools_open(false)}
-          className={dropdown_item_class}
-        >
-          Knowledge Diff
-        </Link>
-        <Link
-          href="/tools/prompt-library"
-          onClick={() => set_tools_open(false)}
-          className={dropdown_item_class}
-        >
-          Prompt Library
-        </Link>
-
+        {TOOLS.map((tool) => (
+          <Link
+            key={tool.path}
+            href={tool.path}
+            onClick={() => set_tools_open(false)}
+            className={dropdown_item_class}
+          >
+            {tool.label}
+          </Link>
+        ))}
       </div>
     )}
 
