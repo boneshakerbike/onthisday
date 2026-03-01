@@ -35,7 +35,7 @@ export default function PlayerPicker({ roster, on_claim }: PlayerPickerProps) {
 
         {roster.length > 0 ? (
           <>
-            <div style={{ color: '#bbb', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+            <div style={{ color: '#d1d5db', fontSize: '0.8rem', marginTop: '0.5rem' }}>
               Pick your name from the roster
             </div>
             <div style={{ margin: '1rem 0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -58,12 +58,12 @@ export default function PlayerPicker({ roster, on_claim }: PlayerPickerProps) {
                 </button>
               ))}
             </div>
-            <div style={{ color: '#aaa', fontSize: '0.75rem' }}>
+            <div style={{ color: '#d1d5db', fontSize: '0.75rem' }}>
               Don&apos;t see your name? Ask the admin to add you to the roster, then refresh.
             </div>
           </>
         ) : (
-          <div style={{ color: '#bbb', fontSize: '0.85rem', marginTop: '1rem', lineHeight: 1.5 }}>
+          <div style={{ color: '#d1d5db', fontSize: '0.85rem', marginTop: '1rem', lineHeight: 1.5 }}>
             No players on the roster yet.<br />
             Ask the admin to add you, then refresh.
           </div>

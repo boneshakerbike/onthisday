@@ -83,14 +83,14 @@ export default function ActivityHud({ entries }: ActivityHudProps) {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <span style={{ color: '#e10600', fontSize: '0.6rem' }}>●</span>
-            <span style={{ color: '#a1a1aa', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+            <span style={{ color: '#d1d5db', fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
               Live Activity
             </span>
             {entries.length > 0 && (
-              <span style={{ color: '#aaa', fontSize: '0.65rem' }}>({entries.length})</span>
+              <span style={{ color: '#d1d5db', fontSize: '0.65rem' }}>({entries.length})</span>
             )}
           </div>
-          <span style={{ color: '#aaa', fontSize: '0.65rem' }}>{expanded ? '▼' : '▲'}</span>
+          <span style={{ color: '#d1d5db', fontSize: '0.65rem' }}>{expanded ? '▼' : '▲'}</span>
         </div>
 
         {/* Feed */}
@@ -104,7 +104,7 @@ export default function ActivityHud({ entries }: ActivityHudProps) {
             overflowY: 'auto',
           }}>
             {entries.length === 0 ? (
-              <div style={{ color: '#aaa', fontSize: '0.72rem', padding: '0.75rem', textAlign: 'center' }}>
+              <div style={{ color: '#d1d5db', fontSize: '0.72rem', padding: '0.75rem', textAlign: 'center' }}>
                 No activity yet — waiting for picks
               </div>
             ) : (
@@ -118,9 +118,9 @@ export default function ActivityHud({ entries }: ActivityHudProps) {
                 }}>
                   <span style={{ color: '#fff', fontWeight: 600 }}>{e.player_name}</span>
                   {' '}
-                  <span style={{ color: '#bbb' }}>{e.text}</span>
+                  <span style={{ color: '#d1d5db' }}>{e.text}</span>
                   {!e.status && (
-                    <div style={{ color: '#aaa', fontSize: '0.62rem', marginTop: '0.1rem' }}>
+                    <div style={{ color: '#d1d5db', fontSize: '0.62rem', marginTop: '0.1rem' }}>
                       {relative_time(e.ts)}
                     </div>
                   )}
