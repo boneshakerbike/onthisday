@@ -23,7 +23,7 @@ function ScoringRules() {
         style={{
           background: 'none',
           border: 'none',
-          color: '#888',
+          color: '#bbb',
           cursor: 'pointer',
           fontSize: '0.8rem',
           padding: 0,
@@ -46,12 +46,12 @@ function ScoringRules() {
             <span style={{ color: '#ccc' }}>Perfect Match — right driver, right position</span>
             <span style={{ color: '#d4a017', fontWeight: 700 }}>+2</span>
             <span style={{ color: '#ccc' }}>Podium Lock — right driver, wrong position</span>
-            <span style={{ color: '#888', fontWeight: 700 }}>+1</span>
+            <span style={{ color: '#bbb', fontWeight: 700 }}>+1</span>
             <span style={{ color: '#ccc' }}>Almost — driver finishes P4 or P5</span>
             <span style={{ color: '#7c3aed', fontWeight: 700 }}>+3</span>
             <span style={{ color: '#ccc' }}>Fastest Lap — bonus for race sessions only</span>
           </div>
-          <div style={{ color: '#666', fontSize: '0.75rem', marginTop: '0.5rem' }}>
+          <div style={{ color: '#aaa', fontSize: '0.75rem', marginTop: '0.5rem' }}>
             Max per session: 18 pts (3 perfect + fastest lap)
           </div>
         </div>
@@ -69,7 +69,7 @@ export default function Leaderboard({ standings, season }: LeaderboardProps) {
           borderRadius: '10px',
           padding: '1.5rem',
           textAlign: 'center',
-          color: '#666',
+          color: '#aaa',
           fontSize: '0.85rem',
         }}>
           No predictions yet for {season}. Be the first to play!
@@ -114,7 +114,7 @@ export default function Leaderboard({ standings, season }: LeaderboardProps) {
             background: i % 2 === 1 ? 'rgba(255,255,255,0.03)' : 'transparent',
           }}>
             <div style={{
-              color: i === 0 ? '#ffd700' : i === 1 ? '#c0c0c0' : i === 2 ? '#cd7f32' : '#888',
+              color: i === 0 ? '#ffd700' : i === 1 ? '#c0c0c0' : i === 2 ? '#cd7f32' : '#bbb',
               fontWeight: 700,
               fontSize: '0.9rem',
             }}>

@@ -471,13 +471,13 @@ export default function PromptLibraryPage() {
         )}
 
         {loading ? (
-          <div className="text-center text-gray-500 py-12">Loading...</div>
+          <div className="text-center text-gray-400 py-12">Loading...</div>
         ) : prompts.length === 0 ? (
-          <div className="text-center text-gray-500 py-12 border border-white/10 rounded-lg">
+          <div className="text-center text-gray-400 py-12 border border-white/10 rounded-lg">
             No prompts yet. Create one to get started.
           </div>
         ) : filtered_prompts.length === 0 ? (
-          <div className="text-center text-gray-500 py-12 border border-white/10 rounded-lg">
+          <div className="text-center text-gray-400 py-12 border border-white/10 rounded-lg">
             No prompts with tag &ldquo;{active_tag_filter}&rdquo;.
           </div>
         ) : (
@@ -496,7 +496,7 @@ export default function PromptLibraryPage() {
                         <span className="w-2 h-2 rounded-full bg-amber-400 flex-shrink-0" title="Consider trimming versions" />
                       )}
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <div className="flex items-center gap-3 text-xs text-gray-400">
                       <span>v{p.version_count}</span>
                       <span>Updated {relative_time(p.updated_at)}</span>
                     </div>
@@ -521,12 +521,12 @@ export default function PromptLibraryPage() {
                         set_copied_id(p.id);
                         setTimeout(() => set_copied_id(null), 2000);
                       }}
-                      className="min-h-[44px] sm:min-h-0 px-3 py-2 sm:py-1 text-xs bg-white/5 text-gray-500 hover:text-cyan-400 hover:bg-white/10 rounded transition-all"
+                      className="min-h-[44px] sm:min-h-0 px-3 py-2 sm:py-1 text-xs bg-white/5 text-gray-400 hover:text-cyan-400 hover:bg-white/10 rounded transition-all"
                       title="Copy prompt to clipboard"
                     >
                       {copied_id === p.id ? 'Copied!' : 'Copy'}
                     </button>
-                    <span className="text-gray-500 group-hover:text-cyan-400 transition-all text-sm">Open &rarr;</span>
+                    <span className="text-gray-400 group-hover:text-cyan-400 transition-all text-sm">Open &rarr;</span>
                   </div>
                 </div>
               </div>
@@ -575,7 +575,7 @@ export default function PromptLibraryPage() {
               </button>
             )}
           </div>
-          <span className="text-xs text-gray-500 flex-shrink-0">v{active_prompt.version_count}</span>
+          <span className="text-xs text-gray-400 flex-shrink-0">v{active_prompt.version_count}</span>
         </div>
 
         {/* Editor */}
@@ -616,7 +616,7 @@ export default function PromptLibraryPage() {
               className="w-full h-[400px] bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-gray-200 font-mono text-sm resize-y focus:outline-none focus:border-cyan-400/30"
             />
             <div className="flex items-center justify-between mt-1">
-              <span className="text-xs text-gray-500">{editor_content.length.toLocaleString()} characters</span>
+              <span className="text-xs text-gray-400">{editor_content.length.toLocaleString()} characters</span>
               {has_unsaved && <span className="text-xs text-amber-400">Unsaved changes</span>}
             </div>
           </div>
@@ -646,7 +646,7 @@ export default function PromptLibraryPage() {
               onBlur={handle_save_notes}
               placeholder="Add notes about this prompt - context, usage tips, what it's for..."
               rows={3}
-              className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-600 resize-y focus:outline-none focus:border-cyan-400/30"
+              className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-gray-300 placeholder-gray-500 resize-y focus:outline-none focus:border-cyan-400/30"
             />
           </div>
         )}
@@ -693,7 +693,7 @@ export default function PromptLibraryPage() {
                   }, 200);
                 }}
                 placeholder="Add a tag..."
-                className="w-full bg-white/5 border border-white/10 rounded px-3 py-1.5 text-sm text-gray-300 placeholder-gray-600 focus:outline-none focus:border-cyan-400/30"
+                className="w-full bg-white/5 border border-white/10 rounded px-3 py-1.5 text-sm text-gray-300 placeholder-gray-500 focus:outline-none focus:border-cyan-400/30"
               />
               {show_tag_suggestions && tag_suggestions.length > 0 && (
                 <div className="absolute z-10 top-full mt-1 w-full bg-[#1a1a2e] border border-white/20 rounded-lg shadow-lg max-h-[150px] overflow-y-auto">
@@ -758,7 +758,7 @@ export default function PromptLibraryPage() {
               </button>
               <button
                 onClick={handle_delete}
-                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm text-gray-300 sm:text-gray-500 bg-[#333] sm:bg-transparent border border-[#555] sm:border-transparent rounded hover:text-red-400 transition-all sm:ml-auto"
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm text-gray-300 sm:text-gray-400 bg-[#333] sm:bg-transparent border border-[#555] sm:border-transparent rounded hover:text-red-400 transition-all sm:ml-auto"
               >
                 Delete
               </button>
@@ -805,15 +805,15 @@ export default function PromptLibraryPage() {
                       {v.version_number === active_prompt.version_count && (
                         <span className="px-1.5 py-0.5 text-[10px] bg-cyan-500/20 text-cyan-400 rounded">Current</span>
                       )}
-                      {v.note && <span className="text-xs text-gray-500 truncate">{v.note}</span>}
+                      {v.note && <span className="text-xs text-gray-400 truncate">{v.note}</span>}
                     </div>
-                    <span className="text-xs text-gray-500">{format_date(v.created_at)}</span>
+                    <span className="text-xs text-gray-400">{format_date(v.created_at)}</span>
                   </div>
                   {v.version_number !== active_prompt.version_count && (
                     <div className="flex gap-2 flex-shrink-0 ml-3">
                       <button
                         onClick={() => set_viewing_version(v)}
-                        className="px-2 py-1 text-xs bg-white/5 text-gray-400 hover:text-gray-200 rounded transition-all"
+                        className="px-2 py-1 text-xs bg-white/5 text-gray-300 hover:text-gray-200 rounded transition-all"
                       >
                         View
                       </button>
@@ -837,12 +837,12 @@ export default function PromptLibraryPage() {
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-medium text-purple-300">Review Results</h3>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-gray-400">
                   Cost: {cost_display(review_result.usage)} ({review_result.usage.input_tokens.toLocaleString()} in / {review_result.usage.output_tokens.toLocaleString()} out)
                 </span>
                 <button
                   onClick={() => set_review_result(null)}
-                  className="text-xs text-gray-500 hover:text-gray-300 transition-all"
+                  className="text-xs text-gray-400 hover:text-gray-300 transition-all"
                 >
                   Dismiss
                 </button>

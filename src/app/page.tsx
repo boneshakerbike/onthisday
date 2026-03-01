@@ -62,7 +62,7 @@ function AdminSection({ title, children }: { title: string; children: React.Reac
         className="w-full flex justify-between items-center px-3 py-2 text-sm text-gray-300 hover:bg-white/5 transition-colors text-left"
       >
         <span>{title}</span>
-        <span className="text-gray-500">{open ? '▲' : '▼'}</span>
+        <span className="text-gray-400">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
         <div className="px-3 py-3 text-sm text-gray-400 border-t border-white/10">
@@ -147,7 +147,7 @@ export default function HomePage() {
 
         <div className="text-center mb-12 mt-4">
           <h1 className="text-4xl font-light text-cyan-400 mb-2">8i11</h1>
-          <p className="text-gray-500 text-sm">Creative tools and games by William Martin</p>
+          <p className="text-gray-400 text-sm">Creative tools and games by William Martin</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-16">
@@ -283,19 +283,19 @@ export default function HomePage() {
 
         {/* Services */}
         <div className="mb-10">
-          <p className="text-xs uppercase tracking-widest text-gray-600 mb-4">Services</p>
+          <p className="text-xs uppercase tracking-widest text-gray-400 mb-4">Services</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
 
             {/* Vercel */}
             <div className="p-4 rounded-xl border border-white/10 bg-white/5 text-xs">
               <div className="flex justify-between items-center mb-3">
                 <span className="text-white font-medium">▲ Vercel</span>
-                <a href="https://vercel.com/boneshakerbikes-projects/~/usage" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-cyan-400 transition-colors">Usage →</a>
+                <a href="https://vercel.com/boneshakerbikes-projects/~/usage" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-cyan-400 transition-colors">Usage →</a>
               </div>
               <div className="space-y-2">
-                <div className="flex justify-between"><span className="text-gray-500">Bandwidth</span><span className="text-gray-300">100 GB/mo</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Build minutes</span><span className="text-gray-300">6,000/mo</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Functions</span><span className="text-gray-300">100 GB-hr/mo</span></div>
+                <div className="flex justify-between"><span className="text-gray-400">Bandwidth</span><span className="text-gray-300">100 GB/mo</span></div>
+                <div className="flex justify-between"><span className="text-gray-400">Build minutes</span><span className="text-gray-300">6,000/mo</span></div>
+                <div className="flex justify-between"><span className="text-gray-400">Functions</span><span className="text-gray-300">100 GB-hr/mo</span></div>
               </div>
             </div>
 
@@ -303,13 +303,13 @@ export default function HomePage() {
             <div className="p-4 rounded-xl border border-green-400/20 bg-white/5 text-xs">
               <div className="flex justify-between items-center mb-3">
                 <span className="text-green-400 font-medium">◉ Turso</span>
-                <a href="https://app.turso.tech" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-cyan-400 transition-colors">Dashboard →</a>
+                <a href="https://app.turso.tech" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-cyan-400 transition-colors">Dashboard →</a>
               </div>
               <div className="space-y-2">
-                <div className="flex justify-between"><span className="text-gray-500">Posts</span><span className="text-cyan-400 font-medium">{health ? health.posts.total.toLocaleString() : '—'}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Stories</span><span className="text-cyan-400 font-medium">{health ? health.stories.total.toLocaleString() : '—'}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Storage limit</span><span className="text-gray-300">9 GB</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Row reads</span><span className="text-gray-300">500M/mo</span></div>
+                <div className="flex justify-between"><span className="text-gray-400">Posts</span><span className="text-cyan-400 font-medium">{health ? health.posts.total.toLocaleString() : '—'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-400">Stories</span><span className="text-cyan-400 font-medium">{health ? health.stories.total.toLocaleString() : '—'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-400">Storage limit</span><span className="text-gray-300">9 GB</span></div>
+                <div className="flex justify-between"><span className="text-gray-400">Row reads</span><span className="text-gray-300">500M/mo</span></div>
               </div>
             </div>
 
@@ -317,19 +317,19 @@ export default function HomePage() {
             <div className="p-4 rounded-xl border border-purple-400/20 bg-white/5 text-xs">
               <div className="flex justify-between items-center mb-3">
                 <span className="text-purple-400 font-medium">◆ Anthropic</span>
-                <a href="https://console.anthropic.com/settings/cost" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-cyan-400 transition-colors">Usage →</a>
+                <a href="https://console.anthropic.com/settings/cost" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-cyan-400 transition-colors">Usage →</a>
               </div>
               <div className="space-y-2">
-                <div className="flex justify-between"><span className="text-gray-500">Plan</span><span className="text-gray-300">Pay-as-you-go</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Story gen</span><span className="text-gray-300">~17¢/story</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Stories made</span><span className="text-cyan-400 font-medium">{health ? health.stories.total.toLocaleString() : '—'}</span></div>
+                <div className="flex justify-between"><span className="text-gray-400">Plan</span><span className="text-gray-300">Pay-as-you-go</span></div>
+                <div className="flex justify-between"><span className="text-gray-400">Story gen</span><span className="text-gray-300">~17¢/story</span></div>
+                <div className="flex justify-between"><span className="text-gray-400">Stories made</span><span className="text-cyan-400 font-medium">{health ? health.stories.total.toLocaleString() : '—'}</span></div>
               </div>
             </div>
 
           </div>
         </div>
 
-        <footer className="text-center text-xs text-gray-600 border-t border-white/10 pt-6 pb-4">
+        <footer className="text-center text-xs text-gray-400 border-t border-white/10 pt-6 pb-4">
           <div className="flex justify-center gap-4">
             <Link href="/privacy" className="hover:text-cyan-400 transition-colors">Privacy Policy</Link>
             <span className="text-gray-700">·</span>

@@ -74,7 +74,7 @@ export default function TextCleanerPage() {
         <h1 className="text-center text-3xl font-light text-cyan-400 mb-2">
           What Am I Trying To Say
         </h1>
-        <p className="text-center text-gray-500 mb-8">
+        <p className="text-center text-gray-400 mb-8">
           Paste your rough text — get it cleaned up for clarity
         </p>
 
@@ -90,7 +90,7 @@ export default function TextCleanerPage() {
           <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
             <div className="bg-white/5 px-4 py-2 border-b border-white/10 flex justify-between items-center">
               <h3 className="font-medium text-gray-300">Your Text</h3>
-              <span className="text-xs text-gray-500">{input.length.toLocaleString()} chars</span>
+              <span className="text-xs text-gray-400">{input.length.toLocaleString()} chars</span>
             </div>
             <textarea
               value={input}
@@ -132,7 +132,7 @@ export default function TextCleanerPage() {
                 <h3 className="font-medium text-gray-300">Cleaned Up</h3>
                 <div className="flex items-center gap-3">
                   {usage && (
-                    <span className="text-xs text-gray-600">
+                    <span className="text-xs text-gray-400">
                       {usage.input_tokens + usage.output_tokens} tokens
                     </span>
                   )}

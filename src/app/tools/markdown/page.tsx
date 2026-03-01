@@ -295,7 +295,7 @@ export default function MarkdownConverterPage() {
         <h1 className="text-center text-3xl font-light text-cyan-400 mb-2">
           Markdown Converter
         </h1>
-        <p className="text-center text-gray-500 mb-6">
+        <p className="text-center text-gray-400 mb-6">
           Real-time conversion between rich text and Markdown
         </p>
 
@@ -322,7 +322,7 @@ export default function MarkdownConverterPage() {
               className="hidden"
             />
           </label>
-          <span className="text-xs text-gray-500">Converts .docx → HTML → Markdown</span>
+          <span className="text-xs text-gray-400">Converts .docx → HTML → Markdown</span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -427,7 +427,7 @@ export default function MarkdownConverterPage() {
           </div>
         </div>
 
-        <p className="mt-6 text-sm text-gray-500 text-center">
+        <p className="mt-6 text-sm text-gray-400 text-center">
           Supports headers, paragraphs, bold, italic, links, and lists.
         </p>
       </div>

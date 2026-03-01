@@ -63,7 +63,7 @@ function LoginForm() {
       </h1>
       <p
         style={{
-          color: '#888',
+          color: '#bbb',
           marginBottom: oauth_error ? '16px' : '32px',
           fontSize: '14px',
         }}
@@ -125,7 +125,7 @@ function LoginForm() {
           display: 'flex',
           alignItems: 'center',
           margin: '24px 0',
-          color: '#666',
+          color: '#aaa',
         }}
       >
         <div style={{ flex: 1, height: '1px', backgroundColor: '#333' }} />
@@ -191,7 +191,7 @@ function LoginForm() {
         style={{
           marginTop: '24px',
           fontSize: '13px',
-          color: '#666',
+          color: '#aaa',
         }}
       >
         Just browsing?{' '}
@@ -216,7 +216,7 @@ export default function LoginPage() {
         padding: '20px',
       }}
     >
-      <Suspense fallback={<div style={{ color: '#888' }}>Loading...</div>}>
+      <Suspense fallback={<div style={{ color: '#bbb' }}>Loading...</div>}>
         <LoginForm />
       </Suspense>
     </div>

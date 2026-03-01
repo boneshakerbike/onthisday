@@ -90,7 +90,7 @@ export default function SeasonGrid({ races, on_select_round, active_round, compl
                   <span style={{ color: '#e10600', fontSize: '0.6rem', fontWeight: 700, background: 'rgba(225,6,0,0.1)', padding: '1px 5px', borderRadius: '3px' }}>NEXT</span>
                 )}
               </div>
-              <div style={{ color: is_future ? '#555' : '#ffffff', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.3rem' }}>
+              <div style={{ color: is_future ? '#aaa' : '#ffffff', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.3rem' }}>
                 {race.race_name.replace(' Grand Prix', ' GP')}
               </div>
               <div style={{ color: '#a1a1aa', fontSize: '0.75rem' }}>

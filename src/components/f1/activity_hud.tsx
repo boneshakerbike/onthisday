@@ -87,10 +87,10 @@ export default function ActivityHud({ entries }: ActivityHudProps) {
               Live Activity
             </span>
             {entries.length > 0 && (
-              <span style={{ color: '#555', fontSize: '0.65rem' }}>({entries.length})</span>
+              <span style={{ color: '#aaa', fontSize: '0.65rem' }}>({entries.length})</span>
             )}
           </div>
-          <span style={{ color: '#555', fontSize: '0.65rem' }}>{expanded ? '▼' : '▲'}</span>
+          <span style={{ color: '#aaa', fontSize: '0.65rem' }}>{expanded ? '▼' : '▲'}</span>
         </div>
 
         {/* Feed */}
@@ -104,7 +104,7 @@ export default function ActivityHud({ entries }: ActivityHudProps) {
             overflowY: 'auto',
           }}>
             {entries.length === 0 ? (
-              <div style={{ color: '#444', fontSize: '0.72rem', padding: '0.75rem', textAlign: 'center' }}>
+              <div style={{ color: '#aaa', fontSize: '0.72rem', padding: '0.75rem', textAlign: 'center' }}>
                 No activity yet — waiting for picks
               </div>
             ) : (
@@ -118,9 +118,9 @@ export default function ActivityHud({ entries }: ActivityHudProps) {
                 }}>
                   <span style={{ color: '#fff', fontWeight: 600 }}>{e.player_name}</span>
                   {' '}
-                  <span style={{ color: '#999' }}>{e.text}</span>
+                  <span style={{ color: '#bbb' }}>{e.text}</span>
                   {!e.status && (
-                    <div style={{ color: '#444', fontSize: '0.62rem', marginTop: '0.1rem' }}>
+                    <div style={{ color: '#aaa', fontSize: '0.62rem', marginTop: '0.1rem' }}>
                       {relative_time(e.ts)}
                     </div>
                   )}
