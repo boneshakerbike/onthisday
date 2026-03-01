@@ -164,7 +164,7 @@ export default function HomePage() {
                 <p className="text-gray-400 text-sm leading-relaxed mb-3">{cat.description}</p>
 
                 {/* Tool links */}
-                <div className="flex flex-wrap gap-1.5 mb-1">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-1.5 mb-1">
                   {cat.links.map((link) => (
                     <Link key={link.label} href={link.href}
                       className="px-2 py-1 text-xs rounded bg-white/5 border border-purple-400/20 text-purple-400/80 hover:text-purple-400 hover:bg-white/10 transition-colors">

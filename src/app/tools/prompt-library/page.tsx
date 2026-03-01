@@ -486,7 +486,7 @@ export default function PromptLibraryPage() {
               <div
                 key={p.id}
                 onClick={() => open_prompt(p.id)}
-                className="w-full text-left p-4 bg-white/5 border border-white/10 rounded-lg hover:border-cyan-400/30 hover:bg-white/[0.07] transition-all group cursor-pointer"
+                className="w-full text-left p-4 bg-white/5 border border-white/10 rounded-lg hover:border-cyan-400/30 hover:bg-white/[0.07] transition-all group cursor-pointer min-h-[44px] sm:min-h-0"
               >
                 <div className="flex items-center justify-between">
                   <div className="min-w-0 flex-1">
@@ -521,7 +521,7 @@ export default function PromptLibraryPage() {
                         set_copied_id(p.id);
                         setTimeout(() => set_copied_id(null), 2000);
                       }}
-                      className="px-2 py-1 text-xs bg-white/5 text-gray-500 hover:text-cyan-400 hover:bg-white/10 rounded transition-all"
+                      className="min-h-[44px] sm:min-h-0 px-3 py-2 sm:py-1 text-xs bg-white/5 text-gray-500 hover:text-cyan-400 hover:bg-white/10 rounded transition-all"
                       title="Copy prompt to clipboard"
                     >
                       {copied_id === p.id ? 'Copied!' : 'Copy'}

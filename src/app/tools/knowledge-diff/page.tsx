@@ -168,7 +168,7 @@ export default function KnowledgeDiffPage() {
           Compare two knowledge documents to detect potential information loss
         </p>
 
-        <div style={{
+        <div className="knowledge-diff-grid" style={{
           display: 'grid',
           gridTemplateColumns: '1fr 1fr',
           gap: '20px',
@@ -453,6 +453,10 @@ export default function KnowledgeDiffPage() {
         )}
         <style jsx>{`
           @media (max-width: 768px) {
+            .knowledge-diff-grid {
+              grid-template-columns: 1fr !important;
+            }
+
             .knowledge-diff-actions {
               flex-direction: column;
               align-items: stretch !important;
