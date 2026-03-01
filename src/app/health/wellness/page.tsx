@@ -40,7 +40,7 @@ interface RangeSnapshot {
 }
 
 function score_color(score: number | null | undefined): string {
-  if (score == null) return 'text-gray-500';
+  if (score == null) return 'text-gray-400';
   if (score >= 85) return 'text-green-400';
   if (score >= 70) return 'text-yellow-400';
   return 'text-red-400';
@@ -133,7 +133,7 @@ export default function WellnessPage() {
     <Suspense fallback={
       <main className="min-h-screen bg-gradient-to-b from-[#0f0f1a] to-[#1a1a2e] text-white">
         <div className="max-w-4xl mx-auto p-4 sm:p-6">
-          <div className="text-center text-gray-500 py-12">Loading...</div>
+          <div className="text-center text-gray-400 py-12">Loading...</div>
         </div>
       </main>
     }>
@@ -313,7 +313,7 @@ function WellnessContent() {
           {connected && (
             <button
               onClick={handle_disconnect}
-              className="px-3 py-1.5 text-xs text-gray-500 hover:text-red-400 border border-white/10 hover:border-red-400/30 rounded transition-all"
+              className="px-3 py-1.5 text-xs text-gray-400 hover:text-red-400 border border-white/10 hover:border-red-400/30 rounded transition-all"
             >
               Disconnect
             </button>
@@ -321,7 +321,7 @@ function WellnessContent() {
         </div>
 
         {loading ? (
-          <div className="text-center text-gray-500 py-12">Loading...</div>
+          <div className="text-center text-gray-400 py-12">Loading...</div>
         ) : connected === false ? (
           <div className="text-center py-16 border border-white/10 rounded-lg">
             <div className="text-4xl mb-4">🚴</div>
@@ -362,7 +362,7 @@ function WellnessContent() {
                 Force
               </button>
               {data?.cached && (
-                <span className="text-xs text-gray-500">cached</span>
+                <span className="text-xs text-gray-400">cached</span>
               )}
             </div>
 
@@ -536,7 +536,7 @@ function WellnessContent() {
                       <div key={i} className="p-3 bg-white/5 border border-white/10 rounded-lg">
                         <div className="flex items-center justify-between mb-2">
                           <span className="font-medium text-gray-200">{(w.activity as string) || 'Workout'}</span>
-                          <span className="text-xs text-gray-500">{w.intensity as string}</span>
+                          <span className="text-xs text-gray-400">{w.intensity as string}</span>
                         </div>
                         <div className="flex gap-4 text-sm text-gray-400 flex-wrap">
                           {w.calories != null ? <span>{w.calories as number} cal</span> : null}
@@ -617,7 +617,7 @@ function SignalCard({ label, value, unit, sublabel, icon }: {
           <>{value}{unit && <span className="text-xs text-gray-400 ml-1">{unit}</span>}</>
         ) : '—'}
       </div>
-      {sublabel && <div className="text-xs text-gray-500">{sublabel}</div>}
+      {sublabel && <div className="text-xs text-gray-400">{sublabel}</div>}
     </div>
   );
 }
@@ -637,7 +637,7 @@ function CollapsibleSection({ title, icon, badge, expanded, on_toggle, children 
         className="w-full flex items-center gap-2 p-3 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition-all"
       >
         <svg
-          className={`w-4 h-4 text-gray-400 transition-transform ${expanded ? 'rotate-90' : ''}`}
+          className={`w-4 h-4 text-gray-300 transition-transform ${expanded ? 'rotate-90' : ''}`}
           fill="none" stroke="currentColor" viewBox="0 0 24 24"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -658,7 +658,7 @@ function CollapsibleSection({ title, icon, badge, expanded, on_toggle, children 
 function DetailItem({ label, value }: { label: string; value: string }) {
   return (
     <div className="p-2">
-      <div className="text-xs text-gray-500">{label}</div>
+      <div className="text-xs text-gray-400">{label}</div>
       <div className="text-sm font-medium text-gray-200">{value}</div>
     </div>
   );

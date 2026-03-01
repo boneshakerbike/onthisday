@@ -127,7 +127,7 @@ export default function WeekendView({
               }}>
                 <div>
                   <span style={{
-                    color: is_locked ? '#555' : '#ffffff',
+                    color: is_locked ? '#aaa' : '#ffffff',
                     fontWeight: 600,
                     fontSize: '1rem',
                   }}>
@@ -142,14 +142,14 @@ export default function WeekendView({
 
                 <div>
                   {is_locked && (
-                    <span style={{ color: '#555', fontSize: '0.8rem' }}>
+                    <span style={{ color: '#aaa', fontSize: '0.8rem' }}>
                       Complete previous session first
                     </span>
                   )}
                   {/* predicting + no saved picks: show Make Prediction */}
                   {is_predicting && !show_form && !session.prediction && (
                     roster_empty ? (
-                      <span style={{ color: '#555', fontSize: '0.8rem' }}>Season not set up</span>
+                      <span style={{ color: '#aaa', fontSize: '0.8rem' }}>Season not set up</span>
                     ) : (
                       <button
                         onClick={() => on_predict_click(session.session_type)}
@@ -195,7 +195,7 @@ export default function WeekendView({
                             title={wait_for_saves ? 'Waiting for all players to save picks first' : undefined}
                             style={{
                               background: submitting || wait_for_saves ? '#333' : '#e10600',
-                              color: submitting || wait_for_saves ? '#666' : '#ffffff',
+                              color: submitting || wait_for_saves ? '#aaa' : '#ffffff',
                               border: 'none',
                               borderRadius: '4px',
                               padding: '0.3rem 0.6rem',
@@ -215,7 +215,7 @@ export default function WeekendView({
                             return <span style={{ color: '#d4a574', fontSize: '0.72rem' }}>Go poke the bear 🐻</span>;
                           }
                           return (
-                            <span style={{ color: '#666', fontSize: '0.72rem' }}>
+                            <span style={{ color: '#aaa', fontSize: '0.72rem' }}>
                               Waiting for {missing.join(', ')} to save picks
                             </span>
                           );
@@ -230,7 +230,7 @@ export default function WeekendView({
                   )}
                   {is_watching && (!session.group || session.group.all_predicted) && (
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ color: '#666', fontSize: '0.75rem', marginBottom: '0.35rem' }}>
+                      <div style={{ color: '#aaa', fontSize: '0.75rem', marginBottom: '0.35rem' }}>
                         Watch the {session_labels[session.session_type]?.toLowerCase() || session.session_type}, then reveal when ready.
                       </div>
                       <button
@@ -238,7 +238,7 @@ export default function WeekendView({
                         disabled={revealing === session.session_type}
                         style={{
                           background: revealing === session.session_type ? '#444' : '#ffffff',
-                          color: revealing === session.session_type ? '#888' : '#111111',
+                          color: revealing === session.session_type ? '#bbb' : '#111111',
                           border: 'none',
                           borderRadius: '6px',
                           padding: '0.4rem 0.75rem',
@@ -265,12 +265,12 @@ export default function WeekendView({
                       .map(id => drivers.find(d => d.driver_id === id)?.code || id)
                       .join(' / ')}
                     {session.session_type === 'race' && session.prediction.fastest_lap && (
-                      <span style={{ color: '#666', fontSize: '0.8rem', marginLeft: '0.5rem' }}>
+                      <span style={{ color: '#aaa', fontSize: '0.8rem', marginLeft: '0.5rem' }}>
                         FL: {drivers.find(d => d.driver_id === session.prediction!.fastest_lap)?.code || session.prediction.fastest_lap}
                       </span>
                     )}
                   </div>
-                  <div style={{ color: '#666', fontSize: '0.75rem', marginTop: '0.2rem' }}>
+                  <div style={{ color: '#aaa', fontSize: '0.75rem', marginTop: '0.2rem' }}>
                     Picks saved. Lock in when ready to watch.
                   </div>
                 </div>
@@ -321,7 +321,7 @@ export default function WeekendView({
                   padding: '0.5rem',
                   background: 'rgba(255,255,255,0.03)',
                   borderRadius: '6px',
-                  color: '#888',
+                  color: '#bbb',
                   fontSize: '0.85rem',
                 }}>
                   Prediction locked. Watch the session, then click Reveal when ready.

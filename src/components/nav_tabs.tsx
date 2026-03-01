@@ -233,11 +233,11 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
             </a>
           )}
           {session && (
-            <div className={`text-xs pr-1 ${is_light ? 'text-gray-500' : 'text-gray-500'}`}>
+            <div className={`text-xs pr-1 ${is_light ? 'text-gray-500' : 'text-gray-400'}`}>
               <span className="hidden sm:inline">{session.user?.name || session.user?.email || 'Guest'}</span>
               <button
                 onClick={() => signOut()}
-                className={`ml-2 underline ${is_light ? 'text-gray-500 hover:text-[#c4704b]' : 'text-gray-500 hover:text-cyan-400'}`}
+                className={`ml-2 underline ${is_light ? 'text-gray-500 hover:text-[#c4704b]' : 'text-gray-400 hover:text-cyan-400'}`}
               >
                 Sign out
               </button>

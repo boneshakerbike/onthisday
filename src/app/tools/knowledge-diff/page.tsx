@@ -201,7 +201,7 @@ export default function KnowledgeDiffPage() {
                 resize: 'vertical'
               }}
             />
-            <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
+            <div style={{ fontSize: '12px', color: '#aaa', marginTop: '4px' }}>
               {old_doc.length.toLocaleString()} characters
             </div>
           </div>
@@ -233,7 +233,7 @@ export default function KnowledgeDiffPage() {
                 resize: 'vertical'
               }}
             />
-            <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
+            <div style={{ fontSize: '12px', color: '#aaa', marginTop: '4px' }}>
               {new_doc.length.toLocaleString()} characters
             </div>
           </div>
@@ -364,7 +364,7 @@ export default function KnowledgeDiffPage() {
               </div>
               <div style={{
                 fontSize: '13px',
-                color: '#999',
+                color: '#aaa',
                 textAlign: 'right'
               }}>
                 <div>Cost: ${calculate_cost(result.usage)}</div>

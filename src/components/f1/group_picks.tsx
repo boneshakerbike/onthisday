@@ -51,7 +51,7 @@ export default function GroupPicks({ predictions, drivers, show_fastest_lap }: G
               <span style={{ color: '#e0e0e0', fontSize: '0.8rem', fontWeight: 700 }}>
                 {pred.player_name}
               </span>
-              <span style={{ fontSize: '0.65rem', color: pred.is_locked ? '#ffffff' : '#888' }}>
+              <span style={{ fontSize: '0.65rem', color: pred.is_locked ? '#ffffff' : '#bbb' }}>
                 {pred.is_locked ? '🔒' : '·'}
               </span>
             </div>

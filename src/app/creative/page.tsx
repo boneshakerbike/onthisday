@@ -559,7 +559,7 @@ export default function OnThisDay() {
             href="https://8i11.substack.com/publish/posts/drafts"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-gray-500 hover:text-cyan-400 transition-colors"
+            className="text-xs text-gray-400 hover:text-cyan-400 transition-colors"
           >
             Drafts ↗
           </a>
@@ -567,7 +567,7 @@ export default function OnThisDay() {
             href="https://8i11.substack.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-gray-500 hover:text-cyan-400 transition-colors"
+            className="text-xs text-gray-400 hover:text-cyan-400 transition-colors"
           >
             Substack ↗
           </a>
@@ -575,7 +575,7 @@ export default function OnThisDay() {
 
         {/* Archive info */}
         {archive && (
-          <p className="text-center text-xs text-gray-600 mb-5">
+          <p className="text-center text-xs text-gray-400 mb-5">
             Archive: {archive} ({total_posts.toLocaleString()} posts)
           </p>
         )}
@@ -621,14 +621,14 @@ export default function OnThisDay() {
 
         {/* Loading state */}
         {loading && (
-          <div className="text-center py-16 text-gray-500">
+          <div className="text-center py-16 text-gray-400">
             <p>Loading...</p>
           </div>
         )}
 
         {/* No posts state */}
         {!loading && total_posts === 0 && (
-          <div className="text-center py-16 text-gray-500">
+          <div className="text-center py-16 text-gray-400">
             <p className="text-5xl mb-5">📦</p>
             <p className="mb-2">No archive loaded</p>
             <p className="text-sm">Upload your Substack export below to get started</p>
@@ -637,7 +637,7 @@ export default function OnThisDay() {
 
         {/* Empty date state */}
         {!loading && total_posts > 0 && posts.length === 0 && (
-          <div className="text-center py-16 text-gray-500">
+          <div className="text-center py-16 text-gray-400">
             <p className="text-5xl mb-5">📭</p>
             <p>No posts found for {date?.display}</p>
           </div>
@@ -649,7 +649,7 @@ export default function OnThisDay() {
             <div className="text-center text-6xl font-extralight text-cyan-400 mb-2">
               {posts.length}
             </div>
-            <p className="text-center text-gray-500 mb-8">
+            <p className="text-center text-gray-400 mb-8">
               post{posts.length !== 1 ? 's' : ''} on this day
             </p>
 
@@ -702,7 +702,7 @@ export default function OnThisDay() {
                         View saved story →
                       </a>
                       {existing_story && (
-                        <span className="text-gray-600 text-xs">
+                        <span className="text-gray-400 text-xs">
                           (created {new Date(existing_story.created_at).toLocaleDateString()})
                         </span>
                       )}
@@ -710,7 +710,7 @@ export default function OnThisDay() {
                   )}
                   <a
                     href="/creative/archive"
-                    className="text-gray-500 hover:text-cyan-400 text-sm"
+                    className="text-gray-400 hover:text-cyan-400 text-sm"
                   >
                     Archive →
                   </a>
@@ -732,7 +732,7 @@ export default function OnThisDay() {
                   <h3 className="text-purple-400 font-medium">Generated Story</h3>
                   <div className="creative-story-actions flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 sm:gap-2 w-full sm:w-auto">
                     {token_usage && (
-                      <span className="text-xs text-gray-600 mr-2">
+                      <span className="text-xs text-gray-400 mr-2">
                         {token_usage.input + token_usage.output} tokens
                         {token_usage.cached > 0 && ` (${token_usage.cached} cached)`}
                       </span>
@@ -791,7 +791,7 @@ export default function OnThisDay() {
                 <div className="flex justify-end mb-2">
                   <button
                     onClick={() => set_copy_preview(null)}
-                    className="text-gray-500 hover:text-cyan-400 text-sm"
+                    className="text-gray-400 hover:text-cyan-400 text-sm"
                   >
                     ← Show posts
                   </button>
@@ -809,7 +809,7 @@ export default function OnThisDay() {
                 <span className="inline-block bg-cyan-400 text-[#1a1a2e] px-3 py-1 rounded-full text-sm font-semibold mb-2">
                   {post.year}
                 </span>
-                <span className="text-gray-500 text-sm ml-3">
+                <span className="text-gray-400 text-sm ml-3">
                   {get_years_text(post.years_ago)}
                 </span>
                 <h2 className="text-xl text-white mb-2">
@@ -834,7 +834,7 @@ export default function OnThisDay() {
         {/* Upload section */}
         <div className="mt-10 pt-5 border-t border-white/10">
           <details className="text-center">
-            <summary className="cursor-pointer text-gray-600 text-sm hover:text-cyan-400">
+            <summary className="cursor-pointer text-gray-400 text-sm hover:text-cyan-400">
               Update Archive
             </summary>
             <div className="mt-5 p-5 bg-white/[0.03] rounded-xl">
@@ -849,7 +849,7 @@ export default function OnThisDay() {
                   {upload_status.message}
                 </p>
               )}
-              <p className="text-gray-500 mb-4">Upload a new Substack export (.zip)</p>
+              <p className="text-gray-400 mb-4">Upload a new Substack export (.zip)</p>
               <div className="mb-4">
                 <input
                   type="file"
@@ -860,7 +860,7 @@ export default function OnThisDay() {
                 />
                 {uploading && <span className="text-cyan-400">Processing...</span>}
               </div>
-              <label className="flex items-center justify-center gap-2 text-sm text-gray-500 mb-4 cursor-pointer">
+              <label className="flex items-center justify-center gap-2 text-sm text-gray-400 mb-4 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={full_reimport}
@@ -870,7 +870,7 @@ export default function OnThisDay() {
                 />
                 Full reimport (clear existing posts first)
               </label>
-              <p className="text-xs text-gray-600 mt-4">
+              <p className="text-xs text-gray-400 mt-4">
                 Get your archive from{' '}
                 <a
                   href="https://8i11.substack.com/publish/settings"
