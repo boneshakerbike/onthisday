@@ -35,8 +35,8 @@ function grade_pick(pick: string, position: number, podium: string[], p4_p5: str
 const grade_colors: Record<PickGrade, string> = {
   perfect: '#00d672',
   podium: '#d4a017',
-  almost: '#bbb',
-  miss: '#777',
+  almost: '#d1d5db',
+  miss: '#999',
 };
 
 const grade_points: Record<PickGrade, string> = {
@@ -71,18 +71,18 @@ export default function ResultsTable({
         alignItems: 'center',
         flexWrap: 'wrap',
       }}>
-        <span style={{ color: '#bbb', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <span style={{ color: '#d1d5db', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Results
         </span>
         {results.slice(0, 3).map((r, i) => (
           <span key={r.driver_id} style={{ color: '#ffffff', fontSize: '0.85rem', fontWeight: 600 }}>
-            <span style={{ color: '#aaa', fontSize: '0.75rem' }}>P{i + 1}</span>{' '}
+            <span style={{ color: '#d1d5db', fontSize: '0.75rem' }}>P{i + 1}</span>{' '}
             {r.driver_code}
           </span>
         ))}
         {show_fl && fastest_lap_driver_id && (
-          <span style={{ color: '#7c3aed', fontSize: '0.85rem', fontWeight: 600 }}>
-            <span style={{ color: '#aaa', fontSize: '0.75rem' }}>FL</span>{' '}
+          <span style={{ color: '#a78bfa', fontSize: '0.85rem', fontWeight: 600 }}>
+            <span style={{ color: '#d1d5db', fontSize: '0.75rem' }}>FL</span>{' '}
             {driver_code(fastest_lap_driver_id, results)}
           </span>
         )}
@@ -166,14 +166,14 @@ export default function ResultsTable({
                 {pred.fastest_lap ? (
                   <>
                     <div style={{
-                      color: fl_correct ? '#7c3aed' : '#aaa',
+                      color: fl_correct ? '#a78bfa' : '#d1d5db',
                       fontSize: '0.85rem',
                       fontWeight: 700,
                     }}>
                       {driver_code(pred.fastest_lap, results)}
                     </div>
                     <div style={{
-                      color: fl_correct ? '#7c3aed' : '#aaa',
+                      color: fl_correct ? '#a78bfa' : '#d1d5db',
                       fontSize: '0.65rem',
                       opacity: 0.8,
                     }}>
@@ -181,7 +181,7 @@ export default function ResultsTable({
                     </div>
                   </>
                 ) : (
-                  <div style={{ color: '#aaa', fontSize: '0.75rem' }}>—</div>
+                  <div style={{ color: '#d1d5db', fontSize: '0.75rem' }}>—</div>
                 )}
               </div>
             )}
@@ -206,7 +206,7 @@ export default function ResultsTable({
 }
 
 const header_style: React.CSSProperties = {
-  color: '#aaa',
+  color: '#d1d5db',
   fontSize: '0.7rem',
   fontWeight: 700,
   textTransform: 'uppercase',

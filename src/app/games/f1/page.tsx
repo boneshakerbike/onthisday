@@ -466,7 +466,7 @@ export default function F1Page() {
           vertical-align: baseline;
         }
         .f1-subtitle {
-          color: #a1a1aa;
+          color: #d1d5db;
           font-size: 0.85rem;
         }
         .player-bar {
@@ -497,7 +497,7 @@ export default function F1Page() {
           border-top: 1px solid rgba(255,255,255,0.05);
         }
         .other-years-label {
-          color: #a1a1aa;
+          color: #d1d5db;
           font-size: 0.7rem;
           text-transform: uppercase;
           letter-spacing: 0.05em;
@@ -506,7 +506,7 @@ export default function F1Page() {
         .year-btn {
           background: rgba(255,255,255,0.04);
           border: 1px solid rgba(255,255,255,0.05);
-          color: #a1a1aa;
+          color: #d1d5db;
           border-radius: 6px;
           padding: 0.3rem 0.75rem;
           cursor: pointer;
@@ -550,7 +550,7 @@ export default function F1Page() {
               </button>
               <button
                 onClick={() => set_setup_banner_dismissed(true)}
-                style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}
+                style={{ background: 'none', border: 'none', color: '#d1d5db', cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}
               >
                 ✕
               </button>
@@ -565,7 +565,7 @@ export default function F1Page() {
             borderRadius: '8px', padding: '0.6rem 0.75rem', marginBottom: '1rem',
             display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem',
           }}>
-            <span style={{ color: '#bbb', fontSize: '0.8rem' }}>Playing as:</span>
+            <span style={{ color: '#d1d5db', fontSize: '0.8rem' }}>Playing as:</span>
             {roster.map(name => (
               <button
                 key={name}
@@ -588,10 +588,10 @@ export default function F1Page() {
             background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)',
             borderRadius: '8px', padding: '1rem', marginBottom: '1rem', textAlign: 'center',
           }}>
-            <div style={{ color: '#bbb', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+            <div style={{ color: '#d1d5db', fontSize: '0.85rem', marginBottom: '0.75rem' }}>
               No players on the roster yet.
             </div>
-            <div style={{ color: '#aaa', fontSize: '0.8rem', marginBottom: '0.5rem' }}>Browse previous seasons:</div>
+            <div style={{ color: '#d1d5db', fontSize: '0.8rem', marginBottom: '0.5rem' }}>Browse previous seasons:</div>
             <button className="year-btn" onClick={() => { set_season(s => s - 1); set_selected_round(null); }}>
               &larr; {season - 1}
             </button>
@@ -616,7 +616,7 @@ export default function F1Page() {
                   style={{
                     background: show_roster ? 'rgba(225,6,0,0.15)' : 'none',
                     border: 'none',
-                    color: show_roster ? '#e10600' : '#aaa',
+                    color: show_roster ? '#e10600' : '#d1d5db',
                     cursor: 'pointer',
                     fontSize: '1rem',
                     padding: '0.2rem',
@@ -658,7 +658,7 @@ export default function F1Page() {
 
         {/* Loading / Error */}
         {loading && !selected_round && (
-          <div style={{ textAlign: 'center', color: '#bbb', padding: '2rem' }}>
+          <div style={{ textAlign: 'center', color: '#d1d5db', padding: '2rem' }}>
             Loading {season} schedule...
           </div>
         )}
@@ -709,7 +709,7 @@ export default function F1Page() {
                     }}
                   />
                 ) : (
-                  <div style={{ textAlign: 'center', color: '#bbb', padding: '2rem' }}>
+                  <div style={{ textAlign: 'center', color: '#d1d5db', padding: '2rem' }}>
                     No races found for {season}. Try a different year.
                   </div>
                 )}
@@ -728,7 +728,7 @@ export default function F1Page() {
           </>
         )}
         <div style={{ textAlign: 'center', marginTop: '3rem', paddingBottom: '1rem' }}>
-          <a href="/" style={{ color: '#aaa', fontSize: '0.7rem', textDecoration: 'none' }}>8i11</a>
+          <a href="/" style={{ color: '#d1d5db', fontSize: '0.7rem', textDecoration: 'none' }}>8i11</a>
         </div>
       </div>
       </div>
