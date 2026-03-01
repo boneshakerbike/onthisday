@@ -67,6 +67,9 @@ export default function OnThisDay() {
   const [token_usage, set_token_usage] = useState<{ input: number; output: number; cached: number } | null>(null);
 
 
+  // Fetch error state (for /api/posts failures)
+  const [fetch_error, set_fetch_error] = useState<string | null>(null);
+
   // RSS sync state
   const [sync_status, set_sync_status] = useState<string | null>(null);
 
@@ -78,6 +81,7 @@ export default function OnThisDay() {
 
   const fetch_posts = useCallback(async (month?: number, day?: number) => {
     set_loading(true);
+    set_fetch_error(null);
     set_generated_story(null);
     set_story_id(null);
     set_existing_story(null);
@@ -87,7 +91,14 @@ export default function OnThisDay() {
     try {
       const params = month && day ? `?date=${month}-${day}` : '';
       const res = await fetch(`/api/posts${params}`);
+      if (!res.ok) {
+        throw new Error(`Server error (${res.status})`);
+      }
       const data: PostsResponse = await res.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
 
       set_date(data.date);
       set_posts(data.posts);
@@ -108,6 +119,9 @@ export default function OnThisDay() {
       }
     } catch (error) {
       console.error('Error fetching posts:', error);
+      set_fetch_error(
+        error instanceof Error ? error.message : 'Could not load posts. Check your connection and try again.'
+      );
     }
     set_loading(false);
   }, []);
@@ -626,8 +640,30 @@ export default function OnThisDay() {
           </div>
         )}
 
+        {/* Fetch error state */}
+        {!loading && fetch_error && (
+          <div className="py-10 text-center">
+            <div className="inline-block bg-red-900/40 border border-red-500/50 rounded-xl px-6 py-5 max-w-sm">
+              <p className="text-red-300 mb-4">{fetch_error}</p>
+              <button
+                onClick={() => {
+                  if (date) {
+                    fetch_posts(date.month, date.day);
+                  } else {
+                    const now = new Date();
+                    fetch_posts(now.getMonth() + 1, now.getDate());
+                  }
+                }}
+                className="px-5 py-2 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm hover:bg-red-500/40 hover:text-white transition-all"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* No posts state */}
-        {!loading && total_posts === 0 && (
+        {!loading && !fetch_error && total_posts === 0 && (
           <div className="text-center py-16 text-gray-400">
             <p className="text-5xl mb-5">📦</p>
             <p className="mb-2">No archive loaded</p>
@@ -636,7 +672,7 @@ export default function OnThisDay() {
         )}
 
         {/* Empty date state */}
-        {!loading && total_posts > 0 && posts.length === 0 && (
+        {!loading && !fetch_error && total_posts > 0 && posts.length === 0 && (
           <div className="text-center py-16 text-gray-400">
             <p className="text-5xl mb-5">📭</p>
             <p>No posts found for {date?.display}</p>
@@ -644,7 +680,7 @@ export default function OnThisDay() {
         )}
 
         {/* Posts */}
-        {!loading && posts.length > 0 && (
+        {!loading && !fetch_error && posts.length > 0 && (
           <>
             <div className="text-center text-6xl font-extralight text-cyan-400 mb-2">
               {posts.length}
