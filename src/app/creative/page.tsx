@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import JSZip from 'jszip';
 import Papa from 'papaparse';
 import NavTabs from '@/components/nav_tabs';
@@ -44,6 +45,7 @@ interface GenerateResponse {
 }
 
 export default function OnThisDay() {
+  const { data: session } = useSession();
   const [date, set_date] = useState<{ month: number; day: number; display: string } | null>(null);
   const [posts, set_posts] = useState<Post[]>([]);
   const [archive, set_archive] = useState<string | null>(null);
@@ -118,26 +120,30 @@ export default function OnThisDay() {
       .then(data => set_has_api_key(data.has_api_key))
       .catch(() => set_has_api_key(false));
 
-    // Background RSS sync
-    set_sync_status('Checking for new posts...');
-    fetch('/api/sync')
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          set_sync_status(data.message);
-          // Clear status after 3 seconds
-          setTimeout(() => set_sync_status(null), 3000);
-          // If new posts were added, refresh the current view
-          if (data.added > 0) {
-            const now = new Date();
-            fetch_posts(now.getMonth() + 1, now.getDate());
+    // Background RSS sync — only for GitHub OAuth admin users
+    const user_id = (session?.user as { id?: string } | undefined)?.id;
+    const is_github_user = session && user_id && user_id !== 'guest';
+    if (is_github_user) {
+      set_sync_status('Checking for new posts...');
+      fetch('/api/sync')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            set_sync_status(data.message);
+            // Clear status after 3 seconds
+            setTimeout(() => set_sync_status(null), 3000);
+            // If new posts were added, refresh the current view
+            if (data.added > 0) {
+              const now = new Date();
+              fetch_posts(now.getMonth() + 1, now.getDate());
+            }
+          } else {
+            set_sync_status(null);
           }
-        } else {
-          set_sync_status(null);
-        }
-      })
-      .catch(() => set_sync_status(null));
-  }, [fetch_posts]);
+        })
+        .catch(() => set_sync_status(null));
+    }
+  }, [fetch_posts, session]);
 
   useEffect(() => {
     // Always use client's local date to avoid server timezone issues
