@@ -146,7 +146,7 @@ export default function RosterManager({ season, round, roster, on_roster_change,
       <div style={{ color: '#e10600', fontSize: '0.8rem', fontWeight: 700, marginBottom: '0.25rem' }}>
         Roster Manager
       </div>
-      <div style={{ color: '#bbb', fontSize: '0.7rem', marginBottom: '0.5rem' }}>
+      <div style={{ color: '#d1d5db', fontSize: '0.7rem', marginBottom: '0.5rem' }}>
         Add yourself first before adding other players.
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.5rem' }}>
@@ -181,7 +181,7 @@ export default function RosterManager({ season, round, roster, on_roster_change,
           </span>
         ))}
         {roster.length === 0 && (
-          <span style={{ color: '#aaa', fontSize: '0.8rem' }}>No players added yet</span>
+          <span style={{ color: '#d1d5db', fontSize: '0.8rem' }}>No players added yet</span>
         )}
       </div>
       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
@@ -258,7 +258,7 @@ export default function RosterManager({ season, round, roster, on_roster_change,
             >
               Poke the Bear
             </button>
-            {!round && <span style={{ color: '#aaa', fontSize: '0.7rem' }}>Select a round first</span>}
+            {!round && <span style={{ color: '#d1d5db', fontSize: '0.7rem' }}>Select a round first</span>}
           </div>
           {poke_result && (
             <div style={{ color: '#d4a574', fontSize: '0.75rem', marginTop: '0.35rem' }}>

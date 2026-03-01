@@ -81,19 +81,19 @@ export default function SeasonGrid({ races, on_select_round, active_round, compl
                 e.currentTarget.style.background = is_future ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.04)';
               }}
             >
-              <div style={{ fontSize: '0.7rem', color: '#a1a1aa', marginBottom: '0.3rem', display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: '0.7rem', color: '#d1d5db', marginBottom: '0.3rem', display: 'flex', justifyContent: 'space-between' }}>
                 <span>R{race.round} {get_flag(race.country)}</span>
                 {is_completed && (
-                  <span style={{ color: '#a1a1aa', fontSize: '0.6rem', fontWeight: 700, background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: '3px' }}>DONE</span>
+                  <span style={{ color: '#d1d5db', fontSize: '0.6rem', fontWeight: 700, background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: '3px' }}>DONE</span>
                 )}
                 {is_active && (
                   <span style={{ color: '#e10600', fontSize: '0.6rem', fontWeight: 700, background: 'rgba(225,6,0,0.1)', padding: '1px 5px', borderRadius: '3px' }}>NEXT</span>
                 )}
               </div>
-              <div style={{ color: is_future ? '#aaa' : '#ffffff', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.3rem' }}>
+              <div style={{ color: is_future ? '#d1d5db' : '#ffffff', fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.3rem' }}>
                 {race.race_name.replace(' Grand Prix', ' GP')}
               </div>
-              <div style={{ color: '#a1a1aa', fontSize: '0.75rem' }}>
+              <div style={{ color: '#d1d5db', fontSize: '0.75rem' }}>
                 {format_date(race.race_date)}
                 {race.is_sprint_weekend && (
                   <span style={{

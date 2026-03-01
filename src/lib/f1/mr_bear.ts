@@ -122,21 +122,43 @@ export async function get_qualifying_ranking(
     .map(e => e.id);
 }
 
-// — Race ranking (qualifying grid for this round) ————
+// — Seeded pseudo-random (LCG) ——————————————————————
+// Returns a deterministic float in [0, 1) from a seed integer.
+
+function seeded_random(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (Math.imul(1664525, s) + 1013904223) >>> 0;
+    return s / 4294967296;
+  };
+}
+
+// — Race ranking (qualifying grid + position noise) ——
 
 export async function get_race_ranking(
   season: number, round: number
 ): Promise<string[]> {
   // Try cached qualifying results first
   const cached = await get_cached_results(season, round, 'qualifying' as SessionType);
+  let base: string[];
   if (cached) {
-    return cached.results
+    base = cached.results
       .sort((a, b) => a.position - b.position)
       .map(r => r.driver_id);
+  } else {
+    // Qualifying not revealed yet — fall back to form-based ranking
+    base = await get_qualifying_ranking(season, round);
   }
 
-  // Qualifying not revealed yet — fall back to form-based ranking
-  return get_qualifying_ranking(season, round);
+  // Add position noise (±2) so race picks differ from qualifying picks.
+  // Use a deterministic seed so the same round always produces the same shuffle.
+  const rng = seeded_random(season * 1000 + round);
+  const noisy = base.map((id, i) => ({
+    id,
+    score: i + (rng() * 4 - 2), // position ± up to 2
+  }));
+  noisy.sort((a, b) => a.score - b.score);
+  return noisy.map(n => n.id);
 }
 
 // — Pick generation ———————————————————————————————————

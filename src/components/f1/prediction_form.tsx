@@ -53,7 +53,7 @@ function DriverTypeAhead({
 
   return (
     <div style={{ marginBottom: '0.75rem', position: 'relative' }} ref={ref}>
-      <label style={{ color: '#aaa', fontSize: '0.75rem', display: 'block', marginBottom: '0.25rem' }}>
+      <label style={{ color: '#d1d5db', fontSize: '0.75rem', display: 'block', marginBottom: '0.25rem' }}>
         {label}
       </label>
       <input
@@ -78,7 +78,7 @@ function DriverTypeAhead({
           onClick={() => { on_change(''); set_query(''); set_open(true); }}
           style={{
             position: 'absolute', right: '8px', top: '26px',
-            background: 'none', border: 'none', color: '#bbb', cursor: 'pointer', fontSize: '0.8rem',
+            background: 'none', border: 'none', color: '#d1d5db', cursor: 'pointer', fontSize: '0.8rem',
           }}
         >
           x
@@ -99,7 +99,7 @@ function DriverTypeAhead({
           marginTop: '2px',
         }}>
           {filtered.length === 0 ? (
-            <div style={{ padding: '0.5rem', color: '#aaa', fontSize: '0.85rem' }}>No matches</div>
+            <div style={{ padding: '0.5rem', color: '#d1d5db', fontSize: '0.85rem' }}>No matches</div>
           ) : (
             filtered.map(d => (
               <button
@@ -122,7 +122,7 @@ function DriverTypeAhead({
               >
                 <span style={{ color: '#e10600', fontWeight: 700, marginRight: '0.4rem' }}>{d.code}</span>
                 {d.given_name} {d.family_name}
-                <span style={{ color: '#aaa', marginLeft: '0.4rem', fontSize: '0.75rem' }}>({d.constructor_name})</span>
+                <span style={{ color: '#d1d5db', marginLeft: '0.4rem', fontSize: '0.75rem' }}>({d.constructor_name})</span>
               </button>
             ))
           )}
@@ -175,7 +175,7 @@ export default function PredictionForm({
           style={{
             flex: 1,
             background: can_submit ? '#e10600' : '#444',
-            color: can_submit ? '#ffffff' : '#aaa',
+            color: can_submit ? '#ffffff' : '#d1d5db',
             border: 'none',
             borderRadius: '6px',
             padding: '0.6rem',
@@ -190,7 +190,7 @@ export default function PredictionForm({
           onClick={on_cancel}
           style={{
             background: 'transparent',
-            color: '#bbb',
+            color: '#d1d5db',
             border: '1px solid #444',
             borderRadius: '6px',
             padding: '0.6rem 1rem',
