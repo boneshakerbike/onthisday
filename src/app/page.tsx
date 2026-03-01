@@ -175,17 +175,17 @@ export default function HomePage() {
 
                 {/* Admin quick links grouped by service */}
                 {is_tools && is_admin && (
-                  <div className="space-y-1 mt-2">
-                    {ADMIN_QUICK_LINKS.map((group) => (
-                      <div key={group.group} className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs text-gray-600 w-16 shrink-0">{group.group}</span>
+                  <div className="flex flex-wrap gap-1.5 mt-2 items-center">
+                    {ADMIN_QUICK_LINKS.map((group, i) => (
+                      <>
+                        {i > 0 && <span key={`sep-${group.group}`} className="text-gray-700 text-xs">|</span>}
                         {group.links.map((link) => (
                           <a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer"
                             className="px-2 py-1 text-xs rounded bg-cyan-400/10 border border-cyan-400/20 text-cyan-400 hover:bg-cyan-400/20 transition-colors">
                             {link.label} ↗
                           </a>
                         ))}
-                      </div>
+                      </>
                     ))}
                   </div>
                 )}
