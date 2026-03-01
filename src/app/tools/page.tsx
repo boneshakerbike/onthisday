@@ -1,12 +1,13 @@
 /**
  * Tools Landing Page
- * Lists all available tools
+ * Lists all available tools — sourced from src/lib/tools.ts
  */
 
 'use client';
 
 import Link from 'next/link';
 import NavTabs from '@/components/nav_tabs';
+import { TOOLS } from '@/lib/tools';
 
 export default function ToolsPage() {
   return (
@@ -21,20 +22,16 @@ export default function ToolsPage() {
         </h1>
 
         <div className="grid gap-4">
-          <Link
-            href="/tools/text-cleaner"
-            className="block bg-white/5 rounded-xl p-6 border border-white/10 hover:border-cyan-400 transition-all"
-          >
-            <h2 className="text-xl text-white mb-2">What Am I Trying To Say</h2>
-            <p className="text-gray-400 text-sm">Paste rough text — get it cleaned up for clarity, then edit and copy</p>
-          </Link>
-          <Link
-            href="/tools/markdown"
-            className="block bg-white/5 rounded-xl p-6 border border-white/10 hover:border-cyan-400 transition-all"
-          >
-            <h2 className="text-xl text-white mb-2">Markdown Converter</h2>
-            <p className="text-gray-400 text-sm">Convert rich text to Markdown and back</p>
-          </Link>
+          {TOOLS.map((tool) => (
+            <Link
+              key={tool.path}
+              href={tool.path}
+              className="block bg-white/5 rounded-xl p-6 border border-white/10 hover:border-cyan-400 transition-all"
+            >
+              <h2 className="text-xl text-white mb-2">{tool.label}</h2>
+              <p className="text-gray-400 text-sm">{tool.description}</p>
+            </Link>
+          ))}
         </div>
       </div>
     </div>

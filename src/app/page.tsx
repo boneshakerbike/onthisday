@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import NavTabs from '@/components/nav_tabs';
+import { TOOLS } from '@/lib/tools';
 
 interface HealthData {
   posts: { total: number };
@@ -93,13 +94,8 @@ export default function HomePage() {
       description: 'Utilities for writing, thinking, and building',
       icon: '🛠️',
       color: 'purple',
-      links: [
-        { label: 'What Am I Trying To Say', href: '/tools/text-cleaner' },
-        { label: 'Markdown', href: '/tools/markdown' },
-        { label: 'Instruction Stripper', href: '/tools/instruction-stripper' },
-        { label: 'Knowledge Diff', href: '/tools/knowledge-diff' },
-        { label: 'Prompt Library', href: '/tools/prompt-library' },
-      ],
+      // Links sourced from src/lib/tools.ts — single source of truth
+      links: TOOLS.map((t) => ({ label: t.label, href: t.path })),
     },
     {
       title: 'Creative',
