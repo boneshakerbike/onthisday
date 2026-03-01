@@ -129,18 +129,18 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
   };
 
   const tab_class = (path: string) => {
-    const base = 'px-2 sm:px-3 py-2 text-sm font-medium transition-all border-b-2 whitespace-nowrap';
+    const base = 'px-4 sm:px-3 py-3 sm:py-2 text-base sm:text-sm min-h-[44px] sm:min-h-0 font-medium transition-all border-b-2 whitespace-nowrap';
     if (is_active(path)) {
       return `${base} ${is_light ? 'text-[#c4704b] border-[#c4704b]' : 'text-cyan-400 border-cyan-400'}`;
     }
-    return `${base} ${is_light ? 'text-gray-500 border-transparent hover:text-[#c4704b] hover:border-[#c4704b]/50' : 'text-gray-400 border-transparent hover:text-cyan-400 hover:border-cyan-400/50'}`;
+    return `${base} ${is_light ? 'text-gray-500 border-transparent hover:text-[#c4704b] hover:border-[#c4704b]/50' : 'text-gray-200 border-transparent hover:text-cyan-400 hover:border-cyan-400/50'}`;
   };
 
-  const inactive_class = `px-3 py-2 text-sm font-medium transition-all border-b-2 border-transparent whitespace-nowrap ${is_light ? 'text-gray-400 hover:text-[#c4704b]' : 'text-gray-500 hover:text-cyan-400'}`;
+  const inactive_class = `px-4 sm:px-3 py-3 sm:py-2 text-base sm:text-sm min-h-[44px] sm:min-h-0 font-medium transition-all border-b-2 border-transparent whitespace-nowrap ${is_light ? 'text-gray-400 hover:text-[#c4704b]' : 'text-gray-200 hover:text-cyan-400'}`;
 
   const dropdown_class = `py-1 rounded-lg shadow-xl min-w-[180px] z-[9999] ${is_light ? 'bg-white border border-[#e5e0d8]' : 'bg-[#1a1a2e] border border-white/10'}`;
 
-  const dropdown_item_class = `block px-4 py-2 text-sm transition-all ${is_light ? 'text-gray-600 hover:bg-[#c4704b]/10 hover:text-[#c4704b]' : 'text-gray-300 hover:bg-cyan-400/10 hover:text-cyan-400'}`;
+  const dropdown_item_class = `block px-4 py-3 sm:py-2 text-base sm:text-sm min-h-[44px] sm:min-h-0 transition-all ${is_light ? 'text-gray-600 hover:bg-[#c4704b]/10 hover:text-[#c4704b]' : 'text-gray-200 hover:bg-cyan-400/10 hover:text-cyan-400'}`;
 
   const chevron = (is_open: boolean) => (
     <svg
