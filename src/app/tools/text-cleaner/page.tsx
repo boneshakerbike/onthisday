@@ -102,17 +102,17 @@ export default function TextCleanerPage() {
           </div>
 
           {/* Clean button */}
-          <div className="flex justify-center gap-3">
+          <div className="flex flex-col sm:flex-row justify-center gap-3">
             <button
               onClick={clean}
               disabled={loading || !input.trim()}
-              className="px-8 py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-white/10 disabled:text-gray-500 text-black font-semibold rounded-lg transition-all text-sm"
+              className="w-full sm:w-auto px-8 py-[14px] sm:py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-white/10 disabled:text-gray-500 text-black font-semibold rounded-lg transition-all text-sm"
             >
               {loading ? 'Cleaning...' : 'Clean Up'}
             </button>
             <button
               onClick={clear_all}
-              className="px-4 py-3 bg-white/10 hover:bg-red-400/20 rounded-lg border border-white/20 text-sm transition-all"
+              className="w-full sm:w-auto px-4 py-2.5 sm:py-3 bg-[#333] sm:bg-white/10 hover:bg-red-400/20 rounded-lg border border-[#555] sm:border-white/20 text-gray-300 text-sm transition-all"
             >
               Clear
             </button>
@@ -138,7 +138,7 @@ export default function TextCleanerPage() {
                   )}
                   <button
                     onClick={copy_output}
-                    className="px-3 py-1 bg-white/10 hover:bg-cyan-400/20 rounded border border-white/20 text-sm transition-all"
+                    className="px-3 py-2 sm:py-1 bg-[#333] sm:bg-white/10 hover:bg-cyan-400/20 rounded border border-[#555] sm:border-white/20 text-sm text-gray-300 transition-all"
                   >
                     Copy
                   </button>

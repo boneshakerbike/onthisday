@@ -410,7 +410,7 @@ export default function PromptLibraryPage() {
   function render_list() {
     return (
       <>
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-cyan-400 mb-2">Prompt Library</h1>
             <p className="text-gray-400 text-sm">Store, version, and refine your prompts with AI review.</p>
@@ -418,7 +418,7 @@ export default function PromptLibraryPage() {
           {!creating && (
             <button
               onClick={() => set_creating(true)}
-              className="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 rounded-lg font-medium transition-all text-sm"
+              className="w-full sm:w-auto px-4 py-[14px] sm:py-2 bg-cyan-500 hover:bg-cyan-600 rounded-lg font-medium transition-all text-sm"
             >
               + New Prompt
             </button>
@@ -436,9 +436,9 @@ export default function PromptLibraryPage() {
               placeholder="e.g., Story Generation System Prompt"
               className="w-full bg-white/5 border border-white/10 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-cyan-400/50 mb-2"
             />
-            <div className="flex gap-2">
-              <button onClick={handle_create} className="px-4 py-2 text-sm bg-cyan-500 hover:bg-cyan-600 rounded transition-all">Create</button>
-              <button onClick={() => { set_creating(false); set_new_name(''); }} className="px-4 py-2 text-sm bg-white/10 hover:bg-white/20 rounded transition-all">Cancel</button>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-2">
+              <button onClick={handle_create} className="w-full sm:w-auto px-4 py-[14px] sm:py-2 text-sm bg-cyan-500 hover:bg-cyan-600 rounded transition-all">Create</button>
+              <button onClick={() => { set_creating(false); set_new_name(''); }} className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm bg-[#333] sm:bg-white/10 text-gray-300 border border-[#555] sm:border-transparent hover:bg-white/20 rounded transition-all">Cancel</button>
             </div>
           </div>
         )}
@@ -716,11 +716,11 @@ export default function PromptLibraryPage() {
         {/* Action bar */}
         {!viewing_version && (
           <div className="flex flex-col gap-3 mb-6">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-2 w-full">
               <button
                 onClick={handle_save}
                 disabled={saving || !has_unsaved}
-                className="px-4 py-2 text-sm bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed rounded transition-all"
+                className="w-full sm:w-auto px-4 py-[14px] sm:py-2 text-sm bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed rounded transition-all"
               >
                 {saving ? 'Saving...' : 'Save'}
               </button>
@@ -731,11 +731,11 @@ export default function PromptLibraryPage() {
                   setTimeout(() => set_copied(false), 2000);
                 }}
                 disabled={!editor_content.trim()}
-                className="px-4 py-2 text-sm bg-white/10 text-gray-300 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-all"
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm bg-[#333] sm:bg-white/10 text-gray-300 border border-[#555] sm:border-transparent hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-all"
               >
                 {copied ? 'Copied!' : 'Copy'}
               </button>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                 <input
                   value={review_issue}
                   onChange={(e) => set_review_issue(e.target.value)}
@@ -745,20 +745,20 @@ export default function PromptLibraryPage() {
                 <button
                   onClick={handle_review}
                   disabled={reviewing || !editor_content.trim()}
-                  className="px-4 py-2 text-sm bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-all border border-purple-500/30 whitespace-nowrap"
+                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed rounded transition-all border border-purple-500/30 whitespace-nowrap"
                 >
                   {reviewing ? 'Reviewing...' : 'Review ~3\u00a2'}
                 </button>
               </div>
               <button
                 onClick={() => set_show_history(!show_history)}
-                className={`px-4 py-2 text-sm rounded transition-all border ${show_history ? 'bg-white/10 border-cyan-400/30 text-cyan-400' : 'bg-white/5 border-white/10 text-gray-400 hover:text-gray-200'}`}
+                className={`w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm rounded transition-all border ${show_history ? 'bg-white/10 border-cyan-400/30 text-cyan-400' : 'bg-[#333] sm:bg-white/5 border-[#555] sm:border-white/10 text-gray-300 sm:text-gray-400 hover:text-gray-200'}`}
               >
                 History ({versions.length})
               </button>
               <button
                 onClick={handle_delete}
-                className="px-4 py-2 text-sm text-gray-500 hover:text-red-400 transition-all ml-auto"
+                className="w-full sm:w-auto px-4 py-2.5 sm:py-2 text-sm text-gray-300 sm:text-gray-500 bg-[#333] sm:bg-transparent border border-[#555] sm:border-transparent rounded hover:text-red-400 transition-all sm:ml-auto"
               >
                 Delete
               </button>

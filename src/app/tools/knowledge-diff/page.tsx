@@ -240,15 +240,19 @@ export default function KnowledgeDiffPage() {
         </div>
 
         {/* Controls */}
-        <div style={{
+        <div
+          className="knowledge-diff-actions"
+          style={{
           display: 'flex',
           alignItems: 'center',
           gap: '20px',
+          flexWrap: 'wrap',
           marginBottom: '24px'
         }}>
           <button
             onClick={handle_compare}
             disabled={!!status || !old_doc.trim() || !new_doc.trim()}
+            className="knowledge-diff-primary"
             style={{
               padding: '12px 32px',
               background: status ? '#333' : '#0ea5e9',
@@ -267,6 +271,7 @@ export default function KnowledgeDiffPage() {
           <button
             onClick={() => { set_old_doc(''); set_new_doc(''); set_result(null); set_error(''); }}
             disabled={!!status || (!old_doc && !new_doc && !result)}
+            className="knowledge-diff-secondary"
             style={{
               padding: '12px 24px',
               background: '#333',
@@ -282,7 +287,9 @@ export default function KnowledgeDiffPage() {
             Clear
           </button>
 
-          <label style={{
+          <label
+            className="knowledge-diff-option"
+            style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
@@ -372,7 +379,9 @@ export default function KnowledgeDiffPage() {
               {/* Appendix (when losses found) */}
               {result.appendix && (
                 <div style={{ marginBottom: '16px' }}>
-                  <div style={{
+                  <div
+                    className="knowledge-diff-appendix-header"
+                    style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -383,6 +392,7 @@ export default function KnowledgeDiffPage() {
                     </label>
                     <button
                       onClick={handle_copy}
+                      className="knowledge-diff-secondary knowledge-diff-copy-button"
                       style={{
                         padding: '8px 16px',
                         background: copied ? '#166534' : '#333',
@@ -441,6 +451,46 @@ export default function KnowledgeDiffPage() {
             </div>
           </div>
         )}
+        <style jsx>{`
+          @media (max-width: 768px) {
+            .knowledge-diff-actions {
+              flex-direction: column;
+              align-items: stretch !important;
+              gap: 12px !important;
+            }
+
+            .knowledge-diff-primary,
+            .knowledge-diff-secondary {
+              width: 100%;
+            }
+
+            .knowledge-diff-primary {
+              padding: 14px !important;
+            }
+
+            .knowledge-diff-secondary {
+              padding: 10px 14px !important;
+              background: #333 !important;
+              border-color: #555 !important;
+              color: #ccc !important;
+            }
+
+            .knowledge-diff-option {
+              width: 100%;
+              justify-content: flex-start;
+            }
+
+            .knowledge-diff-appendix-header {
+              flex-direction: column;
+              align-items: stretch !important;
+              gap: 12px;
+            }
+
+            .knowledge-diff-copy-button {
+              text-align: center;
+            }
+          }
+        `}</style>
       </div>
     </div>
   );

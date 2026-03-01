@@ -598,22 +598,22 @@ export default function OnThisDay() {
         </div>
 
         {/* Quick dates */}
-        <div className="text-center mb-5">
+        <div className="creative-quick-actions text-center mb-5 flex flex-col sm:flex-row sm:justify-center gap-3 sm:gap-0">
           <button
             onClick={() => go_to_relative_day(-1)}
-            className="inline-block px-3 py-1 m-1 bg-white/5 rounded-full text-gray-400 text-sm hover:bg-cyan-400/20 hover:text-cyan-400"
+            className="creative-secondary-button inline-flex justify-center px-4 sm:px-3 py-2.5 sm:py-1 m-0 sm:m-1 bg-[#333] sm:bg-white/5 border border-[#555] sm:border-transparent rounded-full text-gray-300 sm:text-gray-400 text-sm hover:bg-cyan-400/20 hover:text-cyan-400"
           >
             Yesterday
           </button>
           <button
             onClick={() => go_to_relative_day(0)}
-            className="inline-block px-3 py-1 m-1 bg-white/5 rounded-full text-gray-400 text-sm hover:bg-cyan-400/20 hover:text-cyan-400"
+            className="creative-secondary-button inline-flex justify-center px-4 sm:px-3 py-2.5 sm:py-1 m-0 sm:m-1 bg-[#333] sm:bg-white/5 border border-[#555] sm:border-transparent rounded-full text-gray-300 sm:text-gray-400 text-sm hover:bg-cyan-400/20 hover:text-cyan-400"
           >
             Today
           </button>
           <button
             onClick={() => go_to_relative_day(1)}
-            className="inline-block px-3 py-1 m-1 bg-white/5 rounded-full text-gray-400 text-sm hover:bg-cyan-400/20 hover:text-cyan-400"
+            className="creative-secondary-button inline-flex justify-center px-4 sm:px-3 py-2.5 sm:py-1 m-0 sm:m-1 bg-[#333] sm:bg-white/5 border border-[#555] sm:border-transparent rounded-full text-gray-300 sm:text-gray-400 text-sm hover:bg-cyan-400/20 hover:text-cyan-400"
           >
             Tomorrow
           </button>
@@ -654,16 +654,16 @@ export default function OnThisDay() {
             </p>
 
             {/* Export buttons */}
-            <div className="text-center mb-6 flex flex-wrap justify-center gap-2">
+            <div className="creative-export-actions text-center mb-6 flex flex-col sm:flex-row sm:flex-wrap justify-center gap-3 sm:gap-2">
               <button
                 onClick={() => copy_for_substack('simple')}
-                className="px-5 py-2 border-2 border-cyan-400 rounded-lg bg-transparent text-cyan-400 text-sm font-medium hover:bg-cyan-400 hover:text-[#1a1a2e] transition-all"
+                className="creative-secondary-button w-full sm:w-auto px-4 sm:px-5 py-2.5 sm:py-2 border border-[#555] sm:border-cyan-400 rounded-lg bg-[#333] sm:bg-transparent text-cyan-300 sm:text-cyan-400 text-sm font-medium hover:bg-cyan-400 hover:text-[#1a1a2e] transition-all"
               >
                 Copy Titles Only
               </button>
               <button
                 onClick={() => copy_for_substack('full')}
-                className="px-5 py-2 border-2 border-cyan-400 rounded-lg bg-transparent text-cyan-400 text-sm font-medium hover:bg-cyan-400 hover:text-[#1a1a2e] transition-all"
+                className="creative-secondary-button w-full sm:w-auto px-4 sm:px-5 py-2.5 sm:py-2 border border-[#555] sm:border-cyan-400 rounded-lg bg-[#333] sm:bg-transparent text-cyan-300 sm:text-cyan-400 text-sm font-medium hover:bg-cyan-400 hover:text-[#1a1a2e] transition-all"
               >
                 Copy with Blurbs
               </button>
@@ -671,7 +671,7 @@ export default function OnThisDay() {
                 <button
                   onClick={copy_with_ai_intro}
                   disabled={ai_copying}
-                  className="px-5 py-2 border-2 border-purple-400 rounded-lg bg-transparent text-purple-400 text-sm font-medium hover:bg-purple-400 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="creative-secondary-button w-full sm:w-auto px-4 sm:px-5 py-2.5 sm:py-2 border border-[#555] sm:border-purple-400 rounded-lg bg-[#333] sm:bg-transparent text-purple-300 sm:text-purple-400 text-sm font-medium hover:bg-purple-400 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {ai_copying ? 'Writing...' : 'Copy with AI Intro'}
                 </button>
@@ -687,7 +687,7 @@ export default function OnThisDay() {
                 <button
                   onClick={generate_story}
                   disabled={generating}
-                  className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg text-white font-medium hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="creative-primary-button w-full sm:w-auto px-6 py-[14px] sm:py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg text-white font-medium hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {generating ? 'Writing...' : existing_story ? 'Regenerate Story' : 'Generate Story'}
                 </button>
@@ -730,7 +730,7 @@ export default function OnThisDay() {
               <div className="mb-8 p-6 bg-white/5 border border-purple-400/30 rounded-xl">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                   <h3 className="text-purple-400 font-medium">Generated Story</h3>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="creative-story-actions flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 sm:gap-2 w-full sm:w-auto">
                     {token_usage && (
                       <span className="text-xs text-gray-600 mr-2">
                         {token_usage.input + token_usage.output} tokens
@@ -739,19 +739,19 @@ export default function OnThisDay() {
                     )}
                     <button
                       onClick={copy_story}
-                      className="px-3 py-1 border border-purple-400 rounded text-purple-400 text-xs hover:bg-purple-400 hover:text-white transition-all"
+                      className="creative-secondary-button w-full sm:w-auto px-3 py-2.5 sm:py-1 border border-[#555] sm:border-purple-400 rounded bg-[#333] sm:bg-transparent text-purple-300 sm:text-purple-400 text-xs hover:bg-purple-400 hover:text-white transition-all"
                     >
                       Substack
                     </button>
                     <button
                       onClick={copy_story_social}
-                      className="px-3 py-1 border border-cyan-400 rounded text-cyan-400 text-xs hover:bg-cyan-400 hover:text-[#1a1a2e] transition-all"
+                      className="creative-secondary-button w-full sm:w-auto px-3 py-2.5 sm:py-1 border border-[#555] sm:border-cyan-400 rounded bg-[#333] sm:bg-transparent text-cyan-300 sm:text-cyan-400 text-xs hover:bg-cyan-400 hover:text-[#1a1a2e] transition-all"
                     >
                       Social
                     </button>
                     <button
                       onClick={copy_story_markdown}
-                      className="px-3 py-1 border border-gray-400 rounded text-gray-400 text-xs hover:bg-gray-400 hover:text-[#1a1a2e] transition-all"
+                      className="creative-secondary-button w-full sm:w-auto px-3 py-2.5 sm:py-1 border border-[#555] sm:border-gray-400 rounded bg-[#333] sm:bg-transparent text-gray-300 sm:text-gray-400 text-xs hover:bg-gray-400 hover:text-[#1a1a2e] transition-all"
                     >
                       Markdown
                     </button>
@@ -761,13 +761,13 @@ export default function OnThisDay() {
                           href={`/story/${story_id}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="px-3 py-1 border border-green-400 rounded text-green-400 text-xs hover:bg-green-400 hover:text-[#1a1a2e] transition-all inline-block"
+                          className="creative-secondary-button w-full sm:w-auto px-3 py-2.5 sm:py-1 border border-[#555] sm:border-green-400 rounded bg-[#333] sm:bg-transparent text-green-300 sm:text-green-400 text-xs hover:bg-green-400 hover:text-[#1a1a2e] transition-all inline-block"
                         >
                           View Page
                         </a>
                         <button
                           onClick={copy_story_link}
-                          className="px-3 py-1 border border-green-400 rounded text-green-400 text-xs hover:bg-green-400 hover:text-[#1a1a2e] transition-all"
+                          className="creative-secondary-button w-full sm:w-auto px-3 py-2.5 sm:py-1 border border-[#555] sm:border-green-400 rounded bg-[#333] sm:bg-transparent text-green-300 sm:text-green-400 text-xs hover:bg-green-400 hover:text-[#1a1a2e] transition-all"
                         >
                           Copy Link
                         </button>
@@ -885,6 +885,15 @@ export default function OnThisDay() {
             </div>
           </details>
         </div>
+        <style jsx>{`
+          @media (max-width: 768px) {
+            .creative-export-actions > span,
+            .creative-story-actions > span {
+              text-align: center;
+              width: 100%;
+            }
+          }
+        `}</style>
       </div>
     </div>
   );
