@@ -1,12 +1,8 @@
-# CLAUDE.md - On This Day
-
-> **Agent boot protocol:** Read `AGENTS.md` in this directory before starting work.
-> It contains the Chipboard boot sequence, context system rules, and operational policy.
->
-> **Worklog:** On session start, read Worklog (last 3 entries). On session end, write Worklog.
-> See AGENTS.md sections 1, 6, and 7 for details.
+# CLAUDE.md - 8i11
 
 ## Project Overview
+
+**Live:** https://8i11.vercel.app | **Repo:** https://github.com/boneshakerbike/onthisday
 
 **On This Day** is a Next.js web application that allows users to discover Substack posts published on any given date across multiple years. It serves as a personal archive explorer with AI-powered "looking back" reflections using the Claude API.
 
@@ -253,3 +249,25 @@ ANTHROPIC_API_KEY=<Claude API key>
 9. **No Tests:** This project currently has no test suite
 
 10. **Single User Focus:** Designed for a single Substack newsletter archive, not multi-tenant
+
+11. **Model Names:** Use pinned versions only. Valid: `claude-sonnet-4-20250514`, `claude-opus-4-5-20251101`. Aliases like `claude-sonnet-4-latest` return 404.
+
+## Branching & Deployment
+
+```
+chip/* or codex/*  →  PR to dev  →  PR to main
+                       ↑                ↑
+                  Agent merges      Bill merges
+                  Vercel preview    Vercel production
+```
+
+- **`main`** — Production. Vercel auto-deploys to 8i11.vercel.app. Only Bill merges here.
+- **`dev`** — Integration branch. Vercel preview deploy. Agent can merge PRs here after build passes.
+- **`chip/*`** — Feature branches. PRs target `dev`.
+- **Never commit directly to `main`.**
+
+## Task Management
+
+Tasks are tracked as GitHub Issues: https://github.com/boneshakerbike/onthisday/issues
+
+Labels: `area:*` (creative, tools, health, games, infra), `status:*` (todo, in-progress, blocked), `agent:*` (chip, codex)

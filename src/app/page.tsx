@@ -30,14 +30,27 @@ interface Category {
 }
 
 const ADMIN_QUICK_LINKS = [
-  { label: 'Deploys', href: 'https://vercel.com/boneshakerbikes-projects/~/deployments' },
-  { label: 'Repo', href: 'https://github.com/boneshakerbike/onthisday' },
-  { label: 'Console', href: 'https://console.anthropic.com' },
-  { label: 'Usage', href: 'https://claude.ai/settings/usage' },
-  { label: 'Turso', href: 'https://app.turso.tech' },
-  { label: 'Oura Dev', href: 'https://developer.ouraring.com/applications' },
-  { label: 'Scheduled', href: 'https://8i11.substack.com/publish/posts/scheduled' },
-  { label: 'Env Vars', href: 'https://vercel.com/boneshakerbikes-projects/8i11/settings/environment-variables' },
+  { group: 'GitHub',    links: [
+    { label: 'Repo',   href: 'https://github.com/boneshakerbike/onthisday' },
+    { label: 'Issues', href: 'https://github.com/boneshakerbike/onthisday/issues' },
+  ]},
+  { group: 'Vercel',    links: [
+    { label: 'Deploys',   href: 'https://vercel.com/boneshakerbikes-projects/~/deployments' },
+    { label: 'Env Vars',  href: 'https://vercel.com/boneshakerbikes-projects/8i11/settings/environment-variables' },
+  ]},
+  { group: 'Anthropic', links: [
+    { label: 'Console', href: 'https://console.anthropic.com' },
+    { label: 'Usage',   href: 'https://claude.ai/settings/usage' },
+  ]},
+  { group: 'Substack',  links: [
+    { label: 'Scheduled', href: 'https://8i11.substack.com/publish/posts/scheduled' },
+  ]},
+  { group: 'Turso',     links: [
+    { label: 'Turso', href: 'https://app.turso.tech' },
+  ]},
+  { group: 'Oura',      links: [
+    { label: 'Oura Dev', href: 'https://developer.ouraring.com/applications' },
+  ]},
 ];
 
 function AdminSection({ title, children }: { title: string; children: React.ReactNode }) {
@@ -150,7 +163,7 @@ export default function HomePage() {
                 <h2 className={`text-lg font-medium ${colors.text} mb-1`}>{cat.title}</h2>
                 <p className="text-gray-400 text-sm leading-relaxed mb-3">{cat.description}</p>
 
-                {/* Tool links + admin quick links as chiclets */}
+                {/* Tool links */}
                 <div className="flex flex-wrap gap-1.5 mb-1">
                   {cat.links.map((link) => (
                     <Link key={link.label} href={link.href}
@@ -158,13 +171,24 @@ export default function HomePage() {
                       {link.label}
                     </Link>
                   ))}
-                  {is_tools && is_admin && ADMIN_QUICK_LINKS.map((link) => (
-                    <a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer"
-                      className="px-2 py-1 text-xs rounded bg-cyan-400/10 border border-cyan-400/20 text-cyan-400 hover:bg-cyan-400/20 transition-colors">
-                      {link.label} ↗
-                    </a>
-                  ))}
                 </div>
+
+                {/* Admin quick links grouped by service */}
+                {is_tools && is_admin && (
+                  <div className="space-y-1 mt-2">
+                    {ADMIN_QUICK_LINKS.map((group) => (
+                      <div key={group.group} className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs text-gray-600 w-16 shrink-0">{group.group}</span>
+                        {group.links.map((link) => (
+                          <a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer"
+                            className="px-2 py-1 text-xs rounded bg-cyan-400/10 border border-cyan-400/20 text-cyan-400 hover:bg-cyan-400/20 transition-colors">
+                            {link.label} ↗
+                          </a>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Admin collapsible sections */}
                 {is_tools && is_admin && (
