@@ -164,7 +164,7 @@ export default function KnowledgeDiffPage() {
         <NavTabs />
 
         <h1 style={{ fontSize: '1.5em', marginBottom: '8px' }}>Knowledge Diff</h1>
-        <p style={{ color: '#888', marginBottom: '24px' }}>
+        <p style={{ color: '#bbb', marginBottom: '24px' }}>
           Compare two knowledge documents to detect potential information loss
         </p>
 
@@ -180,7 +180,7 @@ export default function KnowledgeDiffPage() {
               display: 'block',
               marginBottom: '8px',
               fontWeight: 500,
-              color: '#aaa'
+              color: '#ccc'
             }}>
               OLD Document
             </label>
@@ -201,7 +201,7 @@ export default function KnowledgeDiffPage() {
                 resize: 'vertical'
               }}
             />
-            <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+            <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
               {old_doc.length.toLocaleString()} characters
             </div>
           </div>
@@ -212,7 +212,7 @@ export default function KnowledgeDiffPage() {
               display: 'block',
               marginBottom: '8px',
               fontWeight: 500,
-              color: '#aaa'
+              color: '#ccc'
             }}>
               NEW Document
             </label>
@@ -233,7 +233,7 @@ export default function KnowledgeDiffPage() {
                 resize: 'vertical'
               }}
             />
-            <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+            <div style={{ fontSize: '12px', color: '#999', marginTop: '4px' }}>
               {new_doc.length.toLocaleString()} characters
             </div>
           </div>
@@ -270,7 +270,7 @@ export default function KnowledgeDiffPage() {
             style={{
               padding: '12px 24px',
               background: '#333',
-              color: '#aaa',
+              color: '#ccc',
               border: '1px solid #444',
               borderRadius: '8px',
               fontSize: '15px',
@@ -286,7 +286,7 @@ export default function KnowledgeDiffPage() {
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            color: '#888',
+            color: '#bbb',
             cursor: 'pointer'
           }}>
             <input
@@ -346,7 +346,7 @@ export default function KnowledgeDiffPage() {
                       ? 'Input may be truncated or wrong document'
                       : result.has_losses ? 'Knowledge would be lost' : 'No knowledge loss detected'}
                   </div>
-                  <div style={{ fontSize: '13px', color: '#888' }}>
+                  <div style={{ fontSize: '13px', color: '#bbb' }}>
                     {result.truncation_detected
                       ? 'The NEW document looks significantly shorter or cut off — check your inputs before trusting results'
                       : result.has_losses
@@ -357,7 +357,7 @@ export default function KnowledgeDiffPage() {
               </div>
               <div style={{
                 fontSize: '13px',
-                color: '#666',
+                color: '#999',
                 textAlign: 'right'
               }}>
                 <div>Cost: ${calculate_cost(result.usage)}</div>
@@ -378,7 +378,7 @@ export default function KnowledgeDiffPage() {
                     justifyContent: 'space-between',
                     marginBottom: '12px'
                   }}>
-                    <label style={{ fontWeight: 500, color: '#aaa' }}>
+                    <label style={{ fontWeight: 500, color: '#ccc' }}>
                       Appendix (paste at end of new document)
                     </label>
                     <button
@@ -419,7 +419,7 @@ export default function KnowledgeDiffPage() {
               <details open={!result.has_losses}>
                 <summary style={{
                   cursor: 'pointer',
-                  color: '#888',
+                  color: '#bbb',
                   fontSize: '13px'
                 }}>
                   {result.has_losses ? 'View analysis' : 'Analysis summary'}
@@ -430,7 +430,7 @@ export default function KnowledgeDiffPage() {
                   background: '#1a1a1a',
                   border: '1px solid #333',
                   borderRadius: '8px',
-                  color: '#aaa',
+                  color: '#ccc',
                   fontSize: '12px',
                   whiteSpace: 'pre-wrap',
                   overflow: 'auto'
