@@ -151,7 +151,10 @@ Rules:
 - Organize under a "## Appendix" header with brief sub-headers for each recovered item
 
 VERIFIED_LOSSES:
-${analysis}`;
+${analysis}
+
+OLD DOCUMENT (source for exact quotes):
+${old_doc}`;
 
       const result = await client.messages.create({
         model,
