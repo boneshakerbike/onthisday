@@ -797,7 +797,7 @@ export default function OnThisDay() {
                           href={`/story/${story_id}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="creative-secondary-button w-full sm:w-auto px-3 py-2.5 sm:py-1 border border-[#555] sm:border-green-400 rounded bg-[#333] sm:bg-transparent text-green-300 sm:text-green-400 text-xs hover:bg-green-400 hover:text-[#1a1a2e] transition-all inline-block"
+                          className="creative-secondary-button w-full sm:w-auto px-3 py-2.5 sm:py-1 border border-[#555] sm:border-green-400 rounded bg-[#333] sm:bg-transparent text-green-300 sm:text-green-400 text-xs hover:bg-green-400 hover:text-[#1a1a2e] transition-all inline-block text-center"
                         >
                           View Page
                         </a>
