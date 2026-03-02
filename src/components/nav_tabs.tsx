@@ -221,6 +221,11 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
             </button>
           </div>
 
+          {/* Weather (standalone link) */}
+          <Link href="/weather" className={tab_class('/weather')}>
+            Weather
+          </Link>
+
         </nav>
         </div>
 
