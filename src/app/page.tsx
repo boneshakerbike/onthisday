@@ -127,6 +127,15 @@ export default function HomePage() {
         { label: 'F1 Predictions', href: '/games/f1' },
       ],
     },
+    {
+      title: 'Weather',
+      description: 'TV-optimized weather display for Missoula, MT',
+      icon: '🌤️',
+      color: 'amber',
+      links: [
+        { label: 'Weather Display', href: '/weather' },
+      ],
+    },
   ];
 
   const color_map: Record<string, { border: string; hover_bg: string; text: string; link: string }> = {
@@ -134,6 +143,7 @@ export default function HomePage() {
     purple: { border: 'border-purple-400/20', hover_bg: 'hover:bg-purple-400/5', text: 'text-purple-400', link: 'text-purple-400/60 hover:text-purple-400' },
     green:  { border: 'border-green-400/20',  hover_bg: 'hover:bg-green-400/5',  text: 'text-green-400',  link: 'text-green-400/60 hover:text-green-400' },
     pink:   { border: 'border-pink-400/20',   hover_bg: 'hover:bg-pink-400/5',   text: 'text-pink-400',   link: 'text-pink-400/60 hover:text-pink-400' },
+    amber:  { border: 'border-amber-400/20',  hover_bg: 'hover:bg-amber-400/5',  text: 'text-amber-400',  link: 'text-amber-400/60 hover:text-amber-400' },
   };
 
   return (
