@@ -453,6 +453,7 @@ export default function OnThisDay() {
   const control_label_text_class = 'text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300/70';
   const collapsible_summary_class = 'cursor-pointer list-none';
   const collapsible_summary_row_class = 'mb-3 flex items-center justify-between gap-3';
+  const collapsible_arrow_class = 'text-sm text-gray-500';
   const action_button_class = 'inline-flex w-full sm:w-auto items-center justify-center rounded-xl border px-4 py-2.5 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50';
   const secondary_button_class = `${action_button_class} border-cyan-400/30 bg-white/[0.03] text-cyan-200 hover:border-cyan-300 hover:bg-cyan-400/15 hover:text-white`;
   const subtle_button_class = `${action_button_class} border-white/10 bg-transparent text-gray-300 hover:border-cyan-400/30 hover:text-cyan-200`;
@@ -488,7 +489,7 @@ export default function OnThisDay() {
           <summary className={collapsible_summary_class}>
             <div className={collapsible_summary_row_class}>
               <span className={control_label_text_class}>Date Navigation</span>
-              <span className="text-xs text-gray-500">Toggle</span>
+              <span aria-hidden="true" className={collapsible_arrow_class}>{'>'}</span>
             </div>
           </summary>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
@@ -572,7 +573,7 @@ export default function OnThisDay() {
               <summary className={collapsible_summary_class}>
                 <div className={collapsible_summary_row_class}>
                   <span className={control_label_text_class}>Export / Copy</span>
-                  <span className="text-xs text-gray-500">Toggle</span>
+                  <span aria-hidden="true" className={collapsible_arrow_class}>{'>'}</span>
                 </div>
               </summary>
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -622,7 +623,7 @@ export default function OnThisDay() {
               <summary className={collapsible_summary_class}>
                 <div className={collapsible_summary_row_class}>
                   <span className={control_label_text_class}>Story Actions</span>
-                  <span className="text-xs text-gray-500">Toggle</span>
+                  <span aria-hidden="true" className={collapsible_arrow_class}>{'>'}</span>
                 </div>
               </summary>
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -727,35 +728,30 @@ export default function OnThisDay() {
                 />
               </div>
             ) : posts.map((post) => (
-              <details
+              <div
                 key={post.post_id}
-                className="mb-4 rounded-xl border border-white/10 bg-white/5 transition-all hover:border-cyan-400"
+                className="bg-white/5 rounded-xl p-5 mb-4 border border-white/10 hover:translate-x-1 hover:border-cyan-400 transition-all"
               >
-                <summary className="cursor-pointer px-5 py-4">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="inline-block rounded-full bg-cyan-400 px-3 py-1 text-sm font-semibold text-[#1a1a2e]">
-                      {post.year}
-                    </span>
-                    <span className="text-sm text-gray-400">
-                      {get_years_text(post.years_ago)}
-                    </span>
-                    <span className="text-lg text-white">{post.title}</span>
-                  </div>
-                </summary>
-                <div className="px-5 pb-5">
+                <span className="inline-block bg-cyan-400 text-[#1a1a2e] px-3 py-1 rounded-full text-sm font-semibold mb-2">
+                  {post.year}
+                </span>
+                <span className="text-gray-400 text-sm ml-3">
+                  {get_years_text(post.years_ago)}
+                </span>
+                <h2 className="text-xl text-white mb-2">
                   <a
                     href={post.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-sm text-cyan-300 hover:text-cyan-200"
+                    className="hover:text-cyan-400"
                   >
-                    Open post ↗
+                    {post.title}
                   </a>
-                  {post.blurb && (
-                    <p className="mt-3 text-sm leading-relaxed text-gray-400">{post.blurb}</p>
-                  )}
-                </div>
-              </details>
+                </h2>
+                {post.blurb && (
+                  <p className="text-gray-400 text-sm leading-relaxed">{post.blurb}</p>
+                )}
+              </div>
             ))}
           </>
         )}
