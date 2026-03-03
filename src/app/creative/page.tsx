@@ -701,7 +701,7 @@ export default function OnThisDay() {
             )}
 
             {current_story_blurb && (
-              <div className="mb-6 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5">
+              <div className="mb-6 rounded-2xl border border-amber-300/35 bg-gradient-to-r from-amber-300/25 to-orange-300/20 p-5">
                 <p className="text-sm leading-relaxed text-amber-50">
                   {current_story_blurb}
                 </p>
