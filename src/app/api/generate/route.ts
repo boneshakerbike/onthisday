@@ -7,6 +7,28 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { get_posts_on_date, get_post_url, save_story } from '@/lib/db';
 
+function stripCodeFences(text: string): string {
+  let cleaned = text.trim();
+
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```[a-zA-Z]*\s*/, '');
+    cleaned = cleaned.replace(/\s*```$/, '');
+  }
+
+  return cleaned.trim();
+}
+
+function extractTagContent(response: string, tag: string): string {
+  const pattern = new RegExp(`<${tag}>\\s*([\\s\\S]*?)\\s*<\\/${tag}>`, 'i');
+  const match = response.match(pattern);
+
+  if (!match || !match[1]) {
+    throw new Error(`Missing <${tag}> in model response`);
+  }
+
+  return match[1].trim();
+}
+
 export async function POST(request: NextRequest) {
   const api_key = process.env.ANTHROPIC_API_KEY;
 
@@ -107,7 +129,14 @@ CONTENT STRUCTURE:
 4. Reflective ending with appreciative insight
 5. 150-300 words (scale with post count: ~30 words per post minimum)
 
-FORMAT: HTML with <h2> title, <p> paragraphs, <a href> links`;
+FORMAT:
+- Return exactly this structure with no markdown fences:
+<response>
+<story><h2>Title</h2><p>...</p></story>
+<blurb>Two to three plain-text sentences that summarize the story for sharing.</blurb>
+</response>
+- story must be HTML with <h2> title, <p> paragraphs, <a href> links
+- blurb must be plain text only, no HTML, no markdown`;
 
     // User message (dynamic) - changes with each request
     const user_message = `Write a reflection for ${date_display}. Here are my posts from this date:
@@ -136,25 +165,25 @@ ${formatted_posts}`;
       throw new Error('Unexpected response type');
     }
 
-    // Strip markdown code fences if present
-    let story = content.text.trim();
-    if (story.startsWith('```html')) {
-      story = story.slice(7);
-    } else if (story.startsWith('```')) {
-      story = story.slice(3);
+    const response_text = stripCodeFences(content.text);
+    const story = extractTagContent(response_text, 'story');
+    const blurb = extractTagContent(response_text, 'blurb')
+      .replace(/<[^>]*>/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!story || !blurb) {
+      throw new Error('Incomplete model response');
     }
-    if (story.endsWith('```')) {
-      story = story.slice(0, -3);
-    }
-    story = story.trim();
 
     // Save story to database and get shareable ID
     const date_key = `${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-    const story_id = await save_story(date_key, date_display, story, posts.length, image_url);
+    const story_id = await save_story(date_key, date_display, story, blurb, posts.length, image_url);
 
     return NextResponse.json({
       success: true,
       story,
+      blurb,
       story_id,
       posts_used: posts.length,
       usage: {

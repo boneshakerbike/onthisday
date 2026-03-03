@@ -3,6 +3,8 @@
  * Uses Turso (libSQL) in production, better-sqlite3 for local development
  */
 
+import fs from 'fs';
+import path from 'path';
 import { createClient, Client } from '@libsql/client';
 
 // Detect if we're using Turso (production) or SQLite (local)
@@ -20,8 +22,6 @@ function get_client(): Client {
       });
     } else {
       // Local development: SQLite file
-      const path = require('path');
-      const fs = require('fs');
       const db_path = path.join(process.cwd(), 'data', 'posts.db');
 
       // Ensure data directory exists
@@ -81,6 +81,7 @@ async function init_schema(): Promise<void> {
       date_key TEXT NOT NULL,
       date_display TEXT NOT NULL,
       content TEXT NOT NULL,
+      blurb TEXT,
       post_count INTEGER NOT NULL,
       image_url TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
@@ -94,6 +95,13 @@ async function init_schema(): Promise<void> {
   // Migration: add image_url column if missing
   try {
     await db.execute(`ALTER TABLE stories ADD COLUMN image_url TEXT`);
+  } catch {
+    // Column already exists, ignore error
+  }
+
+  // Migration: add blurb column if missing
+  try {
+    await db.execute(`ALTER TABLE stories ADD COLUMN blurb TEXT`);
   } catch {
     // Column already exists, ignore error
   }
@@ -408,6 +416,7 @@ export interface Story {
   date_key: string;
   date_display: string;
   content: string;
+  blurb: string | null;
   post_count: number;
   image_url: string | null;
   created_at: string;
@@ -432,6 +441,7 @@ export async function save_story(
   date_key: string,
   date_display: string,
   content: string,
+  blurb: string | null,
   post_count: number,
   image_url: string | null = null
 ): Promise<string> {
@@ -450,10 +460,10 @@ export async function save_story(
     await db.execute({
       sql: `
         UPDATE stories
-        SET date_display = ?, content = ?, post_count = ?, image_url = ?, created_at = CURRENT_TIMESTAMP
+        SET date_display = ?, content = ?, blurb = ?, post_count = ?, image_url = ?, created_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `,
-      args: [date_display, content, post_count, image_url, id]
+      args: [date_display, content, blurb, post_count, image_url, id]
     });
     return id;
   } else {
@@ -461,10 +471,10 @@ export async function save_story(
     const id = generate_story_id();
     await db.execute({
       sql: `
-        INSERT INTO stories (id, date_key, date_display, content, post_count, image_url)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO stories (id, date_key, date_display, content, blurb, post_count, image_url)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
-      args: [id, date_key, date_display, content, post_count, image_url]
+      args: [id, date_key, date_display, content, blurb, post_count, image_url]
     });
     return id;
   }
@@ -490,6 +500,7 @@ export async function get_story(id: string): Promise<Story | null> {
     date_key: row.date_key as string,
     date_display: row.date_display as string,
     content: row.content as string,
+    blurb: (row.blurb as string) || null,
     post_count: row.post_count as number,
     image_url: (row.image_url as string) || null,
     created_at: row.created_at as string
@@ -606,6 +617,7 @@ export async function get_story_by_date(date_key: string): Promise<Story | null>
     date_key: row.date_key as string,
     date_display: row.date_display as string,
     content: row.content as string,
+    blurb: (row.blurb as string) || null,
     post_count: row.post_count as number,
     image_url: (row.image_url as string) || null,
     created_at: row.created_at as string
@@ -628,6 +640,7 @@ export async function get_all_stories(): Promise<Story[]> {
     date_key: row.date_key as string,
     date_display: row.date_display as string,
     content: row.content as string,
+    blurb: (row.blurb as string) || null,
     post_count: row.post_count as number,
     image_url: (row.image_url as string) || null,
     created_at: row.created_at as string
