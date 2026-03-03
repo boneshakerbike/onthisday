@@ -450,7 +450,9 @@ export default function OnThisDay() {
   const current_story_id = story_id || existing_story?.id || null;
   const current_story_blurb = existing_story?.blurb || null;
   const control_group_class = 'mb-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4';
-  const control_label_class = 'mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300/70';
+  const control_label_text_class = 'text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300/70';
+  const collapsible_summary_class = 'cursor-pointer list-none';
+  const collapsible_summary_row_class = 'mb-3 flex items-center justify-between gap-3';
   const action_button_class = 'inline-flex w-full sm:w-auto items-center justify-center rounded-xl border px-4 py-2.5 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50';
   const secondary_button_class = `${action_button_class} border-cyan-400/30 bg-white/[0.03] text-cyan-200 hover:border-cyan-300 hover:bg-cyan-400/15 hover:text-white`;
   const subtle_button_class = `${action_button_class} border-white/10 bg-transparent text-gray-300 hover:border-cyan-400/30 hover:text-cyan-200`;
@@ -467,13 +469,8 @@ export default function OnThisDay() {
           On This Day{date ? ` — ${date.display}` : ''}
         </h1>
         <div className="mb-5 text-center text-sm text-gray-400">
-          {archive && (
-            <p>
-              Archive: {archive} ({total_posts.toLocaleString()} posts)
-            </p>
-          )}
           {!loading && !fetch_error && posts.length > 0 && (
-            <p className={archive ? 'mt-1' : ''}>
+            <p>
               {posts.length} post{posts.length !== 1 ? 's' : ''} on this day
             </p>
           )}
@@ -487,8 +484,13 @@ export default function OnThisDay() {
         )}
 
         {/* Date navigation */}
-        <div className={control_group_class}>
-          <p className={control_label_class}>Date Navigation</p>
+        <details className={control_group_class}>
+          <summary className={collapsible_summary_class}>
+            <div className={collapsible_summary_row_class}>
+              <span className={control_label_text_class}>Date Navigation</span>
+              <span className="text-xs text-gray-500">Toggle</span>
+            </div>
+          </summary>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <input
               type="date"
@@ -515,7 +517,7 @@ export default function OnThisDay() {
               Tomorrow
             </button>
           </div>
-        </div>
+        </details>
 
         {/* Loading state */}
         {loading && (
@@ -566,8 +568,13 @@ export default function OnThisDay() {
         {/* Posts */}
         {!loading && !fetch_error && posts.length > 0 && (
           <>
-            <div className={control_group_class}>
-              <p className={control_label_class}>Export / Copy</p>
+            <details className={control_group_class}>
+              <summary className={collapsible_summary_class}>
+                <div className={collapsible_summary_row_class}>
+                  <span className={control_label_text_class}>Export / Copy</span>
+                  <span className="text-xs text-gray-500">Toggle</span>
+                </div>
+              </summary>
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <button
                   onClick={() => copy_for_substack('simple')}
@@ -609,10 +616,15 @@ export default function OnThisDay() {
               {(copy_status || story_copy_status) && (
                 <p className="mt-3 text-sm text-green-400">{copy_status || story_copy_status}</p>
               )}
-            </div>
+            </details>
 
-            <div className={control_group_class}>
-              <p className={control_label_class}>Story Actions</p>
+            <details className={control_group_class}>
+              <summary className={collapsible_summary_class}>
+                <div className={collapsible_summary_row_class}>
+                  <span className={control_label_text_class}>Story Actions</span>
+                  <span className="text-xs text-gray-500">Toggle</span>
+                </div>
+              </summary>
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 {has_api_key && (
                   <button
@@ -659,7 +671,7 @@ export default function OnThisDay() {
                   Saved {new Date(existing_story.created_at).toLocaleDateString()}
                 </p>
               )}
-            </div>
+            </details>
 
             {/* Generate error */}
             {generate_error && (
@@ -715,36 +727,46 @@ export default function OnThisDay() {
                 />
               </div>
             ) : posts.map((post) => (
-              <div
+              <details
                 key={post.post_id}
-                className="bg-white/5 rounded-xl p-5 mb-4 border border-white/10 hover:translate-x-1 hover:border-cyan-400 transition-all"
+                className="mb-4 rounded-xl border border-white/10 bg-white/5 transition-all hover:border-cyan-400"
               >
-                <span className="inline-block bg-cyan-400 text-[#1a1a2e] px-3 py-1 rounded-full text-sm font-semibold mb-2">
-                  {post.year}
-                </span>
-                <span className="text-gray-400 text-sm ml-3">
-                  {get_years_text(post.years_ago)}
-                </span>
-                <h2 className="text-xl text-white mb-2">
+                <summary className="cursor-pointer px-5 py-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="inline-block rounded-full bg-cyan-400 px-3 py-1 text-sm font-semibold text-[#1a1a2e]">
+                      {post.year}
+                    </span>
+                    <span className="text-sm text-gray-400">
+                      {get_years_text(post.years_ago)}
+                    </span>
+                    <span className="text-lg text-white">{post.title}</span>
+                  </div>
+                </summary>
+                <div className="px-5 pb-5">
                   <a
                     href={post.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="hover:text-cyan-400"
+                    className="text-sm text-cyan-300 hover:text-cyan-200"
                   >
-                    {post.title}
+                    Open post ↗
                   </a>
-                </h2>
-                {post.blurb && (
-                  <p className="text-gray-400 text-sm leading-relaxed">{post.blurb}</p>
-                )}
-              </div>
+                  {post.blurb && (
+                    <p className="mt-3 text-sm leading-relaxed text-gray-400">{post.blurb}</p>
+                  )}
+                </div>
+              </details>
             ))}
           </>
         )}
 
         {/* Upload section */}
         <div className="mt-10 pt-5 border-t border-white/10">
+          {archive && (
+            <p className="mb-4 text-center text-sm text-gray-400">
+              Archive: {archive} ({total_posts.toLocaleString()} posts)
+            </p>
+          )}
           <details className="text-center">
             <summary className="cursor-pointer text-gray-400 text-sm hover:text-cyan-400">
               Update Archive
