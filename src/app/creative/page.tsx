@@ -450,7 +450,10 @@ export default function OnThisDay() {
   const current_story_id = story_id || existing_story?.id || null;
   const current_story_blurb = existing_story?.blurb || null;
   const control_group_class = 'mb-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4';
-  const control_label_class = 'mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300/70';
+  const control_label_text_class = 'text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300/70';
+  const collapsible_summary_class = 'cursor-pointer list-none';
+  const collapsible_summary_row_class = 'mb-3 flex items-center justify-between gap-3';
+  const collapsible_arrow_class = 'text-sm text-gray-500';
   const action_button_class = 'inline-flex w-full sm:w-auto items-center justify-center rounded-xl border px-4 py-2.5 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50';
   const secondary_button_class = `${action_button_class} border-cyan-400/30 bg-white/[0.03] text-cyan-200 hover:border-cyan-300 hover:bg-cyan-400/15 hover:text-white`;
   const subtle_button_class = `${action_button_class} border-white/10 bg-transparent text-gray-300 hover:border-cyan-400/30 hover:text-cyan-200`;
@@ -467,13 +470,8 @@ export default function OnThisDay() {
           On This Day{date ? ` — ${date.display}` : ''}
         </h1>
         <div className="mb-5 text-center text-sm text-gray-400">
-          {archive && (
-            <p>
-              Archive: {archive} ({total_posts.toLocaleString()} posts)
-            </p>
-          )}
           {!loading && !fetch_error && posts.length > 0 && (
-            <p className={archive ? 'mt-1' : ''}>
+            <p>
               {posts.length} post{posts.length !== 1 ? 's' : ''} on this day
             </p>
           )}
@@ -487,8 +485,13 @@ export default function OnThisDay() {
         )}
 
         {/* Date navigation */}
-        <div className={control_group_class}>
-          <p className={control_label_class}>Date Navigation</p>
+        <details className={control_group_class}>
+          <summary className={collapsible_summary_class}>
+            <div className={collapsible_summary_row_class}>
+              <span className={control_label_text_class}>Date Navigation</span>
+              <span aria-hidden="true" className={collapsible_arrow_class}>{'>'}</span>
+            </div>
+          </summary>
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <input
               type="date"
@@ -515,7 +518,7 @@ export default function OnThisDay() {
               Tomorrow
             </button>
           </div>
-        </div>
+        </details>
 
         {/* Loading state */}
         {loading && (
@@ -566,8 +569,13 @@ export default function OnThisDay() {
         {/* Posts */}
         {!loading && !fetch_error && posts.length > 0 && (
           <>
-            <div className={control_group_class}>
-              <p className={control_label_class}>Export / Copy</p>
+            <details className={control_group_class}>
+              <summary className={collapsible_summary_class}>
+                <div className={collapsible_summary_row_class}>
+                  <span className={control_label_text_class}>Export / Copy</span>
+                  <span aria-hidden="true" className={collapsible_arrow_class}>{'>'}</span>
+                </div>
+              </summary>
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <button
                   onClick={() => copy_for_substack('simple')}
@@ -579,7 +587,7 @@ export default function OnThisDay() {
                   onClick={() => copy_for_substack('full')}
                   className={secondary_button_class}
                 >
-                  Copy Titles + Blurbs
+                  Copy Title & Intro
                 </button>
                 {current_story_blurb && (
                   <button
@@ -609,10 +617,15 @@ export default function OnThisDay() {
               {(copy_status || story_copy_status) && (
                 <p className="mt-3 text-sm text-green-400">{copy_status || story_copy_status}</p>
               )}
-            </div>
+            </details>
 
-            <div className={control_group_class}>
-              <p className={control_label_class}>Story Actions</p>
+            <details className={control_group_class}>
+              <summary className={collapsible_summary_class}>
+                <div className={collapsible_summary_row_class}>
+                  <span className={control_label_text_class}>Story Actions</span>
+                  <span aria-hidden="true" className={collapsible_arrow_class}>{'>'}</span>
+                </div>
+              </summary>
               <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 {has_api_key && (
                   <button
@@ -659,7 +672,7 @@ export default function OnThisDay() {
                   Saved {new Date(existing_story.created_at).toLocaleDateString()}
                 </p>
               )}
-            </div>
+            </details>
 
             {/* Generate error */}
             {generate_error && (
@@ -688,11 +701,8 @@ export default function OnThisDay() {
             )}
 
             {current_story_blurb && (
-              <div className="mb-6 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/80">
-                  Saved Blurb
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-amber-50">
+              <div className="mb-6 rounded-2xl border border-amber-300/35 bg-gradient-to-r from-amber-300/25 to-orange-300/20 p-5">
+                <p className="text-sm leading-relaxed text-amber-50">
                   {current_story_blurb}
                 </p>
               </div>
@@ -745,6 +755,11 @@ export default function OnThisDay() {
 
         {/* Upload section */}
         <div className="mt-10 pt-5 border-t border-white/10">
+          {archive && (
+            <p className="mb-4 text-center text-sm text-gray-400">
+              Archive: {archive} ({total_posts.toLocaleString()} posts)
+            </p>
+          )}
           <details className="text-center">
             <summary className="cursor-pointer text-gray-400 text-sm hover:text-cyan-400">
               Update Archive
