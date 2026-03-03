@@ -255,19 +255,14 @@ ANTHROPIC_API_KEY=<Claude API key>
 ## Branching & Deployment
 
 ```
-chip/* or codex/*  →  PR to dev  →  PR to main
-                       ↑                ↑
-                  Agent merges      Bill merges
-                  Vercel preview    Vercel production
+work/<name>-<topic>  →  PR to main
+                            ↑
+                       Vercel production
 ```
 
-- **`main`** — Production. Vercel auto-deploys to 8i11.vercel.app. Only Bill merges here.
-- **`dev`** — Integration branch. Vercel preview deploy. Agent can merge PRs here after build passes.
-- **`chip/*`** — Feature branches. PRs target `dev`.
-- **Never commit directly to `main`.**
+- **`main`** — Production. Vercel auto-deploys to 8i11.vercel.app. Never commit directly.
+- **`work/<name>-<topic>`** — Feature branches. `<name>` is the implementer's shortname, `<topic>` is 2-5 words hyphenated. PRs target `main`.
 
 ## Task Management
 
 Tasks are tracked as GitHub Issues: https://github.com/boneshakerbike/onthisday/issues
-
-Labels: `area:*` (creative, tools, health, games, infra), `status:*` (todo, in-progress, blocked), `agent:*` (chip, codex)
