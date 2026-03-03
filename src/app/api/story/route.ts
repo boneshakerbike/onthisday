@@ -23,10 +23,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ story: null });
     }
 
+    const fallback_blurb_match = story.content.match(/<p[^>]*>(.*?)<\/p>/is);
+    const fallback_blurb = fallback_blurb_match
+      ? fallback_blurb_match[1]
+        .replace(/<[^>]*>/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+      : null;
+
     return NextResponse.json({
       story: {
         id: story.id,
         date_display: story.date_display,
+        blurb: story.blurb || fallback_blurb,
         post_count: story.post_count,
         image_url: story.image_url,
         created_at: story.created_at,

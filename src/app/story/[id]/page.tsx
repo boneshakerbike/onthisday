@@ -29,11 +29,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const title_match = story.content.match(/<h2[^>]*>([^<]+)<\/h2>/i);
   const title = title_match ? title_match[1] : `On This Day: ${story.date_display}`;
 
-  // Extract first paragraph as description
+  // Prefer stored blurb for description, fallback to first paragraph for older stories
   const desc_match = story.content.match(/<p[^>]*>([^<]+)<\/p>/i);
-  const description = desc_match
+  const fallback_description = desc_match
     ? desc_match[1].substring(0, 160) + (desc_match[1].length > 160 ? '...' : '')
     : `A reflection on ${story.post_count} posts from ${story.date_display}`;
+  const description = story.blurb || fallback_description;
 
   const metadata: Metadata = {
     title,
@@ -303,6 +304,8 @@ export default async function StoryPage({ params }: PageProps) {
 
           {/* Featured image from source posts */}
           {story.image_url && (
+            // Keep native img here because story image URLs are arbitrary archive sources.
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={story.image_url}
               alt=""

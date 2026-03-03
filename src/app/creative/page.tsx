@@ -33,6 +33,7 @@ interface PostsResponse {
 interface GenerateResponse {
   success: boolean;
   story: string;
+  blurb: string;
   story_id?: string;
   posts_used: number;
   usage: {
@@ -42,6 +43,12 @@ interface GenerateResponse {
     cache_read_input_tokens?: number;
   };
   error?: string;
+}
+
+interface SavedStory {
+  id: string;
+  created_at: string;
+  blurb: string | null;
 }
 
 export default function OnThisDay() {
@@ -61,7 +68,7 @@ export default function OnThisDay() {
   const [generating, set_generating] = useState(false);
   const [generated_story, set_generated_story] = useState<string | null>(null);
   const [story_id, set_story_id] = useState<string | null>(null);
-  const [existing_story, set_existing_story] = useState<{ id: string; created_at: string } | null>(null);
+  const [existing_story, set_existing_story] = useState<SavedStory | null>(null);
   const [story_copy_status, set_story_copy_status] = useState('');
   const [generate_error, set_generate_error] = useState<string | null>(null);
   const [token_usage, set_token_usage] = useState<{ input: number; output: number; cached: number } | null>(null);
@@ -72,9 +79,6 @@ export default function OnThisDay() {
 
   // RSS sync state
   const [sync_status, set_sync_status] = useState<string | null>(null);
-
-  // AI copy state
-  const [ai_copying, set_ai_copying] = useState(false);
 
   // Copy preview (rendered HTML shown in place of post cards)
   const [copy_preview, set_copy_preview] = useState<string | null>(null);
@@ -113,7 +117,8 @@ export default function OnThisDay() {
         if (story_data.story) {
           set_existing_story({
             id: story_data.story.id,
-            created_at: story_data.story.created_at
+            created_at: story_data.story.created_at,
+            blurb: story_data.story.blurb || null
           });
         }
       }
@@ -174,25 +179,18 @@ export default function OnThisDay() {
   };
 
   const go_to_relative_day = (offset: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() + offset);
+    const d = offset === 0 || !date
+      ? new Date()
+      : new Date(new Date().getFullYear(), date.month - 1, date.day);
+    if (offset !== 0) {
+      d.setDate(d.getDate() + offset);
+    }
     fetch_posts(d.getMonth() + 1, d.getDate());
   };
 
   const copy_for_substack = async (version: 'simple' | 'full') => {
     if (!posts.length || !date) return;
-
-    // Calculate year span for intro
-    const years = posts.map(p => p.year).sort((a, b) => a - b);
-    const earliest_year = years[0];
-    const latest_year = years[years.length - 1];
-    const year_span = latest_year - earliest_year;
-
-    // Build intro paragraph
-    const post_word = posts.length === 1 ? 'post' : 'posts';
-    const year_range = year_span > 0
-      ? `Since ${earliest_year}, I have written ${posts.length} ${post_word} that landed on this date.`
-      : `I have ${posts.length} ${post_word} from ${earliest_year} on this date.`;
+    set_story_copy_status('');
 
     let html = '<h2>On This Day</h2>\n';
     for (const post of posts) {
@@ -221,67 +219,6 @@ export default function OnThisDay() {
     setTimeout(() => set_copy_status(''), 3000);
   };
 
-  const copy_with_ai_intro = async () => {
-    if (!posts.length || !date) return;
-
-    set_ai_copying(true);
-    set_copy_status('');
-
-    try {
-      // Call the AI intro endpoint
-      const res = await fetch('/api/intro', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date_display: date.display,
-          posts: posts.map(p => ({
-            year: p.year,
-            title: p.title,
-            blurb: p.blurb
-          }))
-        })
-      });
-
-      const data = await res.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to generate intro');
-      }
-
-      // Build HTML with AI intro
-      let html = '<h2>On This Day</h2>\n';
-      html += `<p>${data.intro}</p>\n`;
-
-      for (const post of posts) {
-        const blurb_part = post.blurb ? ` – ${post.blurb}` : '';
-        html += `<p>${post.year}: <a href="${post.url}">${post.title}</a>${blurb_part}</p>\n`;
-      }
-
-      // Copy to clipboard (rich HTML with plain text fallback)
-      try {
-        const blob = new Blob([html], { type: 'text/html' });
-        await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
-        set_copy_status('Copied with AI intro!');
-      } catch {
-        const text = `On This Day\n\n${data.intro}\n\n` +
-          posts.map(p => {
-            const blurb_part = p.blurb ? ` – ${p.blurb}` : '';
-            return `${p.year}: ${p.title}${blurb_part} - ${p.url}`;
-          }).join('\n');
-        await navigator.clipboard.writeText(text);
-        set_copy_status('Copied with AI intro!');
-      }
-      set_copy_preview(html);
-
-    } catch (error) {
-      console.error('AI copy error:', error);
-      set_copy_status('AI intro failed');
-    }
-
-    set_ai_copying(false);
-    setTimeout(() => set_copy_status(''), 3000);
-  };
-
   const generate_story = async () => {
     if (!date || posts.length === 0) return;
 
@@ -307,7 +244,8 @@ export default function OnThisDay() {
         if (data.story_id) {
           set_existing_story({
             id: data.story_id,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            blurb: data.blurb || null
           });
         }
         set_token_usage({
@@ -325,73 +263,13 @@ export default function OnThisDay() {
     set_generating(false);
   };
 
-  const copy_story = async () => {
-    if (!generated_story) return;
+  const copyStoryBlurb = async () => {
+    if (!existing_story?.blurb) return;
+    set_copy_status('');
 
     try {
-      const blob = new Blob([generated_story], { type: 'text/html' });
-      await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
-      set_story_copy_status('Copied for Substack!');
-    } catch {
-      try {
-        const temp = document.createElement('div');
-        temp.innerHTML = generated_story;
-        await navigator.clipboard.writeText(temp.textContent || '');
-        set_story_copy_status('Copied as text');
-      } catch {
-        set_story_copy_status('Copy failed');
-      }
-    }
-    setTimeout(() => set_story_copy_status(''), 3000);
-  };
-
-  const copy_story_social = async () => {
-    if (!generated_story || !date || !story_id) return;
-
-    try {
-      // Calculate year span
-      const years = posts.map(p => p.year).sort((a, b) => a - b);
-      const year_range = years.length > 1
-        ? `${years[0]}-${years[years.length - 1]}`
-        : `${years[0]}`;
-
-      // Build short social text (~280 chars max)
-      const story_url = `${window.location.origin}/story/${story_id}`;
-      const text = `On This Day: ${date.display}\n\n${posts.length} post${posts.length !== 1 ? 's' : ''} from my journal, ${year_range}.\n\n${story_url}`;
-
-      await navigator.clipboard.writeText(text);
-      set_story_copy_status('Copied for Social!');
-    } catch {
-      set_story_copy_status('Copy failed');
-    }
-    setTimeout(() => set_story_copy_status(''), 3000);
-  };
-
-  const copy_story_markdown = async () => {
-    if (!generated_story) return;
-
-    try {
-      let md = generated_story;
-      // Convert links to markdown format
-      md = md.replace(/<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi, '[$2]($1)');
-      // Convert headers
-      md = md.replace(/<h1[^>]*>([^<]+)<\/h1>/gi, '# $1\n\n');
-      md = md.replace(/<h2[^>]*>([^<]+)<\/h2>/gi, '## $1\n\n');
-      md = md.replace(/<h3[^>]*>([^<]+)<\/h3>/gi, '### $1\n\n');
-      // Convert paragraphs
-      md = md.replace(/<\/p>/gi, '\n\n');
-      md = md.replace(/<p[^>]*>/gi, '');
-      // Remove any remaining HTML tags
-      md = md.replace(/<[^>]+>/g, '');
-      // Clean up whitespace
-      md = md.replace(/\n{3,}/g, '\n\n').trim();
-      // Decode HTML entities
-      const temp = document.createElement('div');
-      temp.innerHTML = md;
-      md = temp.textContent || md;
-
-      await navigator.clipboard.writeText(md);
-      set_story_copy_status('Copied as Markdown!');
+      await navigator.clipboard.writeText(existing_story.blurb);
+      set_story_copy_status('Blurb copied!');
     } catch {
       set_story_copy_status('Copy failed');
     }
@@ -399,13 +277,32 @@ export default function OnThisDay() {
   };
 
   const copy_story_link = async () => {
-    if (!story_id) return;
+    const active_story_id = story_id || existing_story?.id;
+    if (!active_story_id) return;
+    set_copy_status('');
 
     try {
       const base_url = window.location.origin;
-      const link = `${base_url}/story/${story_id}`;
+      const link = `${base_url}/story/${active_story_id}`;
       await navigator.clipboard.writeText(link);
       set_story_copy_status('Link copied!');
+    } catch {
+      set_story_copy_status('Copy failed');
+    }
+    setTimeout(() => set_story_copy_status(''), 3000);
+  };
+
+  const copyStoryShareText = async () => {
+    const active_story_id = story_id || existing_story?.id;
+    if (!active_story_id || !existing_story?.blurb) return;
+    set_copy_status('');
+
+    try {
+      const base_url = window.location.origin;
+      const link = `${base_url}/story/${active_story_id}`;
+      const text = `${existing_story.blurb}\n\nRead more: ${link}`;
+      await navigator.clipboard.writeText(text);
+      set_story_copy_status('Share text copied!');
     } catch {
       set_story_copy_status('Copy failed');
     }
@@ -482,7 +379,6 @@ export default function OnThisDay() {
       const html_entries = zip.file(/posts\/.*\.html$/i);
       const batch_size = 50; // ~50 files per batch to stay under 4.5MB
       let uploaded_html = 0;
-      let skipped_html = 0;
 
       for (let i = 0; i < html_entries.length; i += batch_size) {
         const batch_entries = html_entries.slice(i, i + batch_size);
@@ -516,7 +412,6 @@ export default function OnThisDay() {
           throw new Error(html_result.error || 'Failed to upload HTML batch');
         }
         uploaded_html += html_result.updated || Object.keys(html_batch).length;
-        skipped_html += html_result.skipped || 0;
       }
 
       const summary = full_reimport
@@ -552,6 +447,14 @@ export default function OnThisDay() {
   const date_input_value = date
     ? `${today.getFullYear()}-${date.month.toString().padStart(2, '0')}-${date.day.toString().padStart(2, '0')}`
     : '';
+  const current_story_id = story_id || existing_story?.id || null;
+  const current_story_blurb = existing_story?.blurb || null;
+  const control_group_class = 'mb-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4';
+  const control_label_class = 'mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300/70';
+  const action_button_class = 'inline-flex w-full sm:w-auto items-center justify-center rounded-xl border px-4 py-2.5 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50';
+  const secondary_button_class = `${action_button_class} border-cyan-400/30 bg-white/[0.03] text-cyan-200 hover:border-cyan-300 hover:bg-cyan-400/15 hover:text-white`;
+  const subtle_button_class = `${action_button_class} border-white/10 bg-transparent text-gray-300 hover:border-cyan-400/30 hover:text-cyan-200`;
+  const primary_button_class = `${action_button_class} border-amber-300/50 bg-gradient-to-r from-amber-300 to-orange-300 text-[#16213e] hover:from-amber-200 hover:to-orange-200`;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] text-gray-200 p-5">
@@ -560,39 +463,21 @@ export default function OnThisDay() {
         <NavTabs />
 
         {/* Page heading */}
-        <h1 className="text-center text-3xl font-light text-cyan-400 mb-2">
-          On This Day
+        <h1 className="text-center text-3xl font-light text-cyan-400 mb-3">
+          On This Day{date ? ` — ${date.display}` : ''}
         </h1>
-        <p className="text-center text-xl text-gray-400 mb-4">
-          {date?.display || 'Loading...'}
-        </p>
-
-        {/* Quick links */}
-        <div className="text-center mb-6 flex justify-center gap-4">
-          <a
-            href="https://8i11.substack.com/publish/posts/drafts"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-gray-400 hover:text-cyan-400 transition-colors"
-          >
-            Drafts ↗
-          </a>
-          <a
-            href="https://8i11.substack.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-gray-400 hover:text-cyan-400 transition-colors"
-          >
-            Substack ↗
-          </a>
+        <div className="mb-5 text-center text-sm text-gray-400">
+          {archive && (
+            <p>
+              Archive: {archive} ({total_posts.toLocaleString()} posts)
+            </p>
+          )}
+          {!loading && !fetch_error && posts.length > 0 && (
+            <p className={archive ? 'mt-1' : ''}>
+              {posts.length} post{posts.length !== 1 ? 's' : ''} on this day
+            </p>
+          )}
         </div>
-
-        {/* Archive info */}
-        {archive && (
-          <p className="text-center text-xs text-gray-400 mb-5">
-            Archive: {archive} ({total_posts.toLocaleString()} posts)
-          </p>
-        )}
 
         {/* RSS sync status */}
         {sync_status && (
@@ -601,36 +486,35 @@ export default function OnThisDay() {
           </p>
         )}
 
-        {/* Date picker */}
-        <div className="text-center mb-5">
-          <input
-            type="date"
-            value={date_input_value}
-            onChange={handle_date_change}
-            className="px-4 py-2 text-base border border-white/20 rounded-lg bg-white/10 text-white cursor-pointer mr-3"
-          />
-        </div>
-
-        {/* Quick dates */}
-        <div className="creative-quick-actions text-center mb-5 flex flex-col sm:flex-row sm:justify-center gap-3 sm:gap-0">
-          <button
-            onClick={() => go_to_relative_day(-1)}
-            className="creative-secondary-button inline-flex justify-center px-4 sm:px-3 py-2.5 sm:py-1 m-0 sm:m-1 bg-[#333] sm:bg-white/5 border border-[#555] sm:border-transparent rounded-full text-gray-300 sm:text-gray-400 text-sm hover:bg-cyan-400/20 hover:text-cyan-400"
-          >
-            Yesterday
-          </button>
-          <button
-            onClick={() => go_to_relative_day(0)}
-            className="creative-secondary-button inline-flex justify-center px-4 sm:px-3 py-2.5 sm:py-1 m-0 sm:m-1 bg-[#333] sm:bg-white/5 border border-[#555] sm:border-transparent rounded-full text-gray-300 sm:text-gray-400 text-sm hover:bg-cyan-400/20 hover:text-cyan-400"
-          >
-            Today
-          </button>
-          <button
-            onClick={() => go_to_relative_day(1)}
-            className="creative-secondary-button inline-flex justify-center px-4 sm:px-3 py-2.5 sm:py-1 m-0 sm:m-1 bg-[#333] sm:bg-white/5 border border-[#555] sm:border-transparent rounded-full text-gray-300 sm:text-gray-400 text-sm hover:bg-cyan-400/20 hover:text-cyan-400"
-          >
-            Tomorrow
-          </button>
+        {/* Date navigation */}
+        <div className={control_group_class}>
+          <p className={control_label_class}>Date Navigation</p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <input
+              type="date"
+              value={date_input_value}
+              onChange={handle_date_change}
+              className="w-full sm:w-auto rounded-xl border border-white/15 bg-white/[0.06] px-4 py-2.5 text-base text-white"
+            />
+            <button
+              onClick={() => go_to_relative_day(-1)}
+              className={secondary_button_class}
+            >
+              Yesterday
+            </button>
+            <button
+              onClick={() => go_to_relative_day(0)}
+              className={secondary_button_class}
+            >
+              Today
+            </button>
+            <button
+              onClick={() => go_to_relative_day(1)}
+              className={secondary_button_class}
+            >
+              Tomorrow
+            </button>
+          </div>
         </div>
 
         {/* Loading state */}
@@ -682,77 +566,100 @@ export default function OnThisDay() {
         {/* Posts */}
         {!loading && !fetch_error && posts.length > 0 && (
           <>
-            <div className="text-center text-6xl font-extralight text-cyan-400 mb-2">
-              {posts.length}
-            </div>
-            <p className="text-center text-gray-400 mb-8">
-              post{posts.length !== 1 ? 's' : ''} on this day
-            </p>
-
-            {/* Export buttons */}
-            <div className="creative-export-actions text-center mb-6 flex flex-col sm:flex-row sm:flex-wrap justify-center gap-3 sm:gap-2">
-              <button
-                onClick={() => copy_for_substack('simple')}
-                className="creative-secondary-button w-full sm:w-auto px-4 sm:px-5 py-2.5 sm:py-2 border border-[#555] sm:border-cyan-400 rounded-lg bg-[#333] sm:bg-transparent text-cyan-300 sm:text-cyan-400 text-sm font-medium hover:bg-cyan-400 hover:text-[#1a1a2e] transition-all"
-              >
-                Copy Titles Only
-              </button>
-              <button
-                onClick={() => copy_for_substack('full')}
-                className="creative-secondary-button w-full sm:w-auto px-4 sm:px-5 py-2.5 sm:py-2 border border-[#555] sm:border-cyan-400 rounded-lg bg-[#333] sm:bg-transparent text-cyan-300 sm:text-cyan-400 text-sm font-medium hover:bg-cyan-400 hover:text-[#1a1a2e] transition-all"
-              >
-                Copy with Blurbs
-              </button>
-              {has_api_key && (
+            <div className={control_group_class}>
+              <p className={control_label_class}>Export / Copy</p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <button
-                  onClick={copy_with_ai_intro}
-                  disabled={ai_copying}
-                  className="creative-secondary-button w-full sm:w-auto px-4 sm:px-5 py-2.5 sm:py-2 border border-[#555] sm:border-purple-400 rounded-lg bg-[#333] sm:bg-transparent text-purple-300 sm:text-purple-400 text-sm font-medium hover:bg-purple-400 hover:text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => copy_for_substack('simple')}
+                  className={secondary_button_class}
                 >
-                  {ai_copying ? 'Writing...' : 'Copy with AI Intro'}
+                  Copy Titles
                 </button>
-              )}
-              {copy_status && (
-                <span className="text-green-400 text-sm self-center">{copy_status}</span>
-              )}
-            </div>
-
-            {/* Generate Story button and existing story link */}
-            {has_api_key && (
-              <div className="text-center mb-8">
                 <button
-                  onClick={generate_story}
-                  disabled={generating}
-                  className="creative-primary-button w-full sm:w-auto px-6 py-[14px] sm:py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg text-white font-medium hover:from-purple-600 hover:to-pink-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => copy_for_substack('full')}
+                  className={secondary_button_class}
                 >
-                  {generating ? 'Writing...' : existing_story ? 'Regenerate Story' : 'Generate Story'}
+                  Copy Titles + Blurbs
                 </button>
-                {/* Show link to existing story or Archive */}
-                <div className="mt-3 flex items-center justify-center gap-4">
-                  {(existing_story || story_id) && !generated_story && (
-                    <>
-                      <a
-                        href={`/story/${story_id || existing_story?.id}`}
-                        className="text-purple-400 hover:text-purple-300 text-sm"
-                      >
-                        View saved story →
-                      </a>
-                      {existing_story && (
-                        <span className="text-gray-400 text-xs">
-                          (created {new Date(existing_story.created_at).toLocaleDateString()})
-                        </span>
-                      )}
-                    </>
-                  )}
-                  <a
-                    href="/creative/archive"
-                    className="text-gray-400 hover:text-cyan-400 text-sm"
+                {current_story_blurb && (
+                  <button
+                    onClick={copyStoryBlurb}
+                    className={secondary_button_class}
                   >
-                    Archive →
-                  </a>
-                </div>
+                    Copy Blurb
+                  </button>
+                )}
+                {current_story_id && (
+                  <button
+                    onClick={copy_story_link}
+                    className={secondary_button_class}
+                  >
+                    Copy Link
+                  </button>
+                )}
+                {current_story_id && current_story_blurb && (
+                  <button
+                    onClick={copyStoryShareText}
+                    className={secondary_button_class}
+                  >
+                    Copy Share Text
+                  </button>
+                )}
               </div>
-            )}
+              {(copy_status || story_copy_status) && (
+                <p className="mt-3 text-sm text-green-400">{copy_status || story_copy_status}</p>
+              )}
+            </div>
+
+            <div className={control_group_class}>
+              <p className={control_label_class}>Story Actions</p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                {has_api_key && (
+                  <button
+                    onClick={generate_story}
+                    disabled={generating}
+                    className={primary_button_class}
+                  >
+                    {generating ? 'Writing...' : existing_story ? 'Regenerate Story' : 'Generate Story'}
+                  </button>
+                )}
+                {current_story_id && (
+                  <a
+                    href={`/story/${current_story_id}`}
+                    className={secondary_button_class}
+                  >
+                    View Saved Story
+                  </a>
+                )}
+                <a
+                  href="/creative/archive"
+                  className={subtle_button_class}
+                >
+                  Archive
+                </a>
+                <a
+                  href="https://8i11.substack.com/publish/posts/drafts"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={subtle_button_class}
+                >
+                  Drafts ↗
+                </a>
+                <a
+                  href="https://8i11.substack.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={subtle_button_class}
+                >
+                  Substack ↗
+                </a>
+              </div>
+              {existing_story && (
+                <p className="mt-3 text-xs text-gray-400">
+                  Saved {new Date(existing_story.created_at).toLocaleDateString()}
+                </p>
+              )}
+            </div>
 
             {/* Generate error */}
             {generate_error && (
@@ -764,60 +671,30 @@ export default function OnThisDay() {
             {/* Generated story */}
             {generated_story && (
               <div className="mb-8 p-6 bg-white/5 border border-purple-400/30 rounded-xl">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
-                  <h3 className="text-purple-400 font-medium">Generated Story</h3>
-                  <div className="creative-story-actions flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 sm:gap-2 w-full sm:w-auto">
-                    {token_usage && (
-                      <span className="text-xs text-gray-400 mr-2">
-                        {token_usage.input + token_usage.output} tokens
-                        {token_usage.cached > 0 && ` (${token_usage.cached} cached)`}
-                      </span>
-                    )}
-                    <button
-                      onClick={copy_story}
-                      className="creative-secondary-button w-full sm:w-auto px-3 py-2.5 sm:py-1 border border-[#555] sm:border-purple-400 rounded bg-[#333] sm:bg-transparent text-purple-300 sm:text-purple-400 text-xs hover:bg-purple-400 hover:text-white transition-all"
-                    >
-                      Substack
-                    </button>
-                    <button
-                      onClick={copy_story_social}
-                      className="creative-secondary-button w-full sm:w-auto px-3 py-2.5 sm:py-1 border border-[#555] sm:border-cyan-400 rounded bg-[#333] sm:bg-transparent text-cyan-300 sm:text-cyan-400 text-xs hover:bg-cyan-400 hover:text-[#1a1a2e] transition-all"
-                    >
-                      Social
-                    </button>
-                    <button
-                      onClick={copy_story_markdown}
-                      className="creative-secondary-button w-full sm:w-auto px-3 py-2.5 sm:py-1 border border-[#555] sm:border-gray-400 rounded bg-[#333] sm:bg-transparent text-gray-300 sm:text-gray-400 text-xs hover:bg-gray-400 hover:text-[#1a1a2e] transition-all"
-                    >
-                      Markdown
-                    </button>
-                    {story_id && (
-                      <>
-                        <a
-                          href={`/story/${story_id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="creative-secondary-button w-full sm:w-auto px-3 py-2.5 sm:py-1 border border-[#555] sm:border-green-400 rounded bg-[#333] sm:bg-transparent text-green-300 sm:text-green-400 text-xs hover:bg-green-400 hover:text-[#1a1a2e] transition-all inline-block text-center"
-                        >
-                          View Page
-                        </a>
-                        <button
-                          onClick={copy_story_link}
-                          className="creative-secondary-button w-full sm:w-auto px-3 py-2.5 sm:py-1 border border-[#555] sm:border-green-400 rounded bg-[#333] sm:bg-transparent text-green-300 sm:text-green-400 text-xs hover:bg-green-400 hover:text-[#1a1a2e] transition-all"
-                        >
-                          Copy Link
-                        </button>
-                      </>
-                    )}
-                    {story_copy_status && (
-                      <span className="text-green-400 text-sm">{story_copy_status}</span>
-                    )}
-                  </div>
+                <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="text-purple-400 font-medium">Story Preview</h3>
+                  {token_usage && (
+                    <span className="text-xs text-gray-400">
+                      {token_usage.input + token_usage.output} tokens
+                      {token_usage.cached > 0 && ` (${token_usage.cached} cached)`}
+                    </span>
+                  )}
                 </div>
                 <div
                   className="prose prose-invert prose-sm max-w-none"
                   dangerouslySetInnerHTML={{ __html: generated_story }}
                 />
+              </div>
+            )}
+
+            {current_story_blurb && (
+              <div className="mb-6 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/80">
+                  Saved Blurb
+                </p>
+                <p className="mt-2 text-sm leading-relaxed text-amber-50">
+                  {current_story_blurb}
+                </p>
               </div>
             )}
 
@@ -865,7 +742,6 @@ export default function OnThisDay() {
             ))}
           </>
         )}
-
 
         {/* Upload section */}
         <div className="mt-10 pt-5 border-t border-white/10">
@@ -921,15 +797,6 @@ export default function OnThisDay() {
             </div>
           </details>
         </div>
-        <style jsx>{`
-          @media (max-width: 768px) {
-            .creative-export-actions > span,
-            .creative-story-actions > span {
-              text-align: center;
-              width: 100%;
-            }
-          }
-        `}</style>
       </div>
     </div>
   );
