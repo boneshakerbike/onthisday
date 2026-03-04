@@ -6,6 +6,7 @@
 import fs from 'fs';
 import path from 'path';
 import { createClient, Client } from '@libsql/client';
+import { StoryAudit } from '@/lib/story_audit';
 
 // Detect if we're using Turso (production) or SQLite (local)
 const is_turso = !!process.env.TURSO_DATABASE_URL;
@@ -84,12 +85,23 @@ async function init_schema(): Promise<void> {
       blurb TEXT,
       post_count INTEGER NOT NULL,
       image_url TEXT,
+      edited_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
   await db.execute(`
     CREATE INDEX IF NOT EXISTS idx_stories_date_key ON stories(date_key)
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS story_audits (
+      story_id TEXT PRIMARY KEY,
+      source_count INTEGER NOT NULL,
+      issue_count INTEGER NOT NULL,
+      audit_json TEXT NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
   `);
 
   // Migration: add image_url column if missing
@@ -102,6 +114,13 @@ async function init_schema(): Promise<void> {
   // Migration: add blurb column if missing
   try {
     await db.execute(`ALTER TABLE stories ADD COLUMN blurb TEXT`);
+  } catch {
+    // Column already exists, ignore error
+  }
+
+  // Migration: add edited_at column if missing
+  try {
+    await db.execute(`ALTER TABLE stories ADD COLUMN edited_at TEXT`);
   } catch {
     // Column already exists, ignore error
   }
@@ -419,7 +438,16 @@ export interface Story {
   blurb: string | null;
   post_count: number;
   image_url: string | null;
+  edited_at: string | null;
   created_at: string;
+}
+
+export interface StoredStoryAudit {
+  story_id: string;
+  source_count: number;
+  issue_count: number;
+  audit: StoryAudit;
+  updated_at: string;
 }
 
 /**
@@ -460,7 +488,7 @@ export async function save_story(
     await db.execute({
       sql: `
         UPDATE stories
-        SET date_display = ?, content = ?, blurb = ?, post_count = ?, image_url = ?, created_at = CURRENT_TIMESTAMP
+        SET date_display = ?, content = ?, blurb = ?, post_count = ?, image_url = ?, edited_at = NULL, created_at = CURRENT_TIMESTAMP
         WHERE id = ?
       `,
       args: [date_display, content, blurb, post_count, image_url, id]
@@ -471,8 +499,8 @@ export async function save_story(
     const id = generate_story_id();
     await db.execute({
       sql: `
-        INSERT INTO stories (id, date_key, date_display, content, blurb, post_count, image_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO stories (id, date_key, date_display, content, blurb, post_count, image_url, edited_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, NULL)
       `,
       args: [id, date_key, date_display, content, blurb, post_count, image_url]
     });
@@ -503,7 +531,80 @@ export async function get_story(id: string): Promise<Story | null> {
     blurb: (row.blurb as string) || null,
     post_count: row.post_count as number,
     image_url: (row.image_url as string) || null,
+    edited_at: (row.edited_at as string) || null,
     created_at: row.created_at as string
+  };
+}
+
+export async function update_story(
+  id: string,
+  content: string,
+  blurb?: string | null
+): Promise<Story | null> {
+  await ensure_schema();
+  const db = get_client();
+
+  const existing = await get_story(id);
+  if (!existing) {
+    return null;
+  }
+
+  await db.execute({
+    sql: `
+      UPDATE stories
+      SET content = ?, blurb = ?, edited_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `,
+    args: [content, blurb === undefined ? existing.blurb : blurb, id]
+  });
+
+  return get_story(id);
+}
+
+export async function save_story_audit(story_id: string, audit: StoryAudit): Promise<void> {
+  await ensure_schema();
+  const db = get_client();
+
+  await db.execute({
+    sql: `
+      INSERT INTO story_audits (story_id, source_count, issue_count, audit_json, updated_at)
+      VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+      ON CONFLICT(story_id) DO UPDATE SET
+        source_count = excluded.source_count,
+        issue_count = excluded.issue_count,
+        audit_json = excluded.audit_json,
+        updated_at = CURRENT_TIMESTAMP
+    `,
+    args: [
+      story_id,
+      audit.summary.source_count,
+      audit.summary.issue_count,
+      JSON.stringify(audit)
+    ]
+  });
+}
+
+export async function get_story_audit(story_id: string): Promise<StoredStoryAudit | null> {
+  await ensure_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'SELECT * FROM story_audits WHERE story_id = ?',
+    args: [story_id]
+  });
+
+  if (result.rows.length === 0) {
+    return null;
+  }
+
+  const row = result.rows[0];
+
+  return {
+    story_id: row.story_id as string,
+    source_count: row.source_count as number,
+    issue_count: row.issue_count as number,
+    audit: JSON.parse(row.audit_json as string) as StoryAudit,
+    updated_at: row.updated_at as string
   };
 }
 
@@ -587,6 +688,10 @@ export async function cleanup_duplicate_stories(): Promise<number> {
     // Delete all but the first (most recent) one
     for (let i = 1; i < stories.rows.length; i++) {
       await db.execute({
+        sql: 'DELETE FROM story_audits WHERE story_id = ?',
+        args: [stories.rows[i].id as string]
+      });
+      await db.execute({
         sql: 'DELETE FROM stories WHERE id = ?',
         args: [stories.rows[i].id as string]
       });
@@ -620,6 +725,7 @@ export async function get_story_by_date(date_key: string): Promise<Story | null>
     blurb: (row.blurb as string) || null,
     post_count: row.post_count as number,
     image_url: (row.image_url as string) || null,
+    edited_at: (row.edited_at as string) || null,
     created_at: row.created_at as string
   };
 }
@@ -643,6 +749,7 @@ export async function get_all_stories(): Promise<Story[]> {
     blurb: (row.blurb as string) || null,
     post_count: row.post_count as number,
     image_url: (row.image_url as string) || null,
+    edited_at: (row.edited_at as string) || null,
     created_at: row.created_at as string
   }));
 }
@@ -653,6 +760,11 @@ export async function get_all_stories(): Promise<Story[]> {
 export async function delete_story(id: string): Promise<boolean> {
   await ensure_schema();
   const db = get_client();
+
+  await db.execute({
+    sql: 'DELETE FROM story_audits WHERE story_id = ?',
+    args: [id]
+  });
 
   const result = await db.execute({
     sql: 'DELETE FROM stories WHERE id = ?',

@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { getServerSession } from 'next-auth';
 import { get_story, get_adjacent_stories } from '@/lib/db';
 import { auth_options } from '@/lib/auth';
+import { build_story_body_html, extract_story_fallback_blurb, extract_story_title } from '@/lib/story_markup';
 import ShareButton from './share_button';
 import NavTabs from '@/components/nav_tabs';
 
@@ -25,15 +26,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: 'Story Not Found' };
   }
 
-  // Extract title from story HTML (looks for <h2>...</h2>)
-  const title_match = story.content.match(/<h2[^>]*>([^<]+)<\/h2>/i);
-  const title = title_match ? title_match[1] : `On This Day: ${story.date_display}`;
+  const title = extract_story_title(story.content, story.date_display);
 
   // Prefer stored blurb for description, fallback to first paragraph for older stories
-  const desc_match = story.content.match(/<p[^>]*>([^<]+)<\/p>/i);
-  const fallback_description = desc_match
-    ? desc_match[1].substring(0, 160) + (desc_match[1].length > 160 ? '...' : '')
-    : `A reflection on ${story.post_count} posts from ${story.date_display}`;
+  const fallback_description = extract_story_fallback_blurb(story.content)
+    || `A reflection on ${story.post_count} posts from ${story.date_display}`;
   const description = story.blurb || fallback_description;
 
   const metadata: Metadata = {
@@ -83,16 +80,8 @@ export default async function StoryPage({ params }: PageProps) {
   // Get prev/next stories for navigation
   const { prev, next } = await get_adjacent_stories(story.date_key);
 
-  // Extract title from story HTML (looks for <h2>...</h2>)
-  const title_match = story.content.match(/<h2[^>]*>([^<]+)<\/h2>/i);
-  const title = title_match ? title_match[1] : `Reflections on ${story.date_display}`;
-
-  // Remove the h2 from content since we're displaying it separately
-  // Also make all links open in new tabs
-  const body_content = story.content
-    .replace(/<h2[^>]*>[^<]+<\/h2>/i, '')
-    .replace(/<a /g, '<a target="_blank" rel="noopener noreferrer" ')
-    .trim();
+  const title = extract_story_title(story.content, story.date_display);
+  const body_content = build_story_body_html(story.content);
 
   const created_date = new Date(story.created_at).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -206,6 +195,15 @@ export default async function StoryPage({ params }: PageProps) {
             .footer-actions .archive-btn:hover {
               color: #c4704b;
               border-color: #c4704b;
+            }
+
+            .footer-actions .edit-btn {
+              color: #c4704b;
+              border-color: #c4704b40;
+            }
+
+            .footer-actions .edit-btn:hover {
+              background: #c4704b12;
             }
 
             .story-footer .footer-meta {
@@ -345,6 +343,11 @@ export default async function StoryPage({ params }: PageProps) {
           {/* Footer with actions */}
           <footer className="story-footer">
             <div className="footer-actions">
+              {is_authenticated && (
+                <Link href={`/creative/edit/${id}`} className="archive-btn edit-btn">
+                  Edit Story
+                </Link>
+              )}
               <Link href="/creative/archive" className="archive-btn">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>

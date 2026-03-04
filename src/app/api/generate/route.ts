@@ -5,7 +5,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
-import { get_posts_on_date, get_post_url, save_story } from '@/lib/db';
+import { get_posts_on_date, get_post_url, save_story, save_story_audit } from '@/lib/db';
+import { build_story_audit } from '@/lib/story_audit';
 
 function stripCodeFences(text: string): string {
   let cleaned = text.trim();
@@ -179,12 +180,20 @@ ${formatted_posts}`;
     // Save story to database and get shareable ID
     const date_key = `${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
     const story_id = await save_story(date_key, date_display, story, blurb, posts.length, image_url);
+    const audit = build_story_audit(posts.map(post => ({
+      post_id: post.post_id,
+      title: post.title,
+      url: get_post_url(post.post_id),
+      content_html: post.content_html
+    })));
+    await save_story_audit(story_id, audit);
 
     return NextResponse.json({
       success: true,
       story,
       blurb,
       story_id,
+      audit,
       posts_used: posts.length,
       usage: {
         input_tokens: message.usage.input_tokens,
