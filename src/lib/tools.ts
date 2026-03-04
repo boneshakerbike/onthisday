@@ -17,9 +17,9 @@ export interface ToolMeta {
 
 export const TOOLS: ToolMeta[] = [
   {
-    label: 'What Am I Trying To Say',
+    label: 'What Am I Trying To Say + Story',
     path: '/tools/text-cleaner',
-    description: 'Paste rough text — get it cleaned up for clarity, then edit and copy',
+    description: 'Clean up rough text for clarity, then turn it into a three-paragraph story',
   },
   {
     label: 'Markdown Converter',
