@@ -34,7 +34,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { content } = body;
+    const { content, mode } = body;
+    const operation = mode === 'story' ? 'story' : 'clean';
 
     if (!content || typeof content !== 'string' || !content.trim()) {
       return NextResponse.json({ error: 'Content is required' }, { status: 400 });
@@ -52,7 +53,19 @@ export async function POST(request: NextRequest) {
       messages: [
         {
           role: 'user',
-          content: `Rewrite the following text so it reads naturally and is easy to understand. Fix all spelling, grammar, and punctuation errors. Keep the author's voice and tone — don't make it sound corporate or robotic. If a sentence is confusing, rewrite it simply instead of just rearranging words. Keep it concise but don't cut anything important.
+          content: operation === 'story'
+            ? `Turn the following text into a short narrative in exactly three distinct paragraphs:
+1) Intro/setup
+2) Conflict or confusion
+3) How it ended (resolution)
+
+Preserve the original meaning, facts, and voice. Do not add major new details. Improve flow and clarity.
+
+Return only the story text as exactly three paragraphs. No commentary, no quotes, no headings.
+
+Text:
+${content}`
+            : `Rewrite the following text so it reads naturally and is easy to understand. Fix all spelling, grammar, and punctuation errors. Keep the author's voice and tone — don't make it sound corporate or robotic. If a sentence is confusing, rewrite it simply instead of just rearranging words. Keep it concise but don't cut anything important.
 
 Return only the cleaned text. No commentary, no quotes, no preamble.
 
@@ -65,6 +78,17 @@ ${content}`
     const cleaned = result.content[0].type === 'text'
       ? result.content[0].text.trim()
       : '';
+
+    if (operation === 'story') {
+      return NextResponse.json({
+        success: true,
+        story: cleaned,
+        usage: {
+          input_tokens: result.usage.input_tokens,
+          output_tokens: result.usage.output_tokens
+        }
+      });
+    }
 
     return NextResponse.json({
       success: true,
