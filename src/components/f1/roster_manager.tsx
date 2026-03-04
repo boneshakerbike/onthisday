@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface RosterManagerProps {
   season: number;
@@ -14,6 +14,12 @@ export default function RosterManager({ season, round, roster, on_roster_change,
   const [new_name, set_new_name] = useState('');
   const [busy, set_busy] = useState(false);
   const [poke_result, set_poke_result] = useState<string | null>(null);
+  const [rookies_open, set_rookies_open] = useState(false);
+  const [rookie_driver_names, set_rookie_driver_names] = useState<Record<string, string>>({});
+  const [selected_rookies, set_selected_rookies] = useState<string[]>([]);
+  const [rookies_loading, set_rookies_loading] = useState(false);
+  const [rookies_saving, set_rookies_saving] = useState(false);
+  const [rookies_message, set_rookies_message] = useState<string | null>(null);
 
   const poke_the_bear = async () => {
     if (!round) { alert('Select a round first'); return; }
@@ -45,6 +51,63 @@ export default function RosterManager({ season, round, roster, on_roster_change,
       set_poke_result('Failed to poke the bear');
     } finally {
       set_busy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!rookies_open) return;
+    let cancelled = false;
+    const run = async () => {
+      set_rookies_loading(true);
+      set_rookies_message(null);
+      try {
+        const res = await fetch(`/api/f1/mr-bear/rookies?season=${season}`);
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          set_rookies_message(data.error || 'Failed to load rookies');
+          return;
+        }
+        set_selected_rookies(Array.isArray(data.rookies) ? data.rookies : []);
+        set_rookie_driver_names((data.driver_names && typeof data.driver_names === 'object') ? data.driver_names : {});
+      } catch {
+        if (!cancelled) set_rookies_message('Failed to load rookies');
+      } finally {
+        if (!cancelled) set_rookies_loading(false);
+      }
+    };
+    void run();
+    return () => { cancelled = true; };
+  }, [rookies_open, season]);
+
+  const toggle_rookie = (driver_id: string) => {
+    set_selected_rookies(prev => (
+      prev.includes(driver_id)
+        ? prev.filter(id => id !== driver_id)
+        : [...prev, driver_id]
+    ));
+  };
+
+  const save_rookies = async () => {
+    set_rookies_saving(true);
+    set_rookies_message(null);
+    try {
+      const res = await fetch('/api/f1/mr-bear/rookies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ season, driver_ids: selected_rookies }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        set_rookies_message(data.error || 'Failed to save rookies');
+        return;
+      }
+      set_selected_rookies(Array.isArray(data.rookies) ? data.rookies : selected_rookies);
+      set_rookies_message('Saved Mr Bear rookies');
+    } catch {
+      set_rookies_message('Failed to save rookies');
+    } finally {
+      set_rookies_saving(false);
     }
   };
 
@@ -134,6 +197,9 @@ export default function RosterManager({ season, round, roster, on_roster_change,
       set_busy(false);
     }
   };
+
+  const rookie_driver_entries = Object.entries(rookie_driver_names)
+    .sort((a, b) => a[1].localeCompare(b[1]));
 
   return (
     <div style={{
@@ -267,6 +333,88 @@ export default function RosterManager({ season, round, roster, on_roster_change,
           )}
         </div>
       )}
+      <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        <button
+          onClick={() => set_rookies_open(prev => !prev)}
+          disabled={busy || rookies_saving}
+          style={{
+            background: 'rgba(139,90,43,0.15)',
+            border: '1px solid rgba(139,90,43,0.35)',
+            color: '#d4a574',
+            borderRadius: '6px',
+            padding: '0.35rem 0.75rem',
+            cursor: busy || rookies_saving ? 'not-allowed' : 'pointer',
+            fontSize: '0.78rem',
+            fontWeight: 600,
+            opacity: busy || rookies_saving ? 0.5 : 1,
+          }}
+        >
+          {rookies_open ? 'Hide Mr Bear Rookies' : 'Mr Bear Rookies'}
+        </button>
+        {rookies_open && (
+          <div style={{
+            marginTop: '0.6rem',
+            background: 'rgba(0,0,0,0.2)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: '8px',
+            padding: '0.6rem',
+          }}>
+            {rookies_loading ? (
+              <div style={{ color: '#d1d5db', fontSize: '0.75rem' }}>Loading drivers...</div>
+            ) : rookie_driver_entries.length === 0 ? (
+              <div style={{ color: '#d1d5db', fontSize: '0.75rem' }}>No drivers found for {season}</div>
+            ) : (
+              <div style={{ maxHeight: '210px', overflowY: 'auto', display: 'grid', gap: '0.35rem' }}>
+                {rookie_driver_entries.map(([driver_id, name]) => (
+                  <label
+                    key={driver_id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.45rem',
+                      color: '#e0e0e0',
+                      fontSize: '0.78rem',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected_rookies.includes(driver_id)}
+                      onChange={() => toggle_rookie(driver_id)}
+                      disabled={busy || rookies_saving}
+                    />
+                    <span>{name}</span>
+                    <span style={{ color: '#a1a1aa', fontSize: '0.72rem' }}>({driver_id})</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            <div style={{ marginTop: '0.55rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <button
+                onClick={save_rookies}
+                disabled={busy || rookies_loading || rookies_saving}
+                style={{
+                  background: 'rgba(139,90,43,0.2)',
+                  border: '1px solid rgba(139,90,43,0.4)',
+                  color: '#d4a574',
+                  borderRadius: '6px',
+                  padding: '0.3rem 0.7rem',
+                  cursor: busy || rookies_loading || rookies_saving ? 'not-allowed' : 'pointer',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  opacity: busy || rookies_loading || rookies_saving ? 0.5 : 1,
+                }}
+              >
+                {rookies_saving ? 'Saving...' : 'Save Rookies'}
+              </button>
+              {rookies_message && (
+                <span style={{ color: '#d1d5db', fontSize: '0.72rem' }}>
+                  {rookies_message}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
       <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         <button
           onClick={reset_season}
