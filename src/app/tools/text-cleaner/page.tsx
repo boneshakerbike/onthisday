@@ -110,7 +110,7 @@ export default function TextCleanerPage() {
         <NavTabs />
 
         <h1 className="text-center text-3xl font-light text-cyan-400 mb-2">
-          What Am I Trying To Say + Story Mode
+          What Am I Trying To Say
         </h1>
         <p className="text-center text-gray-400 mb-8">
           Clean up your ramble, then turn it into a three-paragraph story
@@ -149,13 +149,6 @@ export default function TextCleanerPage() {
               {loading_action === 'clean' ? 'Cleaning...' : 'Clean Up'}
             </button>
             <button
-              onClick={turn_into_story}
-              disabled={!!loading_action || !cleaned.trim()}
-              className="w-full sm:w-auto px-8 py-[14px] sm:py-3 bg-emerald-500 hover:bg-emerald-400 disabled:bg-white/10 disabled:text-gray-500 text-black font-semibold rounded-lg transition-all text-sm"
-            >
-              {loading_action === 'story' ? 'Building Story...' : 'Turn Into Story'}
-            </button>
-            <button
               onClick={clear_all}
               className="w-full sm:w-auto px-4 py-2.5 sm:py-3 bg-[#333] sm:bg-white/10 hover:bg-red-400/20 rounded-lg border border-[#555] sm:border-white/20 text-gray-300 text-sm transition-all"
             >
@@ -181,6 +174,13 @@ export default function TextCleanerPage() {
                       {clean_usage.input_tokens + clean_usage.output_tokens} tokens
                     </span>
                   )}
+                  <button
+                    onClick={turn_into_story}
+                    disabled={!!loading_action}
+                    className="px-3 py-2 sm:py-1 bg-[#333] sm:bg-white/10 hover:bg-emerald-400/20 disabled:bg-white/10 disabled:text-gray-500 rounded border border-[#555] sm:border-white/20 text-sm text-gray-300 transition-all"
+                  >
+                    {loading_action === 'story' ? 'Building Story...' : 'Turn Into Story'}
+                  </button>
                   <button
                     onClick={() => copy_output(cleaned)}
                     className="px-3 py-2 sm:py-1 bg-[#333] sm:bg-white/10 hover:bg-cyan-400/20 rounded border border-[#555] sm:border-white/20 text-sm text-gray-300 transition-all"
