@@ -9,8 +9,8 @@ import { get_cached_results } from './db';
 
 const BASE = 'https://api.jolpi.ca/ergast/f1';
 const VERSTAPPEN_ID = 'max_verstappen';
-const BEAR_BOOST = 3;
-const ROOKIE_BOOST = 2;
+const BEAR_BOOST = 2;
+const ROOKIE_BOOST = 1;
 
 const ROOKIES: Record<number, string[]> = {
   2025: ['antonelli', 'bearman', 'doohan', 'hadjar', 'bortoleto'],
