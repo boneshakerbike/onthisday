@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { get_story_by_date } from '@/lib/db';
+import { extract_story_fallback_blurb } from '@/lib/story_markup';
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,13 +24,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ story: null });
     }
 
-    const fallback_blurb_match = story.content.match(/<p[^>]*>(.*?)<\/p>/is);
-    const fallback_blurb = fallback_blurb_match
-      ? fallback_blurb_match[1]
-        .replace(/<[^>]*>/g, '')
-        .replace(/\s+/g, ' ')
-        .trim()
-      : null;
+    const fallback_blurb = extract_story_fallback_blurb(story.content);
 
     return NextResponse.json({
       story: {
@@ -38,6 +33,7 @@ export async function GET(request: NextRequest) {
         blurb: story.blurb || fallback_blurb,
         post_count: story.post_count,
         image_url: story.image_url,
+        edited_at: story.edited_at,
         created_at: story.created_at,
       }
     });
