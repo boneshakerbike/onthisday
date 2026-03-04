@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { get_cached_schedule, get_cached_results, get_roster } from '@/lib/f1/db';
+import { get_cached_results, get_roster } from '@/lib/f1/db';
+import { get_schedule } from '@/lib/f1/cache';
 import { STANDARD_WEEKEND, SPRINT_WEEKEND } from '@/lib/f1/types';
 import type { SessionType } from '@/lib/f1/types';
 
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const schedule = await get_cached_schedule(season);
+    const schedule = await get_schedule(season);
     const roster = await get_roster(season);
 
     if (!schedule || schedule.length === 0) {
