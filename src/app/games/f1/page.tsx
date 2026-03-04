@@ -9,7 +9,9 @@ import RosterManager from '@/components/f1/roster_manager';
 import PlayerPicker from '@/components/f1/player_picker';
 import ActivityHud from '@/components/f1/activity_hud';
 import type { ActivityEntry } from '@/components/f1/activity_hud';
-import type { F1RaceSchedule, F1Driver, F1DriverResult, SessionType } from '@/lib/f1/types';
+import type {
+  F1RaceSchedule, F1Driver, F1DriverResult, SessionType, F1CancelledRound,
+} from '@/lib/f1/types';
 
 interface SessionInfo {
   session_type: SessionType;
@@ -37,6 +39,7 @@ export default function F1Page() {
   const is_admin = !!auth_session?.user && (auth_session.user as { id?: string }).id !== 'guest';
   const [season, set_season] = useState(current_year);
   const [races, set_races] = useState<F1RaceSchedule[]>([]);
+  const [cancelled_rounds, set_cancelled_rounds] = useState<F1CancelledRound[]>([]);
   const [drivers, set_drivers] = useState<F1Driver[]>([]);
   const [selected_round, set_selected_round] = useState<number | null>(null);
   const [sessions, set_sessions] = useState<SessionInfo[]>([]);
@@ -170,14 +173,15 @@ export default function F1Page() {
 
   useEffect(() => { refresh_progress(); }, [refresh_progress]);
 
-  // Fetch schedule
-  useEffect(() => {
+  // Fetch schedule + cancelled rounds
+  const refresh_schedule = useCallback(() => {
     set_loading(true);
     set_error(null);
     fetch(`/api/f1/schedule?season=${season}`)
       .then(res => res.json())
       .then(data => {
         set_races(data.races || []);
+        set_cancelled_rounds(data.cancelled_rounds || []);
         set_loading(false);
       })
       .catch(err => {
@@ -185,6 +189,8 @@ export default function F1Page() {
         set_loading(false);
       });
   }, [season]);
+
+  useEffect(() => { refresh_schedule(); }, [refresh_schedule]);
 
   // Fetch drivers
   useEffect(() => {
@@ -418,6 +424,9 @@ export default function F1Page() {
       refresh_state();
       refresh_leaderboard();
       refresh_progress();
+      if (session_type === 'race') {
+        refresh_schedule();
+      }
     } catch {
       alert('Failed to reveal results');
     } finally {
@@ -638,8 +647,14 @@ export default function F1Page() {
             season={season}
             round={selected_round}
             roster={roster}
+            races={races}
+            cancelled_rounds={cancelled_rounds}
             on_roster_change={(new_roster) => {
               set_roster(new_roster);
+              refresh_progress();
+            }}
+            on_schedule_change={() => {
+              refresh_schedule();
               refresh_progress();
             }}
             on_season_reset={() => {
@@ -700,6 +715,7 @@ export default function F1Page() {
                   <SeasonGrid
                     races={races}
                     season={season}
+                    cancelled_rounds={cancelled_rounds}
                     active_round={active_round}
                     completed_rounds={completed_rounds}
                     on_select_round={(round) => {

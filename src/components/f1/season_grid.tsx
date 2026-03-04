@@ -1,10 +1,11 @@
 'use client';
 
-import type { F1RaceSchedule } from '@/lib/f1/types';
+import type { F1RaceSchedule, F1CancelledRound } from '@/lib/f1/types';
 
 interface SeasonGridProps {
   races: F1RaceSchedule[];
   season: number;
+  cancelled_rounds?: F1CancelledRound[];
   on_select_round: (round: number) => void;
   active_round?: number;
   completed_rounds?: number[];
@@ -34,7 +35,13 @@ function format_date(date_str: string): string {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export default function SeasonGrid({ races, on_select_round, active_round, completed_rounds = [] }: SeasonGridProps) {
+export default function SeasonGrid({
+  races,
+  cancelled_rounds = [],
+  on_select_round,
+  active_round,
+  completed_rounds = [],
+}: SeasonGridProps) {
   const has_locking = active_round !== undefined;
   const completed_set = new Set(completed_rounds);
 
@@ -43,6 +50,21 @@ export default function SeasonGrid({ races, on_select_round, active_round, compl
       <h3 style={{ color: '#ffffff', fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>
         Race Calendar
       </h3>
+      {cancelled_rounds.length > 0 && (
+        <div style={{
+          marginBottom: '0.75rem',
+          padding: '0.6rem 0.7rem',
+          background: 'rgba(255,68,102,0.08)',
+          border: '1px solid rgba(255,68,102,0.2)',
+          borderRadius: '8px',
+        }}>
+          {cancelled_rounds.map(cr => (
+            <div key={`${cr.circuit_id}_${cr.source}`} style={{ color: '#fda4af', fontSize: '0.74rem', lineHeight: 1.45 }}>
+              Round {cr.round} ({cr.race_name}) was removed from the calendar.
+            </div>
+          ))}
+        </div>
+      )}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(3, 1fr)',
