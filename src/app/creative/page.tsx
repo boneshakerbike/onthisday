@@ -49,6 +49,7 @@ interface SavedStory {
   id: string;
   created_at: string;
   blurb: string | null;
+  edited_at: string | null;
 }
 
 export default function OnThisDay() {
@@ -118,7 +119,8 @@ export default function OnThisDay() {
           set_existing_story({
             id: story_data.story.id,
             created_at: story_data.story.created_at,
-            blurb: story_data.story.blurb || null
+            blurb: story_data.story.blurb || null,
+            edited_at: story_data.story.edited_at || null
           });
         }
       }
@@ -221,6 +223,12 @@ export default function OnThisDay() {
 
   const generate_story = async () => {
     if (!date || posts.length === 0) return;
+    if (
+      existing_story?.edited_at
+      && !window.confirm('This will replace your edited story. Continue?')
+    ) {
+      return;
+    }
 
     set_generating(true);
     set_generate_error(null);
@@ -245,7 +253,8 @@ export default function OnThisDay() {
           set_existing_story({
             id: data.story_id,
             created_at: new Date().toISOString(),
-            blurb: data.blurb || null
+            blurb: data.blurb || null,
+            edited_at: null
           });
         }
         set_token_usage({
@@ -449,6 +458,7 @@ export default function OnThisDay() {
     : '';
   const current_story_id = story_id || existing_story?.id || null;
   const current_story_blurb = existing_story?.blurb || null;
+  const is_authenticated = !!session;
   const control_group_class = 'mb-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4';
   const control_label_text_class = 'text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300/70';
   const collapsible_summary_class = 'cursor-pointer list-none';
@@ -644,6 +654,14 @@ export default function OnThisDay() {
                     View Saved Story
                   </a>
                 )}
+                {is_authenticated && current_story_id && (
+                  <a
+                    href={`/creative/edit/${current_story_id}`}
+                    className={secondary_button_class}
+                  >
+                    Edit Story
+                  </a>
+                )}
                 <a
                   href="/creative/archive"
                   className={subtle_button_class}
@@ -670,6 +688,7 @@ export default function OnThisDay() {
               {existing_story && (
                 <p className="mt-3 text-xs text-gray-400">
                   Saved {new Date(existing_story.created_at).toLocaleDateString()}
+                  {existing_story.edited_at && `, edited ${new Date(existing_story.edited_at).toLocaleDateString()}`}
                 </p>
               )}
             </details>
