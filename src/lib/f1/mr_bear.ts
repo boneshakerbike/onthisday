@@ -6,16 +6,12 @@
 
 import type { SessionType } from './types';
 import { get_cached_results } from './db';
+import { get_mr_bear_rookies } from '@/lib/db';
 
 const BASE = 'https://api.jolpi.ca/ergast/f1';
 const VERSTAPPEN_ID = 'max_verstappen';
 const BEAR_BOOST = 2;
 const ROOKIE_BOOST = 1;
-
-const ROOKIES: Record<number, string[]> = {
-  2025: ['antonelli', 'bearman', 'doohan', 'hadjar', 'bortoleto'],
-  2026: [],
-};
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function jolpica_fetch(path: string): Promise<any> {
@@ -43,9 +39,10 @@ export async function get_driver_name_map(season: number): Promise<Record<string
 // — Bias logic ————————————————————————————————————————
 
 export function apply_biases(
-  ranking: string[], driver_names: Record<string, string>, season: number
+  ranking: string[], driver_names: Record<string, string>, rookies: string[]
 ): string[] {
   const result = ranking.filter(id => id !== VERSTAPPEN_ID);
+  const rookie_set = new Set(rookies);
 
   // Bear name boost
   for (let i = 0; i < result.length; i++) {
@@ -60,9 +57,8 @@ export function apply_biases(
   }
 
   // Rookie boost
-  const rookies = new Set(ROOKIES[season] || []);
   for (let i = 0; i < result.length; i++) {
-    if (rookies.has(result[i])) {
+    if (rookie_set.has(result[i])) {
       const new_pos = Math.max(0, i - ROOKIE_BOOST);
       if (new_pos !== i) {
         const [driver] = result.splice(i, 1);
@@ -177,7 +173,8 @@ export async function generate_picks(
   }
 
   const names = await get_driver_name_map(season);
-  const biased = apply_biases(ranking, names, season);
+  const rookies = await get_mr_bear_rookies(season);
+  const biased = apply_biases(ranking, names, rookies);
 
   const picks = {
     p1: biased[0],
@@ -189,7 +186,7 @@ export async function generate_picks(
   // Fastest lap for race only: highest qualifier among biased top 10
   if (session_type === 'race') {
     const quali_ranking = await get_qualifying_ranking(season, round);
-    const quali_biased = apply_biases(quali_ranking, names, season);
+    const quali_biased = apply_biases(quali_ranking, names, rookies);
     const top10_race = new Set(biased.slice(0, 10));
     for (const id of quali_biased) {
       if (top10_race.has(id)) {

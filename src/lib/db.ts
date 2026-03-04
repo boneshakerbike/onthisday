@@ -91,6 +91,23 @@ async function init_schema(): Promise<void> {
   `);
 
   await db.execute(`
+    CREATE TABLE IF NOT EXISTS mr_bear_rookies (
+      season INTEGER NOT NULL,
+      driver_id TEXT NOT NULL,
+      PRIMARY KEY (season, driver_id)
+    )
+  `);
+
+  await db.execute(`
+    INSERT OR IGNORE INTO mr_bear_rookies (season, driver_id) VALUES
+      (2025, 'antonelli'),
+      (2025, 'bearman'),
+      (2025, 'doohan'),
+      (2025, 'hadjar'),
+      (2025, 'bortoleto')
+  `);
+
+  await db.execute(`
     CREATE INDEX IF NOT EXISTS idx_stories_date_key ON stories(date_key)
   `);
 
@@ -132,6 +149,39 @@ async function ensure_schema(): Promise<void> {
   if (!schema_initialized) {
     await init_schema();
     schema_initialized = true;
+  }
+}
+
+export async function get_mr_bear_rookies(season: number): Promise<string[]> {
+  await ensure_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'SELECT driver_id FROM mr_bear_rookies WHERE season = ? ORDER BY driver_id ASC',
+    args: [season]
+  });
+
+  return result.rows.map(row => row.driver_id as string);
+}
+
+export async function set_mr_bear_rookies(season: number, driver_ids: string[]): Promise<void> {
+  await ensure_schema();
+  const db = get_client();
+
+  const normalized = Array.from(new Set(
+    driver_ids.map(id => id.trim()).filter(Boolean)
+  ));
+
+  await db.execute({
+    sql: 'DELETE FROM mr_bear_rookies WHERE season = ?',
+    args: [season]
+  });
+
+  for (const driver_id of normalized) {
+    await db.execute({
+      sql: 'INSERT INTO mr_bear_rookies (season, driver_id) VALUES (?, ?)',
+      args: [season, driver_id]
+    });
   }
 }
 
