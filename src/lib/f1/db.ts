@@ -7,6 +7,7 @@ import { createClient, Client } from '@libsql/client';
 import type {
   F1RaceSchedule, F1Driver, F1DriverResult, F1SessionResult,
   F1Prediction, F1Score, F1PlayerState, SessionType, PlayerState,
+  F1CancelledRound, CancelledRoundSource,
 } from './types';
 
 // ΓöÇΓöÇ Client (shared singleton with main db.ts) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
@@ -166,6 +167,23 @@ async function init_f1_schema(): Promise<void> {
       PRIMARY KEY (season, round, session_type)
     )
   `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS f1_cancelled_rounds (
+      season INTEGER NOT NULL,
+      round INTEGER NOT NULL,
+      race_name TEXT NOT NULL,
+      circuit_id TEXT NOT NULL,
+      source TEXT NOT NULL CHECK(source IN ('auto', 'admin')),
+      cancelled_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (season, circuit_id, source)
+    )
+  `);
+
+  await db.execute(`
+    CREATE INDEX IF NOT EXISTS idx_f1_cancelled_rounds_lookup
+      ON f1_cancelled_rounds(season, source)
+  `);
 }
 
 async function ensure_f1_schema(): Promise<void> {
@@ -217,22 +235,92 @@ export async function get_cached_schedule(season: number): Promise<F1RaceSchedul
   }));
 }
 
-export async function save_schedule(races: F1RaceSchedule[]): Promise<void> {
+export async function save_schedule(season: number, races: F1RaceSchedule[]): Promise<void> {
   await ensure_f1_schema();
   const db = get_client();
 
+  const statements: Array<{ sql: string; args?: (string | number | null)[] }> = [
+    { sql: 'DELETE FROM f1_seasons WHERE season = ?', args: [season] },
+  ];
+
   for (const race of races) {
-    await db.execute({
-      sql: `INSERT OR IGNORE INTO f1_seasons
+    statements.push({
+      sql: `INSERT INTO f1_seasons
             (season, round, race_name, circuit_id, circuit_name, country, locality, race_date, race_time, is_sprint_weekend)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
-        race.season, race.round, race.race_name, race.circuit_id,
+        season, race.round, race.race_name, race.circuit_id,
         race.circuit_name, race.country, race.locality,
         race.race_date, race.race_time, race.is_sprint_weekend ? 1 : 0,
       ],
     });
   }
+
+  await db.batch(statements, 'write');
+}
+
+export async function get_cancelled_rounds(
+  season: number,
+  source?: CancelledRoundSource
+): Promise<F1CancelledRound[]> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  const result = source
+    ? await db.execute({
+      sql: `SELECT * FROM f1_cancelled_rounds
+            WHERE season = ? AND source = ?
+            ORDER BY cancelled_at DESC, round ASC`,
+      args: [season, source],
+    })
+    : await db.execute({
+      sql: `SELECT * FROM f1_cancelled_rounds
+            WHERE season = ?
+            ORDER BY cancelled_at DESC, round ASC`,
+      args: [season],
+    });
+
+  return result.rows.map(row => ({
+    season: row.season as number,
+    round: row.round as number,
+    race_name: row.race_name as string,
+    circuit_id: row.circuit_id as string,
+    source: row.source as CancelledRoundSource,
+    cancelled_at: row.cancelled_at as string,
+  }));
+}
+
+export async function upsert_cancelled_round(
+  season: number,
+  round: number,
+  race_name: string,
+  circuit_id: string,
+  source: CancelledRoundSource
+): Promise<void> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  await db.execute({
+    sql: `INSERT INTO f1_cancelled_rounds (season, round, race_name, circuit_id, source, cancelled_at)
+          VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(season, circuit_id, source)
+          DO UPDATE SET round = excluded.round, race_name = excluded.race_name, cancelled_at = CURRENT_TIMESTAMP`,
+    args: [season, round, race_name, circuit_id, source],
+  });
+}
+
+export async function delete_admin_cancelled_round(
+  season: number,
+  circuit_id: string
+): Promise<void> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  await db.execute({
+    sql: `DELETE FROM f1_cancelled_rounds
+          WHERE season = ? AND circuit_id = ? AND source = 'admin'`,
+    args: [season, circuit_id],
+  });
 }
 
 // ΓöÇΓöÇ Drivers CRUD ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ

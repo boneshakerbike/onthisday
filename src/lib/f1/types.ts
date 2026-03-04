@@ -42,6 +42,17 @@ export interface F1RaceSchedule {
   is_sprint_weekend: boolean;
 }
 
+export type CancelledRoundSource = 'auto' | 'admin';
+
+export interface F1CancelledRound {
+  season: number;
+  round: number;
+  race_name: string;
+  circuit_id: string;
+  source: CancelledRoundSource;
+  cancelled_at: string;
+}
+
 export interface F1Driver {
   driver_id: string;
   code: string;

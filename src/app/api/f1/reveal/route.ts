@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { reveal_session } from '@/lib/f1/cache';
+import { refresh_schedule, reveal_session } from '@/lib/f1/cache';
 import { get_roster, get_predictions_for_session } from '@/lib/f1/db';
 import type { SessionType } from '@/lib/f1/types';
 
@@ -32,6 +32,10 @@ export async function POST(request: NextRequest) {
     }
 
     const { results, prediction, score } = await reveal_session(season, round, st, player_name);
+
+    if (st === 'race') {
+      await refresh_schedule(season);
+    }
 
     return NextResponse.json({
       results: results.results,

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   get_player_round_states, get_prediction, get_score,
-  get_cached_schedule, get_roster, get_predictions_for_session,
+  get_roster, get_predictions_for_session,
   get_all_player_states_for_round, set_player_state,
 } from '@/lib/f1/db';
+import { get_schedule } from '@/lib/f1/cache';
 import { STANDARD_WEEKEND, SPRINT_WEEKEND } from '@/lib/f1/types';
 import type { SessionType } from '@/lib/f1/types';
 
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const schedule = await get_cached_schedule(season);
+    const schedule = await get_schedule(season);
     const race = schedule?.find(r => r.round === round);
     const session_order: SessionType[] = race?.is_sprint_weekend
       ? SPRINT_WEEKEND

@@ -8,9 +8,10 @@ import { getServerSession } from 'next-auth';
 import { auth_options } from '@/lib/auth';
 import {
   get_roster, get_prediction, save_prediction,
-  lock_prediction, set_player_state, get_cached_schedule,
+  lock_prediction, set_player_state,
 } from '@/lib/f1/db';
 import { generate_picks } from '@/lib/f1/mr_bear';
+import { get_schedule } from '@/lib/f1/cache';
 import type { SessionType } from '@/lib/f1/types';
 import { STANDARD_WEEKEND, SPRINT_WEEKEND } from '@/lib/f1/types';
 
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine weekend type from schedule
-    const schedule = await get_cached_schedule(season);
+    const schedule = await get_schedule(season);
     const race = schedule?.find(r => r.round === round);
     const session_types: SessionType[] = race?.is_sprint_weekend
       ? SPRINT_WEEKEND

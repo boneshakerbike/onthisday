@@ -11,7 +11,8 @@ import {
   get_cached_results, save_results,
   get_prediction, get_predictions_for_session,
   get_score, save_score,
-  set_player_state,
+  set_player_state, get_cancelled_rounds,
+  upsert_cancelled_round,
 } from './db';
 import type {
   F1RaceSchedule, F1Driver, F1SessionResult,
@@ -25,10 +26,28 @@ export async function get_schedule(season: number): Promise<F1RaceSchedule[]> {
   const cached = await get_cached_schedule(season);
   if (cached) return cached;
 
+  return refresh_schedule(season);
+}
+
+export async function refresh_schedule(season: number): Promise<F1RaceSchedule[]> {
+  const old_cached = await get_cached_schedule(season);
   const adapter = get_f1_adapter();
-  const races = await adapter.fetch_schedule(season);
-  await save_schedule(races);
-  return races;
+  const fresh_races = await adapter.fetch_schedule(season);
+
+  // Admin-cancelled rounds persist across every refresh.
+  const admin_cancelled = await get_cancelled_rounds(season, 'admin');
+  const admin_cancelled_circuits = new Set(admin_cancelled.map(r => r.circuit_id));
+  const stripped_races = fresh_races.filter(r => !admin_cancelled_circuits.has(r.circuit_id));
+
+  // Auto-cancelled rounds are informational only and never stripped from future refreshes.
+  const fresh_circuits = new Set(fresh_races.map(r => r.circuit_id));
+  const auto_cancelled = (old_cached || []).filter(r => !fresh_circuits.has(r.circuit_id));
+  for (const race of auto_cancelled) {
+    await upsert_cancelled_round(season, race.round, race.race_name, race.circuit_id, 'auto');
+  }
+
+  await save_schedule(season, stripped_races);
+  return stripped_races;
 }
 
 // ΓöÇΓöÇ Drivers (lazy fetch, cache forever) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
