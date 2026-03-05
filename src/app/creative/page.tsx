@@ -199,8 +199,10 @@ export default function OnThisDay() {
       if (version === 'simple') {
         html += `<p>${post.year}: <a href="${post.url}">${post.title}</a></p>\n`;
       } else {
-        const blurb_part = post.blurb ? ` – ${post.blurb}` : '';
-        html += `<p>${post.year}: <a href="${post.url}">${post.title}</a>${blurb_part}</p>\n`;
+        html += `<h2>${post.year}: <a href="${post.url}">${post.title}</a></h2>
+`;
+        if (post.blurb) html += `<p>${post.blurb}</p>
+`;
       }
     }
 
