@@ -78,7 +78,7 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
   );
 
   const trigger_class = (path: string) =>
-    `group bg-transparent ${tab_class(path)} flex items-center gap-1`;
+    `group bg-transparent outline-none focus:outline-none focus-visible:outline-none ${tab_class(path)} flex items-center gap-1`;
 
   return (
     <header className={`mb-6 border-b ${is_light ? 'border-[#e5e0d8]' : 'border-white/10'}`}>
