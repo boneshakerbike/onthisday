@@ -273,14 +273,22 @@ export default function OnThisDay() {
   };
 
   const copyStoryBlurb = async () => {
-    if (!existing_story?.blurb) return;
+    if (!existing_story?.blurb || !date) return;
     set_copy_status('');
 
+    const html = `<h2>On This Day — ${date.display}</h2>\n${existing_story.blurb}`;
+
     try {
-      await navigator.clipboard.writeText(existing_story.blurb);
+      const blob = new Blob([html], { type: 'text/html' });
+      await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
       set_story_copy_status('Blurb copied!');
     } catch {
-      set_story_copy_status('Copy failed');
+      try {
+        await navigator.clipboard.writeText(existing_story.blurb);
+        set_story_copy_status('Blurb copied as text');
+      } catch {
+        set_story_copy_status('Copy failed');
+      }
     }
     setTimeout(() => set_story_copy_status(''), 3000);
   };
