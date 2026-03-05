@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { get_story_by_date } from '@/lib/db';
-import { extract_story_fallback_blurb } from '@/lib/story_markup';
+import { extract_story_fallback_blurb, extract_story_title } from '@/lib/story_markup';
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,11 +25,13 @@ export async function GET(request: NextRequest) {
     }
 
     const fallback_blurb = extract_story_fallback_blurb(story.content);
+    const title = extract_story_title(story.content, story.date_display);
 
     return NextResponse.json({
       story: {
         id: story.id,
         date_display: story.date_display,
+        title,
         blurb: story.blurb || fallback_blurb,
         post_count: story.post_count,
         image_url: story.image_url,

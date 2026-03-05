@@ -10,6 +10,7 @@ import { useSession } from 'next-auth/react';
 import JSZip from 'jszip';
 import Papa from 'papaparse';
 import NavTabs from '@/components/nav_tabs';
+import { extract_story_title } from '@/lib/story_markup';
 
 interface Post {
   post_id: string;
@@ -48,6 +49,7 @@ interface GenerateResponse {
 interface SavedStory {
   id: string;
   created_at: string;
+  title: string;
   blurb: string | null;
   edited_at: string | null;
 }
@@ -119,6 +121,7 @@ export default function OnThisDay() {
           set_existing_story({
             id: story_data.story.id,
             created_at: story_data.story.created_at,
+            title: story_data.story.title,
             blurb: story_data.story.blurb || null,
             edited_at: story_data.story.edited_at || null
           });
@@ -249,10 +252,12 @@ export default function OnThisDay() {
         set_generated_story(data.story);
         set_story_id(data.story_id || null);
         // Update existing_story to the newly generated one
-        if (data.story_id) {
+        if (data.story_id && date) {
+          const title = extract_story_title(data.story, date.display);
           set_existing_story({
             id: data.story_id,
             created_at: new Date().toISOString(),
+            title,
             blurb: data.blurb || null,
             edited_at: null
           });
@@ -276,11 +281,19 @@ export default function OnThisDay() {
     if (!existing_story?.blurb) return;
     set_copy_status('');
 
+    const html = `<h2>${existing_story.title}</h2>\n${existing_story.blurb}`;
+
     try {
-      await navigator.clipboard.writeText(existing_story.blurb);
+      const blob = new Blob([html], { type: 'text/html' });
+      await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
       set_story_copy_status('Blurb copied!');
     } catch {
-      set_story_copy_status('Copy failed');
+      try {
+        await navigator.clipboard.writeText(existing_story.blurb);
+        set_story_copy_status('Blurb copied as text');
+      } catch {
+        set_story_copy_status('Copy failed');
+      }
     }
     setTimeout(() => set_story_copy_status(''), 3000);
   };
