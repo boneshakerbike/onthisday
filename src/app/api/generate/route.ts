@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { get_posts_on_date, get_post_url, save_story, save_story_audit } from '@/lib/db';
 import { build_story_audit } from '@/lib/story_audit';
+import { MODELS } from '@/lib/models';
 
 function stripCodeFences(text: string): string {
   let cleaned = text.trim();
@@ -147,7 +148,7 @@ ${formatted_posts}`;
     const client = new Anthropic({ apiKey: api_key });
 
     const message = await client.messages.create({
-      model: 'claude-opus-4-5-20251101',
+      model: MODELS.STORY_GENERATION,
       max_tokens: 1024,
       system: [
         {
