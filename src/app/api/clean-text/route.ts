@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 2) Conflict or confusion
 3) How it ended (resolution)
 
-Preserve the original meaning, facts, and voice. Do not add major new details. Improve flow and clarity.
+Preserve the original meaning, facts, voice, and grammatical person — if the text uses "I", keep it first person. Do not add major new details. Improve flow and clarity.
 
 Return only the story text as exactly three paragraphs. No commentary, no quotes, no headings.
 
