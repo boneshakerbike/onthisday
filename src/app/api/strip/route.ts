@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import Anthropic from '@anthropic-ai/sdk';
+import { MODELS } from '@/lib/models';
 
 async function require_auth(request: NextRequest): Promise<NextResponse | null> {
   const token = await getToken({ req: request });
@@ -47,7 +48,7 @@ export async function POST(request: NextRequest) {
     const client = new Anthropic({ apiKey: api_key });
 
     const result = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: MODELS.STRIP,
       max_tokens: 4096,
       messages: [
         {

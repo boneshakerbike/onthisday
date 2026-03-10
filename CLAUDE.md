@@ -1,268 +1,156 @@
-# CLAUDE.md - 8i11
-
-## Project Overview
+# 8i11 — onthisday-next
 
 **Live:** https://8i11.vercel.app | **Repo:** https://github.com/boneshakerbike/onthisday
-
-**On This Day** is a Next.js web application that allows users to discover Substack posts published on any given date across multiple years. It serves as a personal archive explorer with AI-powered "looking back" reflections using the Claude API.
-
-### Key Features
-- Browse posts by month/day across all archived years
-- Upload and manage Substack archives (via ZIP export)
-- Auto-sync latest posts from RSS feed
-- AI-powered story generation for historical reflection
-- **Shareable story pages** at `/story/[id]` (public, no auth required)
-- GitHub OAuth and guest PIN authentication
-- Copy posts to clipboard for Substack publication
 
 ## Tech Stack
 
 | Category | Technology |
-|----------|------------|
+|---|---|
 | Framework | Next.js 16.1.4 with App Router |
 | Language | TypeScript 5.x |
-| UI | React 19.2.3 + Tailwind CSS 4.x |
-| Database | Turso (libSQL) production / SQLite (better-sqlite3) local |
+| UI | React 19.2.3 + Tailwind CSS 4.x + @radix-ui/react-dropdown-menu |
+| Database | Turso (libSQL) production / libSQL file driver local (data/posts.db) |
 | Auth | NextAuth.js 4.24.13 (GitHub OAuth + Guest PIN) |
-| AI | Anthropic Claude SDK (@anthropic-ai/sdk) |
-| Processing | jszip (ZIP), papaparse (CSV) |
-
-## Project Structure
-
-```
-src/
-+-- app/                          # Next.js App Router
-|   +-- page.tsx                  # Main dashboard (client component)
-|   +-- layout.tsx                # Root layout with session provider
-|   +-- globals.css               # Global Tailwind CSS
-|   +-- login/page.tsx            # Login page with OAuth & PIN auth
-|   +-- story/[id]/
-|   |   +-- page.tsx              # Public shareable story page
-|   |   +-- share_button.tsx      # Client-side share component
-|   +-- api/
-|       +-- posts/route.ts        # GET: fetch posts by date
-|       +-- upload/route.ts       # POST: batch upload archives
-|       +-- generate/route.ts     # POST: AI story generation
-|       +-- story/route.ts        # GET: fetch story by date
-|       +-- sync/route.ts         # GET: RSS feed sync
-|       +-- health/route.ts       # GET/POST: health check & cleanup
-|       +-- config/route.ts       # GET: configuration status
-|       +-- auth/[...nextauth]/   # NextAuth handler
-+-- components/
-|   +-- session_provider.tsx      # NextAuth SessionProvider wrapper
-+-- lib/
-|   +-- db.ts                     # Database abstraction & queries
-|   +-- auth.ts                   # NextAuth configuration
-+-- proxy.ts                      # Route protection (Next.js 16+)
-```
-
-## Database Schema
-
-Located in `src/lib/db.ts`:
-
-```sql
--- Posts table
-CREATE TABLE posts (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  post_id TEXT UNIQUE NOT NULL,    -- Substack post slug
-  title TEXT NOT NULL,
-  subtitle TEXT,
-  post_date TEXT NOT NULL,         -- UTC publication date
-  local_date TEXT NOT NULL,        -- Mountain Time (America/Denver)
-  audience TEXT,
-  type TEXT,
-  content_html TEXT,
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
-
--- Indexes for date queries
-CREATE INDEX idx_posts_local_date ON posts(local_date);
-CREATE INDEX idx_posts_month_day ON posts(substr(local_date,6,2), substr(local_date,9,2));
-
--- Archive metadata (singleton)
-CREATE TABLE archive_info (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
-  filename TEXT,
-  uploaded_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
-
--- Generated stories (one per date)
-CREATE TABLE stories (
-  id TEXT PRIMARY KEY,              -- 8-char random ID for shareable URLs
-  date_key TEXT NOT NULL,           -- MM-DD format
-  date_display TEXT NOT NULL,       -- "January 28" format
-  content TEXT NOT NULL,            -- Generated HTML
-  post_count INTEGER NOT NULL,
-  image_url TEXT,                   -- First image from source posts
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX idx_stories_date_key ON stories(date_key);
-```
-
-**Key Details:**
-- Dates stored in YYYY-MM-DD format
-- Uses Mountain Time (America/Denver) for date consistency
-- Post IDs are unique to prevent duplicates during sync
-
-## API Endpoints
-
-All endpoints protected by NextAuth middleware except `/api/auth/*`, `/api/health`, and `/story/*`.
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/posts?date=M-D` | GET | Fetch posts for a specific month/day across years |
-| `/api/upload` | POST | Batch-upload Substack archive (clear, posts_batch, html_batch) |
-| `/api/generate` | POST | Generate AI story using Claude (`claude-sonnet-4-20250514`) |
-| `/api/story?date=MM-DD` | GET | Fetch existing story for a date |
-| `/api/sync` | GET | Fetch RSS feed and add missing posts |
-| `/api/health` | GET | Database health check (posts + stories stats) |
-| `/api/health?action=cleanup_stories` | POST | Remove duplicate stories, keep most recent per date |
-| `/api/config` | GET | Check if Claude API key is configured |
-| `/story/[id]` | GET | **Public** shareable story page (no auth required) |
-
-### Upload Batch Types
-- `clear` - Clear all posts and update archive metadata
-- `posts_batch` - Append posts from CSV (~500 per request)
-- `html_batch` - Update HTML content for posts (~50 files per request)
-
-## Authentication
-
-Dual authentication system via NextAuth.js:
-
-1. **GitHub OAuth** - Standard OAuth2 flow
-2. **Guest PIN** - Credentials-based, PIN compared against `GUEST_PIN` env var
-
-**Session:** JWT strategy with 30-day maxAge
-
-**Protected Routes:** All except `/login`, `/story/*`, `/api/auth/*`, `/api/health`
+| AI | @anthropic-ai/sdk |
+| Testing | vitest |
 
 ## Development Commands
-
 ```bash
-npm run dev      # Start development server
+npm run dev      # Start dev server on :3000
 npm run build    # Build for production
-npm run start    # Start production server
-npm run lint     # Run ESLint
+npm run lint     # ESLint
+npx vitest       # Run tests (src/lib/f1/__tests__/)
 ```
+
+## Project Structure
+```
+src/
+  app/
+    page.tsx                      # Landing page
+    layout.tsx                    # Root layout + SessionProvider
+    creative/
+      page.tsx                    # On This Day: browse posts, generate stories
+      archive/page.tsx            # Story archive (public)
+      edit/[id]/page.tsx          # Story editor
+    story/[id]/page.tsx           # Shareable story page (public)
+    tools/
+      markdown/                   # Rich text → Markdown converter
+      knowledge-diff/             # Compare knowledge docs
+      prompt-library/             # Versioned prompt storage with AI review
+      text-cleaner/               # Text cleaning + story builder
+      instruction-stripper/       # Strip instructions from text
+      admin/                      # Admin reference
+    health/
+      wellness/page.tsx           # Oura Ring wellness dashboard
+    games/
+      f1/page.tsx                 # F1 Predictors Championship
+      frogger/                    # Pixel art frogger
+      breakout/                   # Brick breaker
+    weather/page.tsx              # Weather (public)
+    login/ privacy/ terms/
+    archive/                      # Redirects to /creative/archive
+    stories/                      # Redirects to /creative/archive
+    tools/wellness/               # Redirects to /health/wellness
+    api/
+      posts/ upload/ generate/
+      sync/ story/ stories/
+      intro/ clean-text/ strip/
+      knowledge-diff/
+      prompts/ prompts/review/
+      oura/                       # OAuth: authorize callback data sync disconnect
+      f1/                         # schedule drivers predict results leaderboard
+                                  # lock reveal state player roster season_progress
+                                  # mr-bear/stage mr-bear/poke mr-bear/rookies
+                                  # admin/cancel-round
+      health/ config/ auth/
+  components/
+    nav_tabs.tsx                  # Shared navigation (Radix UI dropdowns)
+    session_provider.tsx
+    f1/                           # 10 F1 UI components
+  lib/
+    db.ts                         # posts, stories, story_audits, mr_bear_rookies
+    auth.ts                       # NextAuth config
+    story_audit.ts
+    story_markup.ts
+    tools.ts
+    f1/
+      db.ts                       # F1 DB tables
+      mr_bear.ts                  # Mr. Bear predictions (pure TS, no LLM)
+      jolpica.ts                  # Jolpica F1 API client
+      adapter.ts / cache.ts / types.ts
+      __tests__/
+  proxy.ts                        # Route protection middleware
+mr_bear/                          # Standalone data/scripts
+data/                             # Local SQLite (gitignored)
+```
+
+## Public Routes
+Per `src/proxy.ts`:
+- Pages: `/login`, `/story/*`, `/archive`, `/creative/archive`, `/games/*`, `/weather`, `/privacy`, `/terms`
+- API: `/api/auth/*`, `/api/health`, `/api/stories`, `/api/prompts`, `/api/oura/*`
+
+## Database Schema
+**Main DB:** `posts`, `archive_info`, `stories`, `story_audits`, `mr_bear_rookies`
+**F1 DB:** `f1_seasons`, `f1_sessions`, `f1_drivers`, `f1_predictions`, `f1_scores`, `f1_player_state`, `f1_cancelled_rounds`
+
+Both DBs use same Turso connection in production, same `data/posts.db` locally.
+Schema auto-initializes. Inline `ALTER TABLE` migrations use catch-and-ignore pattern.
+
+## Authentication
+- GitHub OAuth: whitelist via `ALLOWED_GITHUB_USERS` (matches `profile.login`)
+- Guest PIN: `GUEST_PINS=pin1,pin2` env var
+- JWT strategy, 30-day session maxAge
 
 ## Environment Variables
-
-### Production Database (Turso)
 ```
-TURSO_DATABASE_URL=<libSQL connection URL>
-TURSO_AUTH_TOKEN=<auth token>
-```
-
-### Authentication
-```
-GITHUB_CLIENT_ID=<OAuth app ID>
-GITHUB_CLIENT_SECRET=<OAuth app secret>
-GUEST_PIN=<numeric PIN for guest access>
-NEXTAUTH_SECRET=<session encryption secret>
+TURSO_DATABASE_URL=
+TURSO_AUTH_TOKEN=
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+ALLOWED_GITHUB_USERS=boneshakerbike
+GUEST_PINS=
+NEXTAUTH_SECRET=
+ANTHROPIC_API_KEY=
+OURA_CLIENT_ID=
+OURA_CLIENT_SECRET=
 ```
 
-### AI Features
-```
-ANTHROPIC_API_KEY=<Claude API key>
-```
+## Model IDs
 
-### Local Development
-- No env setup needed (uses local SQLite in `/data` directory)
-- Optional: Set env vars for OAuth testing
+All model IDs are centralised in `src/lib/models.ts`. Import `MODELS` from there — do not hardcode model strings in route files. Update that file when upgrading models.
 
 ## Code Conventions
+- `snake_case` for backend/lib functions and variables
+- `camelCase` in React components
+- `PascalCase` for types
+- `'use client'` required for interactive components
+- Page titles: `document.title = '8i11 | Page Name'` in `useEffect`
+- Path alias: `@/*` → `./src/*`
 
-### Naming
-- **Functions:** snake_case (e.g., `get_posts_on_date`, `fetch_posts`)
-- **Types/Interfaces:** PascalCase (e.g., `Post`, `PostWithMeta`)
-- **Variables:** snake_case in backend, camelCase in React components
+## Key Architectural Notes
+**NavTabs:** Radix UI DropdownMenu. Trigger buttons need `bg-transparent outline-none focus:outline-none focus-visible:outline-none`. Chevron uses `group-data-[state=open]:rotate-180`.
 
-### Database Patterns
-- Singleton client instance per environment
-- Lazy-loaded schema initialization
-- UTC to Mountain Time conversion for all dates
+**Database detection:** `is_turso = !!process.env.TURSO_DATABASE_URL`
 
-### API Patterns
-- Try-catch with JSON error responses
-- Batch processing for large uploads (Vercel payload limits)
-- Type-safe request/response definitions
+**Oura Ring:** Standalone OAuth. Tokens in `oura_tokens` table (singleton). 13 endpoints + personal_info. Daily caching via `wellness_cache`. Activity time fields in **seconds**.
 
-### React Patterns
-- `'use client'` directive for interactive components
-- `useSession()` from NextAuth for user context
-- Promise-based fetch with error handling
+**F1 / Mr. Bear:** Pure TypeScript, no LLM. Rankings from last 3 race weekends qualifying averaged. Rookies via `mr_bear_rookies` DB table.
 
-## Key Data Flows
+**Story generation:** Claude with ephemeral prompt caching. Every source post linked exactly once. ~$0.17/story with Opus.
 
-### Archive Upload
-1. Client extracts ZIP (jszip) and parses posts.csv (papaparse)
-2. POST `/api/upload` with `batch_type: 'clear'`
-3. POST multiple `posts_batch` requests (~500 posts each)
-4. POST multiple `html_batch` requests (~50 files each)
-5. Frontend refreshes posts for current date
+**Uploads:** 4.5MB Vercel limit. Client batches posts (500/req) and HTML (50/req).
 
-### RSS Sync
-1. Frontend calls GET `/api/sync` on page load
-2. Backend fetches RSS from `https://8i11.substack.com/feed`
-3. Adds missing posts with `insert or ignore`
-4. If new posts added, frontend auto-refreshes
+**Timezone:** Client sends local date. Posts stored in Mountain Time (America/Denver). Vercel runs UTC.
 
-### Story Generation
-1. POST `/api/generate` with `{ month, day }`
-2. Backend fetches posts and calls Claude with cached system prompt
-3. Extracts first image from source posts for visual flair
-4. Saves story to database (one per date, updates if exists)
-5. Returns HTML story, story_id, token usage metrics
-6. Story page at `/story/[id]` is public and shareable
-
-## Important Files
-
-| File | Lines | Purpose |
-|------|-------|---------|
-| `src/app/page.tsx` | ~750 | Main dashboard with all UI logic |
-| `src/lib/db.ts` | ~520 | Database abstraction layer (posts + stories) |
-| `src/app/api/generate/route.ts` | ~180 | Claude AI integration + story saving |
-| `src/app/story/[id]/page.tsx` | ~210 | Public shareable story page |
-| `src/app/login/page.tsx` | ~191 | Authentication UI |
-| `src/proxy.ts` | ~25 | Route protection (Next.js 16+) |
-
-## Notes for AI Assistants
-
-1. **Database Environment:** Code auto-detects Turso vs local SQLite based on `TURSO_DATABASE_URL` presence
-
-2. **Timezone Handling:** All dates use Mountain Time (America/Denver). The client sends its local date, and the server stores `local_date` accordingly
-
-3. **Batch Uploads:** Large uploads are split client-side to stay under Vercel's 4.5MB payload limit
-
-4. **Prompt Caching:** Claude system prompt uses Anthropic's ephemeral cache for cost optimization
-
-5. **RSS Feed:** The Substack RSS URL is hardcoded to `https://8i11.substack.com/feed`
-
-6. **Protected vs Public Routes:**
-   - Public: `/login`, `/story/*`, `/api/auth/*`, `/api/health`
-   - Protected: Everything else (requires authentication)
-
-7. **Local Data Directory:** The `/data` directory (containing SQLite DB) is gitignored
-
-8. **Path Alias:** Use `@/*` to reference `./src/*` paths
-
-9. **No Tests:** This project currently has no test suite
-
-10. **Single User Focus:** Designed for a single Substack newsletter archive, not multi-tenant
-
-11. **Model Names:** Use pinned versions only. Valid: `claude-sonnet-4-20250514`, `claude-opus-4-5-20251101`. Aliases like `claude-sonnet-4-latest` return 404.
+**Wellness coaching:** Bill has existing prompts and SoKs. Do NOT build LLM coaching features without checking first.
 
 ## Branching & Deployment
-
 ```
-work/<name>-<topic>  →  PR to main
-                            ↑
-                       Vercel production
+work/<shortname>-<topic>  →  PR to main  →  Vercel auto-deploy
 ```
-
-- **`main`** — Production. Vercel auto-deploys to 8i11.vercel.app. Never commit directly.
-- **`work/<name>-<topic>`** — Feature branches. `<name>` is the implementer's shortname, `<topic>` is 2-5 words hyphenated. PRs target `main`.
+- Never commit directly to main
+- Never include `Closes #N` / `Fixes #N` / `Resolves #N` in commits or PRs
+- Bill closes issues himself after testing
 
 ## Task Management
-
-Tasks are tracked as GitHub Issues: https://github.com/boneshakerbike/onthisday/issues
+GitHub Issues: https://github.com/boneshakerbike/onthisday/issues

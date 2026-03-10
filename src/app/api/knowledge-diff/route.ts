@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { MODELS } from '@/lib/models';
 
 export async function POST(request: NextRequest) {
   const api_key = process.env.ANTHROPIC_API_KEY;
@@ -80,7 +81,7 @@ NEW DOCUMENT:
 ${new_doc}`;
 
       const result = await client.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: MODELS.KNOWLEDGE_DIFF,
         max_tokens: 8192,
         messages: [{ role: 'user', content: prompt }]
       });
@@ -126,7 +127,7 @@ ${new_doc}`;
         );
       }
 
-      const model = use_opus ? 'claude-opus-4-5-20251101' : 'claude-sonnet-4-20250514';
+      const model = use_opus ? MODELS.KNOWLEDGE_DIFF : MODELS.KNOWLEDGE_DIFF;
 
       // Prompt Library: "Knowledge Diff - Appendix" — update library if this changes
       const prompt = `Write an appendix ONLY for facts that are VERIFIED missing from NEW.

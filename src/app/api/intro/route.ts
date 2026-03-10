@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { MODELS } from '@/lib/models';
 
 interface PostSummary {
   year: number;
@@ -63,7 +64,7 @@ Output ONLY the intro, nothing else.`;
     const client = new Anthropic({ apiKey: api_key });
 
     const message = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: MODELS.INTRO,
       max_tokens: 150,
       messages: [
         { role: 'user', content: prompt }
