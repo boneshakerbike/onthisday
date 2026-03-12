@@ -9,6 +9,8 @@ import { auth_options } from '@/lib/auth';
 import {
   get_roster, get_prediction, save_prediction,
   lock_prediction, set_player_state,
+  get_cached_results, delete_prediction_and_score, delete_player_state,
+  delete_staged_picks,
 } from '@/lib/f1/db';
 import { generate_picks } from '@/lib/f1/mr_bear';
 import { get_schedule } from '@/lib/f1/cache';
@@ -46,10 +48,19 @@ export async function POST(request: NextRequest) {
     const picks_result: Record<string, { p1: string; p2: string; p3: string; fastest_lap: string | null }> = {};
 
     for (const st of session_types) {
-      const existing = await get_prediction(season, round, st, MR_BEAR);
-      if (existing) {
+      // Skip if session has been revealed (results exist)
+      const results = await get_cached_results(season, round, st);
+      if (results) {
         skipped.push(st);
         continue;
+      }
+
+      // Delete existing prediction/score/state so we can regenerate
+      const existing = await get_prediction(season, round, st, MR_BEAR);
+      if (existing) {
+        await delete_prediction_and_score(season, round, st, MR_BEAR);
+        await delete_player_state(season, round, st, MR_BEAR);
+        await delete_staged_picks(season, round, st);
       }
 
       const picks = await generate_picks(season, round, st);

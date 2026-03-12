@@ -299,12 +299,15 @@ export default function F1Page() {
 
   useEffect(() => { refresh_state(); }, [refresh_state]);
 
-  // Poll group state every 5s when active round is known (HUD always tracks active round)
+  // Poll group state + season progress every 5s when active round is known
   useEffect(() => {
     if (!active_round || !player_name) return;
-    const interval = setInterval(refresh_state, 5000);
+    const interval = setInterval(() => {
+      refresh_state();
+      refresh_progress();
+    }, 5000);
     return () => clearInterval(interval);
-  }, [active_round, player_name, refresh_state]);
+  }, [active_round, player_name, refresh_state, refresh_progress]);
 
   // Fetch session data for the currently viewed round (weekend view display only)
   const refresh_viewed_round = useCallback(() => {
@@ -648,6 +651,7 @@ export default function F1Page() {
             round={selected_round}
             roster={roster}
             races={races}
+            drivers={drivers}
             cancelled_rounds={cancelled_rounds}
             on_roster_change={(new_roster) => {
               set_roster(new_roster);

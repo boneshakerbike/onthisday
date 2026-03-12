@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { F1RaceSchedule, F1CancelledRound } from '@/lib/f1/types';
+import type { F1RaceSchedule, F1CancelledRound, F1Driver } from '@/lib/f1/types';
 
 interface RosterManagerProps {
   season: number;
   round: number | null;
   roster: string[];
   races: F1RaceSchedule[];
+  drivers: F1Driver[];
   cancelled_rounds: F1CancelledRound[];
   on_roster_change: (roster: string[]) => void;
   on_schedule_change?: () => void;
@@ -19,6 +20,7 @@ export default function RosterManager({
   round,
   roster,
   races,
+  drivers,
   cancelled_rounds,
   on_roster_change,
   on_schedule_change,
@@ -35,6 +37,12 @@ export default function RosterManager({
   const [rookies_message, set_rookies_message] = useState<string | null>(null);
   const [cancel_round_choice, set_cancel_round_choice] = useState('');
   const [cancel_message, set_cancel_message] = useState<string | null>(null);
+  const [scratch_open, set_scratch_open] = useState(false);
+  const [scratch_round, set_scratch_round] = useState('');
+  const [scratch_driver, set_scratch_driver] = useState('');
+  const [scratched_drivers, set_scratched_drivers] = useState<{ driver_id: string; scratched_at: string }[]>([]);
+  const [scratch_loading, set_scratch_loading] = useState(false);
+  const [scratch_message, set_scratch_message] = useState<string | null>(null);
 
   const poke_the_bear = async () => {
     if (!round) { alert('Select a round first'); return; }
@@ -99,6 +107,86 @@ export default function RosterManager({
     if (races.length === 0) return;
     set_cancel_round_choice(String(races[0].round));
   }, [races]);
+
+  // Default scratch round to current round prop or first race
+  useEffect(() => {
+    if (round) set_scratch_round(String(round));
+    else if (races.length > 0) set_scratch_round(String(races[0].round));
+  }, [round, races]);
+
+  // Fetch scratched drivers when panel opens or round changes
+  useEffect(() => {
+    if (!scratch_open || !scratch_round) return;
+    let cancelled = false;
+    const run = async () => {
+      set_scratch_loading(true);
+      set_scratch_message(null);
+      try {
+        const res = await fetch(`/api/f1/admin/scratch-driver?season=${season}&round=${scratch_round}`);
+        const data = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          set_scratch_message(data.error || 'Failed to load scratched drivers');
+          return;
+        }
+        set_scratched_drivers(data.scratched || []);
+      } catch {
+        if (!cancelled) set_scratch_message('Failed to load scratched drivers');
+      } finally {
+        if (!cancelled) set_scratch_loading(false);
+      }
+    };
+    void run();
+    return () => { cancelled = true; };
+  }, [scratch_open, scratch_round, season]);
+
+  const do_scratch = async () => {
+    if (!scratch_driver || !scratch_round) return;
+    set_busy(true);
+    set_scratch_message(null);
+    try {
+      const res = await fetch('/api/f1/admin/scratch-driver', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ season, round: parseInt(scratch_round, 10), driver_id: scratch_driver }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        set_scratch_message(data.error || 'Failed to scratch driver');
+        return;
+      }
+      set_scratched_drivers(data.scratched || []);
+      set_scratch_message(data.message || 'Scratched');
+      set_scratch_driver('');
+    } catch {
+      set_scratch_message('Failed to scratch driver');
+    } finally {
+      set_busy(false);
+    }
+  };
+
+  const do_unscratch = async (driver_id: string) => {
+    set_busy(true);
+    set_scratch_message(null);
+    try {
+      const res = await fetch('/api/f1/admin/scratch-driver', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ season, round: parseInt(scratch_round, 10), driver_id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        set_scratch_message(data.error || 'Failed to unscratch driver');
+        return;
+      }
+      set_scratched_drivers(data.scratched || []);
+      set_scratch_message(`Unscratched ${driver_id}`);
+    } catch {
+      set_scratch_message('Failed to unscratch driver');
+    } finally {
+      set_busy(false);
+    }
+  };
 
   const toggle_rookie = (driver_id: string) => {
     set_selected_rookies(prev => (
@@ -571,6 +659,151 @@ export default function RosterManager({
         {cancel_message && (
           <div style={{ marginTop: '0.45rem', color: '#d1d5db', fontSize: '0.72rem' }}>
             {cancel_message}
+          </div>
+        )}
+      </div>
+      <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        <button
+          onClick={() => set_scratch_open(prev => !prev)}
+          disabled={busy}
+          style={{
+            background: 'rgba(255,165,0,0.15)',
+            border: '1px solid rgba(255,165,0,0.35)',
+            color: '#fbbf24',
+            borderRadius: '6px',
+            padding: '0.35rem 0.75rem',
+            cursor: busy ? 'not-allowed' : 'pointer',
+            fontSize: '0.78rem',
+            fontWeight: 600,
+            opacity: busy ? 0.5 : 1,
+          }}
+        >
+          {scratch_open ? 'Hide Scratch Driver' : 'Scratch Driver'}
+        </button>
+        {scratch_open && (
+          <div style={{
+            marginTop: '0.6rem',
+            background: 'rgba(0,0,0,0.2)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: '8px',
+            padding: '0.6rem',
+          }}>
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <select
+                value={scratch_round}
+                onChange={e => set_scratch_round(e.target.value)}
+                disabled={busy || races.length === 0}
+                style={{
+                  flex: 1,
+                  minWidth: '180px',
+                  background: '#111111',
+                  color: '#e0e0e0',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '6px',
+                  padding: '0.35rem 0.5rem',
+                  fontSize: '0.75rem',
+                }}
+              >
+                {races.map(r => (
+                  <option key={`scratch_${r.round}`} value={r.round}>
+                    R{r.round} — {r.race_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <select
+                value={scratch_driver}
+                onChange={e => set_scratch_driver(e.target.value)}
+                disabled={busy || drivers.length === 0}
+                style={{
+                  flex: 1,
+                  minWidth: '180px',
+                  background: '#111111',
+                  color: '#e0e0e0',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '6px',
+                  padding: '0.35rem 0.5rem',
+                  fontSize: '0.75rem',
+                }}
+              >
+                <option value="">Select driver...</option>
+                {drivers
+                  .filter(d => !scratched_drivers.some(s => s.driver_id === d.driver_id))
+                  .map(d => (
+                    <option key={d.driver_id} value={d.driver_id}>
+                      {d.given_name} {d.family_name} ({d.code})
+                    </option>
+                  ))}
+              </select>
+              <button
+                onClick={do_scratch}
+                disabled={busy || !scratch_driver}
+                style={{
+                  background: 'rgba(255,165,0,0.2)',
+                  border: '1px solid rgba(255,165,0,0.4)',
+                  color: '#fbbf24',
+                  borderRadius: '6px',
+                  padding: '0.35rem 0.75rem',
+                  cursor: busy || !scratch_driver ? 'not-allowed' : 'pointer',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  opacity: busy || !scratch_driver ? 0.5 : 1,
+                }}
+              >
+                Scratch
+              </button>
+            </div>
+            {scratch_loading && (
+              <div style={{ color: '#d1d5db', fontSize: '0.75rem', marginTop: '0.4rem' }}>Loading...</div>
+            )}
+            {scratched_drivers.length > 0 && (
+              <div style={{ marginTop: '0.55rem', display: 'grid', gap: '0.35rem' }}>
+                {scratched_drivers.map(sd => {
+                  const d = drivers.find(dr => dr.driver_id === sd.driver_id);
+                  const label = d ? `${d.given_name} ${d.family_name} (${d.code})` : sd.driver_id;
+                  return (
+                    <div
+                      key={sd.driver_id}
+                      style={{
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '6px',
+                        padding: '0.35rem 0.45rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <span style={{ color: '#fbbf24', fontSize: '0.73rem' }}>{label}</span>
+                      <button
+                        onClick={() => do_unscratch(sd.driver_id)}
+                        disabled={busy}
+                        style={{
+                          background: 'none',
+                          border: '1px solid rgba(163,230,53,0.3)',
+                          color: '#bef264',
+                          borderRadius: '5px',
+                          padding: '0.2rem 0.5rem',
+                          cursor: busy ? 'not-allowed' : 'pointer',
+                          fontSize: '0.7rem',
+                          fontWeight: 600,
+                          opacity: busy ? 0.5 : 1,
+                        }}
+                      >
+                        Unscratch
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {scratch_message && (
+              <div style={{ marginTop: '0.45rem', color: '#fbbf24', fontSize: '0.72rem' }}>
+                {scratch_message}
+              </div>
+            )}
           </div>
         )}
       </div>

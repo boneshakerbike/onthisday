@@ -184,6 +184,16 @@ async function init_f1_schema(): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_f1_cancelled_rounds_lookup
       ON f1_cancelled_rounds(season, source)
   `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS f1_scratched_drivers (
+      season INTEGER NOT NULL,
+      round INTEGER NOT NULL,
+      driver_id TEXT NOT NULL,
+      scratched_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (season, round, driver_id)
+    )
+  `);
 }
 
 async function ensure_f1_schema(): Promise<void> {
@@ -324,6 +334,104 @@ export async function delete_admin_cancelled_round(
 }
 
 // ΓöÇΓöÇ Drivers CRUD ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+// —— Scratched Drivers ——————————————————————————————————
+
+export async function get_scratched_drivers(
+  season: number, round: number
+): Promise<string[]> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'SELECT driver_id FROM f1_scratched_drivers WHERE season = ? AND round = ?',
+    args: [season, round],
+  });
+
+  return result.rows.map(row => row.driver_id as string);
+}
+
+export async function upsert_scratched_driver(
+  season: number, round: number, driver_id: string
+): Promise<void> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  await db.execute({
+    sql: `INSERT INTO f1_scratched_drivers (season, round, driver_id, scratched_at)
+          VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(season, round, driver_id) DO UPDATE SET scratched_at = CURRENT_TIMESTAMP`,
+    args: [season, round, driver_id],
+  });
+}
+
+export async function delete_scratched_driver(
+  season: number, round: number, driver_id: string
+): Promise<void> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  await db.execute({
+    sql: 'DELETE FROM f1_scratched_drivers WHERE season = ? AND round = ? AND driver_id = ?',
+    args: [season, round, driver_id],
+  });
+}
+
+export async function get_all_scratched_for_round(
+  season: number, round: number
+): Promise<{ driver_id: string; scratched_at: string }[]> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'SELECT driver_id, scratched_at FROM f1_scratched_drivers WHERE season = ? AND round = ? ORDER BY scratched_at DESC',
+    args: [season, round],
+  });
+
+  return result.rows.map(row => ({
+    driver_id: row.driver_id as string,
+    scratched_at: row.scratched_at as string,
+  }));
+}
+
+// —— Delete Prediction + Score ———————————————————————————
+
+export async function delete_prediction_and_score(
+  season: number, round: number, session_type: SessionType, player_name: string
+): Promise<boolean> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  const pred = await get_prediction(season, round, session_type, player_name);
+  if (!pred) return false;
+
+  // Delete score first (orphan prevention)
+  await db.execute({
+    sql: 'DELETE FROM f1_scores WHERE prediction_id = ?',
+    args: [pred.id],
+  });
+
+  // Delete prediction
+  await db.execute({
+    sql: 'DELETE FROM f1_predictions WHERE id = ?',
+    args: [pred.id],
+  });
+
+  return true;
+}
+
+export async function delete_player_state(
+  season: number, round: number, session_type: SessionType, player_name: string
+): Promise<void> {
+  await ensure_f1_schema();
+  const db = get_client();
+
+  await db.execute({
+    sql: `DELETE FROM f1_player_state
+          WHERE season = ? AND round = ? AND session_type = ? AND player_name = ?`,
+    args: [season, round, session_type, player_name],
+  });
+}
 
 export async function get_cached_drivers(season: number): Promise<F1Driver[] | null> {
   await ensure_f1_schema();
@@ -754,6 +862,12 @@ export async function reset_season_data(season: number): Promise<{ predictions: 
   // Delete staged Mr Bear picks
   await db.execute({
     sql: 'DELETE FROM f1_mr_bear_staged WHERE season = ?',
+    args: [season],
+  });
+
+  // Delete scratched drivers
+  await db.execute({
+    sql: 'DELETE FROM f1_scratched_drivers WHERE season = ?',
     args: [season],
   });
 

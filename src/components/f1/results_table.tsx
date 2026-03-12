@@ -20,7 +20,7 @@ interface ResultsTableProps {
 
 function driver_code(driver_id: string, results: F1DriverResult[]): string {
   const d = results.find(r => r.driver_id === driver_id);
-  return d?.driver_code || driver_id;
+  return d?.driver_code || 'N/A';
 }
 
 type PickGrade = 'perfect' | 'podium' | 'almost' | 'miss';

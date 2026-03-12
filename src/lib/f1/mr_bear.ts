@@ -5,7 +5,7 @@
  */
 
 import type { SessionType } from './types';
-import { get_cached_results } from './db';
+import { get_cached_results, get_scratched_drivers } from './db';
 import { get_mr_bear_rookies } from '@/lib/db';
 
 const BASE = 'https://api.jolpi.ca/ergast/f1';
@@ -164,12 +164,17 @@ export async function generate_picks(
 ): Promise<{ p1: string; p2: string; p3: string; fastest_lap: string | null }> {
   // Base ranking depends on session type
   const is_grid_based = session_type === 'race' || session_type === 'sprint';
-  const ranking = is_grid_based
+  const raw_ranking = is_grid_based
     ? await get_race_ranking(season, round)
     : await get_qualifying_ranking(season, round);
 
+  // Filter out scratched drivers before biasing
+  const scratched = await get_scratched_drivers(season, round);
+  const scratched_set = new Set(scratched);
+  const ranking = raw_ranking.filter(id => !scratched_set.has(id));
+
   if (ranking.length < 3) {
-    throw new Error(`Not enough data to generate picks (got ${ranking.length} drivers)`);
+    throw new Error(`Not enough data to generate picks (got ${ranking.length} drivers after scratch filter)`);
   }
 
   const names = await get_driver_name_map(season);
@@ -185,7 +190,8 @@ export async function generate_picks(
 
   // Fastest lap for race only: highest qualifier among biased top 10
   if (session_type === 'race') {
-    const quali_ranking = await get_qualifying_ranking(season, round);
+    const raw_quali_ranking = await get_qualifying_ranking(season, round);
+    const quali_ranking = raw_quali_ranking.filter(id => !scratched_set.has(id));
     const quali_biased = apply_biases(quali_ranking, names, rookies);
     const top10_race = new Set(biased.slice(0, 10));
     for (const id of quali_biased) {
