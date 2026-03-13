@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import JSZip from 'jszip';
 import Papa from 'papaparse';
@@ -56,6 +56,7 @@ interface SavedStory {
 
 export default function OnThisDay() {
   const { data: session } = useSession();
+  const date_input_ref = useRef<HTMLInputElement>(null);
   const [date, set_date] = useState<{ month: number; day: number; display: string } | null>(null);
   const [posts, set_posts] = useState<Post[]>([]);
   const [archive, set_archive] = useState<string | null>(null);
@@ -190,7 +191,29 @@ export default function OnThisDay() {
     if (offset !== 0) {
       d.setDate(d.getDate() + offset);
     }
+    // Optimistic title update
+    const month_names = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+    set_date({
+      month: d.getMonth() + 1,
+      day: d.getDate(),
+      display: `${month_names[d.getMonth()]} ${d.getDate()}`
+    });
     fetch_posts(d.getMonth() + 1, d.getDate());
+  };
+
+  const handle_title_click = () => {
+    try {
+      date_input_ref.current?.showPicker();
+    } catch {
+      date_input_ref.current?.click();
+    }
+  };
+
+  const is_today = (check_date: { month: number; day: number } | null) => {
+    if (!check_date) return false;
+    const now = new Date();
+    return check_date.month === now.getMonth() + 1 && check_date.day === now.getDate();
   };
 
   const copy_for_substack = async (version: 'simple' | 'full') => {
@@ -482,21 +505,77 @@ export default function OnThisDay() {
   const subtle_button_class = `${action_button_class} border-white/10 bg-transparent text-gray-300 hover:border-cyan-400/30 hover:text-cyan-200`;
   const primary_button_class = `${action_button_class} border-amber-300/50 bg-gradient-to-r from-amber-300 to-orange-300 text-[#16213e] hover:from-amber-200 hover:to-orange-200`;
 
+  // SVG arrow icons
+  const left_arrow = (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+    </svg>
+  );
+  const right_arrow = (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] text-gray-200 p-5">
       <div className="max-w-3xl mx-auto">
         {/* Navigation */}
         <NavTabs />
 
-        {/* Page heading */}
-        <h1 className="text-center text-3xl font-light text-cyan-400 mb-3">
-          On This Day{date ? ` — ${date.display}` : ''}
-        </h1>
+        {/* Page heading with date navigation */}
+        <div className="flex items-center justify-center gap-3 mb-3">
+          <button
+            onClick={() => go_to_relative_day(-1)}
+            aria-label="Previous day"
+            className="p-3 text-gray-400 hover:text-cyan-400 transition-colors rounded-lg"
+          >
+            {left_arrow}
+          </button>
+          <h1 className="text-center text-2xl sm:text-3xl font-light text-cyan-400">
+            On This Day —{' '}
+            <div className="relative inline-block">
+              <button
+                onClick={handle_title_click}
+                aria-label={`Select date, currently ${date?.display || 'loading'}`}
+                className="underline decoration-dotted underline-offset-4 decoration-cyan-400/40 cursor-pointer hover:text-cyan-300 transition-colors"
+              >
+                {date?.display || '...'}
+              </button>
+              <input
+                ref={date_input_ref}
+                type="date"
+                value={date_input_value}
+                onChange={handle_date_change}
+                className="absolute inset-0 opacity-0 pointer-events-none"
+                tabIndex={-1}
+                aria-hidden="true"
+              />
+            </div>
+          </h1>
+          <button
+            onClick={() => go_to_relative_day(1)}
+            aria-label="Next day"
+            className="p-3 text-gray-400 hover:text-cyan-400 transition-colors rounded-lg"
+          >
+            {right_arrow}
+          </button>
+        </div>
+
+        {/* Post count and back to today */}
         <div className="mb-5 text-center text-sm text-gray-400">
           {!loading && !fetch_error && posts.length > 0 && (
             <p>
               {posts.length} post{posts.length !== 1 ? 's' : ''} on this day
             </p>
+          )}
+          {date && !is_today(date) && (
+            <button
+              onClick={() => go_to_relative_day(0)}
+              className="mt-2 text-xs text-gray-400 hover:text-cyan-400 transition-colors"
+            >
+              Back to today
+            </button>
           )}
         </div>
 
@@ -506,42 +585,6 @@ export default function OnThisDay() {
             {sync_status}
           </p>
         )}
-
-        {/* Date navigation */}
-        <details className={control_group_class}>
-          <summary className={collapsible_summary_class}>
-            <div className={collapsible_summary_row_class}>
-              <span className={control_label_text_class}>Date Navigation</span>
-              <span aria-hidden="true" className={collapsible_arrow_class}>{'>'}</span>
-            </div>
-          </summary>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-            <input
-              type="date"
-              value={date_input_value}
-              onChange={handle_date_change}
-              className="w-full sm:w-auto rounded-xl border border-white/15 bg-white/[0.06] px-4 py-2.5 text-base text-white"
-            />
-            <button
-              onClick={() => go_to_relative_day(-1)}
-              className={secondary_button_class}
-            >
-              Yesterday
-            </button>
-            <button
-              onClick={() => go_to_relative_day(0)}
-              className={secondary_button_class}
-            >
-              Today
-            </button>
-            <button
-              onClick={() => go_to_relative_day(1)}
-              className={secondary_button_class}
-            >
-              Tomorrow
-            </button>
-          </div>
-        </details>
 
         {/* Loading state */}
         {loading && (
