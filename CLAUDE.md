@@ -150,6 +150,7 @@ work/<shortname>-<topic>  →  PR to main  →  Vercel auto-deploy
 ```
 - Never commit directly to main
 - Never include `Closes #N` / `Fixes #N` / `Resolves #N` in commits or PRs
+- Bill authorizes merge of PRs to main
 - Bill closes issues himself after testing
 
 ## Task Management
