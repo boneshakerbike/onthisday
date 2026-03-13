@@ -7,4 +7,5 @@ export const MODELS = {
   PROMPT_REVIEW:    'claude-sonnet-4-5-20250929',
   CLEAN_TEXT:       'claude-sonnet-4-5-20250929',
   STRIP:            'claude-haiku-4-5-20251001',
+  SUBSTACK:         'claude-sonnet-4-6',
 }
