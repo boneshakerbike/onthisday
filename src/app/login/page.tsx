@@ -15,6 +15,7 @@ function LoginForm() {
   const search_params = useSearchParams();
   const callback_url = search_params.get('callbackUrl') ?? '/';
   const oauth_error = search_params.get('error');
+  const is_preview = process.env.NEXT_PUBLIC_VERCEL_ENV === 'preview';
 
   const handle_pin_submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +30,24 @@ function LoginForm() {
 
     if (result?.error) {
       set_error('Invalid PIN');
+      set_loading(false);
+    } else if (result?.url) {
+      window.location.href = result.url;
+    }
+  };
+
+  const handle_admin_pin = async () => {
+    set_loading(true);
+    set_error('');
+
+    const result = await signIn('admin-pin', {
+      pin,
+      redirect: false,
+      callbackUrl: callback_url,
+    });
+
+    if (result?.error) {
+      set_error('Invalid Admin PIN');
       set_loading(false);
     } else if (result?.url) {
       window.location.href = result.url;
@@ -52,6 +71,21 @@ function LoginForm() {
         textAlign: 'center',
       }}
     >
+      {is_preview && (
+        <div
+          style={{
+            backgroundColor: '#ff9800',
+            color: '#000',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            marginBottom: '20px',
+            fontSize: '13px',
+            fontWeight: '600',
+          }}
+        >
+          Preview Environment - Admin PIN Available
+        </div>
+      )}
       <h1
         style={{
           color: '#e2e2e2',
@@ -185,6 +219,29 @@ function LoginForm() {
         >
           Enter as Guest
         </button>
+
+        {is_preview && (
+          <button
+            type="button"
+            onClick={handle_admin_pin}
+            disabled={loading || !pin}
+            style={{
+              width: '100%',
+              padding: '12px 20px',
+              fontSize: '16px',
+              backgroundColor: '#ff9800',
+              color: '#000',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: loading || !pin ? 'not-allowed' : 'pointer',
+              opacity: loading || !pin ? 0.7 : 1,
+              marginTop: '12px',
+              fontWeight: '600',
+            }}
+          >
+            Enter as Admin
+          </button>
+        )}
       </form>
 
       <p
