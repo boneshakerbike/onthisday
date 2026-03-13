@@ -73,7 +73,6 @@ export default function OnThisDay() {
   const [generated_story, set_generated_story] = useState<string | null>(null);
   const [story_id, set_story_id] = useState<string | null>(null);
   const [existing_story, set_existing_story] = useState<SavedStory | null>(null);
-  const [story_copy_status, set_story_copy_status] = useState('');
   const [generate_error, set_generate_error] = useState<string | null>(null);
   const [token_usage, set_token_usage] = useState<{ input: number; output: number; cached: number } | null>(null);
 
@@ -218,7 +217,7 @@ export default function OnThisDay() {
 
   const copy_for_substack = async (version: 'simple' | 'full') => {
     if (!posts.length || !date) return;
-    set_story_copy_status('');
+    set_copy_status('');
 
     let html = '<h2>On This Day</h2>\n';
     for (const post of posts) {
@@ -300,58 +299,32 @@ export default function OnThisDay() {
     set_generating(false);
   };
 
-  const copyStoryBlurb = async () => {
-    if (!existing_story?.blurb) return;
-    set_copy_status('');
-
-    const html = `<h2>${existing_story.title}</h2>\n${existing_story.blurb}`;
-
-    try {
-      const blob = new Blob([html], { type: 'text/html' });
-      await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
-      set_story_copy_status('Blurb copied!');
-    } catch {
-      try {
-        await navigator.clipboard.writeText(existing_story.blurb);
-        set_story_copy_status('Blurb copied as text');
-      } catch {
-        set_story_copy_status('Copy failed');
-      }
-    }
-    setTimeout(() => set_story_copy_status(''), 3000);
-  };
-
-  const copy_story_link = async () => {
-    const active_story_id = story_id || existing_story?.id;
-    if (!active_story_id) return;
-    set_copy_status('');
-
-    try {
-      const base_url = window.location.origin;
-      const link = `${base_url}/story/${active_story_id}`;
-      await navigator.clipboard.writeText(link);
-      set_story_copy_status('Link copied!');
-    } catch {
-      set_story_copy_status('Copy failed');
-    }
-    setTimeout(() => set_story_copy_status(''), 3000);
-  };
-
-  const copyStoryShareText = async () => {
+  const copy_story_card = async () => {
     const active_story_id = story_id || existing_story?.id;
     if (!active_story_id || !existing_story?.blurb) return;
     set_copy_status('');
 
+    const base_url = window.location.origin;
+    const link = `${base_url}/story/${active_story_id}`;
+    const escape_html = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    const html = `<h2>${escape_html(existing_story.title)}</h2>\n<p>${escape_html(existing_story.blurb)}</p>\n<p>Read more: <a href="${link}">${link}</a></p>`;
+
     try {
-      const base_url = window.location.origin;
-      const link = `${base_url}/story/${active_story_id}`;
-      const text = `${existing_story.blurb}\n\nRead more: ${link}`;
-      await navigator.clipboard.writeText(text);
-      set_story_copy_status('Share text copied!');
+      const blob = new Blob([html], { type: 'text/html' });
+      await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
+      set_copy_status('Story card copied!');
     } catch {
-      set_story_copy_status('Copy failed');
+      try {
+        const text = `${existing_story.title}\n\n${existing_story.blurb}\n\nRead more: ${link}`;
+        await navigator.clipboard.writeText(text);
+        set_copy_status('Story card copied as text');
+      } catch {
+        set_copy_status('Copy failed');
+      }
     }
-    setTimeout(() => set_story_copy_status(''), 3000);
+    setTimeout(() => set_copy_status(''), 3000);
   };
 
   const handle_upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -635,60 +608,10 @@ export default function OnThisDay() {
         {/* Posts */}
         {!loading && !fetch_error && posts.length > 0 && (
           <>
-            <details className={control_group_class}>
+            <details open className={control_group_class}>
               <summary className={collapsible_summary_class}>
                 <div className={collapsible_summary_row_class}>
-                  <span className={control_label_text_class}>Export / Copy</span>
-                  <span aria-hidden="true" className={collapsible_arrow_class}>{'>'}</span>
-                </div>
-              </summary>
-              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <button
-                  onClick={() => copy_for_substack('simple')}
-                  className={secondary_button_class}
-                >
-                  Copy Titles
-                </button>
-                <button
-                  onClick={() => copy_for_substack('full')}
-                  className={secondary_button_class}
-                >
-                  Copy Title & Intro
-                </button>
-                {current_story_blurb && (
-                  <button
-                    onClick={copyStoryBlurb}
-                    className={secondary_button_class}
-                  >
-                    Copy Blurb
-                  </button>
-                )}
-                {current_story_id && (
-                  <button
-                    onClick={copy_story_link}
-                    className={secondary_button_class}
-                  >
-                    Copy Link
-                  </button>
-                )}
-                {current_story_id && current_story_blurb && (
-                  <button
-                    onClick={copyStoryShareText}
-                    className={secondary_button_class}
-                  >
-                    Copy Share Text
-                  </button>
-                )}
-              </div>
-              {(copy_status || story_copy_status) && (
-                <p className="mt-3 text-sm text-green-400">{copy_status || story_copy_status}</p>
-              )}
-            </details>
-
-            <details className={control_group_class}>
-              <summary className={collapsible_summary_class}>
-                <div className={collapsible_summary_row_class}>
-                  <span className={control_label_text_class}>Story Actions</span>
+                  <span className={control_label_text_class}>Tools</span>
                   <span aria-hidden="true" className={collapsible_arrow_class}>{'>'}</span>
                 </div>
               </summary>
@@ -718,34 +641,45 @@ export default function OnThisDay() {
                     Edit Story
                   </a>
                 )}
+                <button
+                  onClick={() => copy_for_substack('simple')}
+                  className={secondary_button_class}
+                >
+                  Posts
+                </button>
+                <button
+                  onClick={() => copy_for_substack('full')}
+                  className={secondary_button_class}
+                >
+                  Posts + Intro
+                </button>
+                {current_story_id && current_story_blurb && (
+                  <button
+                    onClick={copy_story_card}
+                    className={secondary_button_class}
+                  >
+                    Copy Story Card
+                  </button>
+                )}
                 <a
                   href="/creative/archive"
                   className={subtle_button_class}
                 >
                   Archive
                 </a>
-                <a
-                  href="https://8i11.substack.com/publish/posts/drafts"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={subtle_button_class}
-                >
-                  Drafts ↗
-                </a>
-                <a
-                  href="https://8i11.substack.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={subtle_button_class}
-                >
-                  Substack ↗
-                </a>
               </div>
+
+              {/* Story metadata */}
               {existing_story && (
                 <p className="mt-3 text-xs text-gray-400">
                   Saved {new Date(existing_story.created_at).toLocaleDateString()}
                   {existing_story.edited_at && `, edited ${new Date(existing_story.edited_at).toLocaleDateString()}`}
                 </p>
+              )}
+
+              {/* Copy status */}
+              {copy_status && (
+                <p className="mt-3 text-sm text-green-400">{copy_status}</p>
               )}
             </details>
 
