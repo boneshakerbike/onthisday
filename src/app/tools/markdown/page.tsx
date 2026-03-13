@@ -17,6 +17,7 @@ export default function MarkdownConverterPage() {
   const [docx_status, set_docx_status] = useState<string | null>(null);
   const [docx_importing, set_docx_importing] = useState(false);
   const rich_editor_ref = useRef<HTMLDivElement>(null);
+  const markdown_textarea_ref = useRef<HTMLTextAreaElement>(null);
   const markdown_timeout_ref = useRef<NodeJS.Timeout | null>(null);
   const rich_timeout_ref = useRef<NodeJS.Timeout | null>(null);
 
@@ -26,6 +27,14 @@ export default function MarkdownConverterPage() {
       if (markdown_timeout_ref.current) clearTimeout(markdown_timeout_ref.current);
     };
   }, []);
+
+  useEffect(() => {
+    const ta = markdown_textarea_ref.current;
+    if (ta) {
+      ta.style.height = 'auto';
+      ta.style.height = `${ta.scrollHeight}px`;
+    }
+  }, [markdown_content]);
 
   // HTML to Markdown converter
   const html_to_markdown = (html: string): string => {
@@ -98,6 +107,44 @@ export default function MarkdownConverterPage() {
               .filter(item => item.length > indent.length + 3);
             return numbered_items.length > 0 ? numbered_items.join('\n') + '\n\n' : '';
           case 'li': return '';
+          case 'table': {
+            const rows = Array.from(element.querySelectorAll('tr'));
+            if (rows.length === 0) return '';
+            const result_rows: string[] = [];
+            rows.forEach((row, idx) => {
+              const cells = Array.from(row.querySelectorAll('th, td'))
+                .map(cell => (cell.textContent?.trim() || '').replace(/\|/g, '\\|'));
+              result_rows.push(`| ${cells.join(' | ')} |`);
+              if (idx === 0) result_rows.push(`| ${cells.map(() => '---').join(' | ')} |`);
+            });
+            return result_rows.join('\n') + '\n\n';
+          }
+          case 'thead':
+          case 'tbody':
+          case 'tfoot':
+          case 'tr':
+          case 'th':
+          case 'td': return children;
+          case 'script':
+          case 'style':
+          case 'head':
+          case 'meta':
+          case 'link': return '';
+          case 'blockquote': return `> ${children.trim()}\n\n`;
+          case 'code': return `\`${children}\``;
+          case 'pre': return `\`\`\`\n${children.trim()}\n\`\`\`\n\n`;
+          case 'img': {
+            const alt = element.getAttribute('alt') || '';
+            const src = element.getAttribute('src') || '';
+            return src ? `![${alt}](${src})\n\n` : '';
+          }
+          case 'div':
+          case 'section':
+          case 'article':
+          case 'main':
+          case 'header':
+          case 'footer':
+          case 'nav': return children.trim() ? `${children.trim()}\n\n` : '';
           default: return children;
         }
       }
@@ -418,9 +465,10 @@ export default function MarkdownConverterPage() {
             </div>
 
             <textarea
+              ref={markdown_textarea_ref}
               value={markdown_content}
               onChange={handle_markdown_change}
-              className="w-full p-4 font-mono text-sm resize-none focus:outline-none bg-transparent text-gray-200"
+              className="w-full p-4 font-mono text-sm focus:outline-none bg-transparent text-gray-200 overflow-hidden"
               style={{ minHeight: '456px' }}
               placeholder="Markdown output will appear here..."
             />
