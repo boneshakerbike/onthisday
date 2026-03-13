@@ -533,7 +533,7 @@ export default function OnThisDay() {
             {left_arrow}
           </button>
           <h1 className="text-center text-2xl sm:text-3xl font-light text-cyan-400">
-            On This Day —{' '}
+            On This Day:{' '}
             <div className="relative inline-block">
               <button
                 onClick={handle_title_click}
