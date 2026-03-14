@@ -1,6 +1,6 @@
 /**
  * NextAuth configuration
- * Supports GitHub OAuth and guest PIN authentication
+ * Supports GitHub OAuth, guest PIN, and admin PIN (preview only) authentication
  */
 
 import { NextAuthOptions } from 'next-auth';
@@ -40,6 +40,34 @@ export const auth_options: NextAuthOptions = {
         return null;
       },
     }),
+    CredentialsProvider({
+      id: 'admin-pin',
+      name: 'Admin PIN',
+      credentials: {
+        pin: { label: 'Admin PIN', type: 'password' },
+      },
+      async authorize(credentials) {
+        // Admin PIN only works in Vercel preview environments
+        if (process.env.VERCEL_ENV !== 'preview') {
+          return null;
+        }
+
+        const admin_pin = process.env.ADMIN_PIN;
+        if (!admin_pin) {
+          return null;
+        }
+
+        if (credentials?.pin && credentials.pin === admin_pin) {
+          return {
+            id: 'admin-preview',
+            name: 'Admin (Preview)',
+            email: 'admin@onthisday.local',
+          };
+        }
+
+        return null;
+      },
+    }),
   ],
   pages: {
     signIn: '/login',
@@ -48,6 +76,11 @@ export const auth_options: NextAuthOptions = {
     async signIn({ account, profile }) {
       // Allow guests with valid PIN
       if (account?.provider === 'guest-pin') {
+        return true;
+      }
+
+      // Allow admin PIN in preview environments
+      if (account?.provider === 'admin-pin') {
         return true;
       }
 
