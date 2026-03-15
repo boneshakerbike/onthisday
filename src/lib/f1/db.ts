@@ -3,6 +3,8 @@
  * Uses the same Turso/libSQL client as the main app.
  */
 
+import path from 'path';
+import fs from 'fs';
 import { createClient, Client } from '@libsql/client';
 import type {
   F1RaceSchedule, F1Driver, F1DriverResult, F1SessionResult,
@@ -23,8 +25,6 @@ function get_client(): Client {
         authToken: process.env.TURSO_AUTH_TOKEN,
       });
     } else {
-      const path = require('path');
-      const fs = require('fs');
       const db_path = path.join(process.cwd(), 'data', 'posts.db');
       const dir = path.dirname(db_path);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });

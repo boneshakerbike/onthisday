@@ -29,7 +29,6 @@ export async function get_driver_name_map(season: number): Promise<Record<string
   const data = await jolpica_fetch(`/${season}/drivers.json?limit=50`);
   const drivers = data.DriverTable?.Drivers || [];
   const map: Record<string, string> = {};
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   for (const d of drivers) {
     map[d.driverId] = `${d.givenName} ${d.familyName}`;
   }
@@ -84,7 +83,6 @@ export async function get_qualifying_ranking(
       const data = await jolpica_fetch(`/${season}/${r}/qualifying.json`);
       const race = data.RaceTable?.Races?.[0];
       const results = race?.QualifyingResults || [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const qr of results) {
         const id = qr.Driver.driverId;
         const pos = parseInt(qr.position, 10);

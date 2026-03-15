@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import SeasonGrid from '@/components/f1/season_grid';
 import WeekendView from '@/components/f1/weekend_view';
@@ -49,7 +50,7 @@ export default function F1Page() {
   const [submitting, set_submitting] = useState(false);
   const [revealing, set_revealing] = useState<string | null>(null);
   const [player_name, set_player_name] = useState('');
-  const [player_id, set_player_id] = useState('');
+  const [, set_player_id] = useState('');
   const [name_resolving, set_name_resolving] = useState(true);
   const [show_name_prompt, set_show_name_prompt] = useState(false);
   const [loading, set_loading] = useState(true);
@@ -748,7 +749,7 @@ export default function F1Page() {
           </>
         )}
         <div style={{ textAlign: 'center', marginTop: '3rem', paddingBottom: '1rem' }}>
-          <a href="/" style={{ color: '#d1d5db', fontSize: '0.7rem', textDecoration: 'none' }}>8i11</a>
+          <Link href="/" style={{ color: '#d1d5db', fontSize: '0.7rem', textDecoration: 'none' }}>8i11</Link>
         </div>
       </div>
       </div>

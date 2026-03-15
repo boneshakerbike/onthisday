@@ -57,7 +57,7 @@ function group_by_month(stories: Story[], sort_order: SortOrder) {
 }
 
 export default function ArchivePage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const is_authenticated = status === 'authenticated';
   const is_loading_auth = status === 'loading';
 
@@ -69,12 +69,7 @@ export default function ArchivePage() {
 
   const [has_scrolled, set_has_scrolled] = useState(false);
 
-  useEffect(() => {
-    document.title = '8i11 | Archive';
-    fetch_stories();
-  }, []);
-
-  const fetch_stories = async () => {
+  async function fetch_stories() {
     try {
       const res = await fetch('/api/stories');
       const data = await res.json();
@@ -85,7 +80,13 @@ export default function ArchivePage() {
       console.error('Error fetching stories:', error);
     }
     set_loading(false);
-  };
+  }
+
+  useEffect(() => {
+    document.title = '8i11 | Archive';
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch sets state in callback, not synchronously
+    fetch_stories();
+  }, []);
 
   // Auto-scroll to current month on first load
   useEffect(() => {
@@ -98,6 +99,7 @@ export default function ArchivePage() {
     const el = document.getElementById(`month-${current_month}`);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: mark scroll complete after DOM interaction
       set_has_scrolled(true);
     }
   }, [loading, stories, sort_order, has_scrolled]);

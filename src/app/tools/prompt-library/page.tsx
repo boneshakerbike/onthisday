@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import NavTabs from '@/components/nav_tabs';
 
 interface Prompt {

@@ -59,7 +59,6 @@ export class JolpicaAdapter implements F1DataAdapter {
     try {
       const standings_data = await jolpica_fetch(`/${season}/driverStandings.json`);
       const standings = standings_data.StandingsTable?.StandingsLists?.[0]?.DriverStandings || [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const entry of standings) {
         const constructors = entry.Constructors || [];
         if (constructors.length > 0) {
