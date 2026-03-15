@@ -4,7 +4,7 @@
  * Anthem files are served from public/f1/anthems/.
  */
 export const PLAYER_ANTHEMS: Record<string, string> = {
-  'Mr Bear': '/anthems/apex_ascension.mp4',
-  'Mo':      '/anthems/mojave_manifesto.mp4',
-  'Bill':    '/anthems/the_royal_proclamation.mp4',
+  'Mr Bear': '/f1/anthems/apex_ascension.mp4',
+  'Mo':      '/f1/anthems/mojave_manifesto.mp4',
+  'Bill':    '/f1/anthems/the_royal_proclamation.mp4',
 };
