@@ -144,14 +144,25 @@ All model IDs are centralised in `src/lib/models.ts`. Import `MODELS` from there
 
 **Wellness coaching:** Bill has existing prompts and SoKs. Do NOT build LLM coaching features without checking first.
 
-## Branching & Deployment
-```
-work/<shortname>-<topic>  →  PR to main  →  Vercel auto-deploy
-```
-- Never commit directly to main
+## Development Workflow
+
+### Branching
+- All work happens on `work/<shortname>-<topic>` branches. Never commit to main.
+- Bill's shortname: `bill`. Agents pick their own.
+
+### After Completing Work
+1. Commit and push to the working branch
+2. `npm run build` and `npm run lint` must pass before opening a PR
+3. Open a PR to main (never merge — Bill merges after testing)
+4. Provide: Vercel preview link, what to test, expected results
+
+### Test Failures
+Bill describes what failed. Agent proposes a fix, gets approval, pushes, retests.
+
+### PR Hygiene
+- Commit messages: short imperative sentence, no body unless the why isn't obvious
 - Never include `Closes #N` / `Fixes #N` / `Resolves #N` in commits or PRs
-- Bill authorizes merge of PRs to main
-- Bill closes issues himself after testing
+- Bill closes issues after confirming the fix in production
 
 ## Task Management
 GitHub Issues: https://github.com/boneshakerbike/onthisday/issues
