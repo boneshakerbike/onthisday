@@ -107,10 +107,12 @@ export default function F1Page() {
     selected_round_ref.current = selected_round; // keep ref in sync
   }, [selected_round]);
 
-  // Reset HUD baseline when active round changes (not on browse navigation)
+  // Reset HUD baseline when active round or season changes
   useEffect(() => {
     prev_sessions_ref.current = null;
-  }, [active_round]);
+    anthem_triggered_ref.current = false;
+    set_anthem_winner(null);
+  }, [active_round, season]);
 
   // Load player identity from localStorage; if no claimed ID, picker will show after roster loads
   useEffect(() => {
