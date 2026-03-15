@@ -99,7 +99,7 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
             </Link>
 
             {/* Creative dropdown */}
-            <DropdownMenu.Root>
+            <DropdownMenu.Root modal={false}>
               <DropdownMenu.Trigger asChild>
                 <button className={trigger_class('/creative')}>
                   Creative {chevron_svg}
@@ -123,7 +123,7 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
             </DropdownMenu.Root>
 
             {/* Tools dropdown */}
-            <DropdownMenu.Root>
+            <DropdownMenu.Root modal={false}>
               <DropdownMenu.Trigger asChild>
                 <button className={trigger_class('/tools')}>
                   Tools {chevron_svg}
@@ -146,7 +146,7 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
             </DropdownMenu.Root>
 
             {/* Health dropdown */}
-            <DropdownMenu.Root>
+            <DropdownMenu.Root modal={false}>
               <DropdownMenu.Trigger asChild>
                 <button className={trigger_class('/health')}>
                   Health {chevron_svg}
@@ -167,7 +167,7 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
             </DropdownMenu.Root>
 
             {/* Games dropdown */}
-            <DropdownMenu.Root>
+            <DropdownMenu.Root modal={false}>
               <DropdownMenu.Trigger asChild>
                 <button className={trigger_class('/games')}>
                   Games {chevron_svg}
