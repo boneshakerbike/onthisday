@@ -55,6 +55,7 @@ interface WeekendViewProps {
   on_back: () => void;
   roster_empty?: boolean;
   is_admin?: boolean;
+  on_podium_ceremony?: () => void;
 }
 
 const session_labels: Record<string, string> = {
@@ -73,6 +74,7 @@ export default function WeekendView({
   race, sessions, drivers, revealed_data, active_form,
   on_predict_click, on_predict_cancel, on_predict_submit, on_lock,
   on_reveal, submitting, revealing, on_back, roster_empty = false, is_admin = false,
+  on_podium_ceremony,
 }: WeekendViewProps) {
   return (
     <div>
@@ -252,7 +254,26 @@ export default function WeekendView({
                     </div>
                   )}
                   {is_revealed && (
-                    <span style={{ color: '#d1d5db', fontSize: '0.8rem' }}>Revealed</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ color: '#d1d5db', fontSize: '0.8rem' }}>Revealed</span>
+                      {session.session_type === 'race' && on_podium_ceremony && (
+                        <button
+                          onClick={on_podium_ceremony}
+                          style={{
+                            background: 'rgba(225,6,0,0.1)',
+                            border: '1px solid rgba(225,6,0,0.3)',
+                            color: '#e10600',
+                            borderRadius: '5px',
+                            padding: '0.2rem 0.55rem',
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                          }}
+                        >
+                          🏆 Podium Ceremony
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

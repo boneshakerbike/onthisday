@@ -9,10 +9,12 @@ import Leaderboard from '@/components/f1/leaderboard';
 import RosterManager from '@/components/f1/roster_manager';
 import PlayerPicker from '@/components/f1/player_picker';
 import ActivityHud from '@/components/f1/activity_hud';
+import AnthemPlayer from '@/components/f1/anthem_player';
 import type { ActivityEntry } from '@/components/f1/activity_hud';
 import type {
   F1RaceSchedule, F1Driver, F1DriverResult, SessionType, F1CancelledRound,
 } from '@/lib/f1/types';
+import { PLAYER_ANTHEMS } from '@/lib/f1/anthems';
 
 interface SessionInfo {
   session_type: SessionType;
@@ -62,8 +64,11 @@ export default function F1Page() {
   const [show_roster, set_show_roster] = useState(false);
   const [setup_banner_dismissed, set_setup_banner_dismissed] = useState(false);
   const [activity, set_activity] = useState<ActivityEntry[]>([]);
+  const [anthem_winner, set_anthem_winner] = useState<{ player_name: string; anthem_url: string } | null>(null);
   const activity_counter = useRef(0);
   const drivers_ref = useRef<F1Driver[]>([]);
+  const standings_ref = useRef<LeaderboardEntry[]>([]);
+  const anthem_triggered_ref = useRef(false); // prevents double-trigger within same round
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const prev_sessions_ref = useRef<any[] | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -89,18 +94,25 @@ export default function F1Page() {
     window.history.replaceState({}, '', `${window.location.pathname}?${params.toString()}`);
   }, [season, selected_round]);
 
-  // Clear stale UI whenever the selected round changes
+  // Keep standings ref in sync for use inside refresh_state callback
+  useEffect(() => { standings_ref.current = standings; }, [standings]);
+
+  // Clear stale UI whenever the selected round changes; reset anthem trigger
   useEffect(() => {
     set_revealed_data({});
     set_active_form(null);
     set_sessions([]);
+    set_anthem_winner(null);
+    anthem_triggered_ref.current = false;
     selected_round_ref.current = selected_round; // keep ref in sync
   }, [selected_round]);
 
-  // Reset HUD baseline when active round changes (not on browse navigation)
+  // Reset HUD baseline when active round or season changes
   useEffect(() => {
     prev_sessions_ref.current = null;
-  }, [active_round]);
+    anthem_triggered_ref.current = false;
+    set_anthem_winner(null);
+  }, [active_round, season]);
 
   // Load player identity from localStorage; if no claimed ID, picker will show after roster loads
   useEffect(() => {
@@ -291,6 +303,22 @@ export default function F1Page() {
             }
           }
         }
+        // Detect race session transitioning to revealed → trigger anthem once per round
+        if (prev && !anthem_triggered_ref.current) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const race_ns = new_sessions.find((s: any) => s.session_type === 'race');
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const race_ps = prev.find((s: any) => s.session_type === 'race');
+          if (race_ns && race_ps && race_ps.state !== 'revealed' && race_ns.state === 'revealed') {
+            anthem_triggered_ref.current = true;
+            const winner = compute_round_winner(new_sessions, standings_ref.current);
+            const anthem_url = winner ? PLAYER_ANTHEMS[winner] : undefined;
+            if (winner && anthem_url) {
+              set_anthem_winner({ player_name: winner, anthem_url });
+            }
+          }
+        }
+
         prev_sessions_ref.current = new_sessions;
         // Only update weekend view sessions when viewing the active round
         if (selected_round_ref.current === active_round) set_sessions(new_sessions);
@@ -707,6 +735,11 @@ export default function F1Page() {
                 revealing={revealing}
                 roster_empty={roster.length === 0}
                 is_admin={is_admin}
+                on_podium_ceremony={() => {
+                  const winner = compute_round_winner(sessions, standings_ref.current);
+                  const anthem_url = winner ? PLAYER_ANTHEMS[winner] : undefined;
+                  if (winner && anthem_url) set_anthem_winner({ player_name: winner, anthem_url });
+                }}
                 on_back={() => {
                   set_selected_round(null);
                   set_sessions([]);
@@ -754,8 +787,44 @@ export default function F1Page() {
       </div>
       </div>
       <ActivityHud entries={activity} />
+      {anthem_winner && (
+        <AnthemPlayer
+          player_name={anthem_winner.player_name}
+          anthem_url={anthem_winner.anthem_url}
+          on_dismiss={() => set_anthem_winner(null)}
+        />
+      )}
     </>
   );
+}
+
+// Determine the round winner from group predictions across all sessions.
+// Tiebreak: season total from standings, then alphabetical.
+function compute_round_winner(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sessions: any[],
+  standings: LeaderboardEntry[],
+): string | null {
+  const round_scores: Record<string, number> = {};
+  for (const session of sessions) {
+    const preds = session.group?.predictions || [];
+    for (const p of preds) {
+      if (p.score?.total != null) {
+        round_scores[p.player_name] = (round_scores[p.player_name] || 0) + p.score.total;
+      }
+    }
+  }
+  const players = Object.keys(round_scores);
+  if (players.length === 0) return null;
+  players.sort((a, b) => {
+    const round_diff = round_scores[b] - round_scores[a];
+    if (round_diff !== 0) return round_diff;
+    const sa = standings.find(s => s.player_name === a)?.total_score ?? 0;
+    const sb = standings.find(s => s.player_name === b)?.total_score ?? 0;
+    if (sa !== sb) return sb - sa;
+    return a.localeCompare(b);
+  });
+  return players[0];
 }
 
 function session_type_label(st: string): string {
