@@ -335,6 +335,7 @@ export default function TextCleanerPage() {
                   </label>
                   {image_previews.map((src, i) => (
                     <div key={i} className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- blob preview URLs can't use next/image */}
                       <img src={src} alt={`Photo ${i + 1}`} className="h-12 w-12 object-cover rounded border border-white/20" />
                       <button
                         onClick={() => remove_image(i)}

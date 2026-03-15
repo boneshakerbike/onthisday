@@ -26,6 +26,7 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
   const [can_scroll_right, set_can_scroll_right] = useState(false);
   const [is_local, set_is_local] = useState(false);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- SSR-safe: window only accessible client-side
   useEffect(() => { set_is_local(window.location.hostname === 'localhost'); }, []);
 
   const is_light = theme === 'light';

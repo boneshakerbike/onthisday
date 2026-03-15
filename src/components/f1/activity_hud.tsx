@@ -36,6 +36,7 @@ export default function ActivityHud({ entries }: ActivityHudProps) {
 
   // Default expanded on desktop, collapsed on mobile
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- SSR-safe: window only accessible client-side
     if (window.innerWidth >= 640) set_expanded(true);
   }, []);
 

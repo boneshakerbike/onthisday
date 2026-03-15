@@ -6,6 +6,7 @@
  * Removes duplicate stories, keeping only the most recent per date
  */
 
+import path from 'path';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@libsql/client';
 import { getToken } from 'next-auth/jwt';
@@ -20,7 +21,6 @@ function get_client() {
       authToken: process.env.TURSO_AUTH_TOKEN,
     });
   } else {
-    const path = require('path');
     return createClient({
       url: `file:${path.join(process.cwd(), 'data', 'posts.db')}`,
     });

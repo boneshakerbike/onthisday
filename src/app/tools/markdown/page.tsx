@@ -9,7 +9,6 @@ import { useState, useRef, useEffect } from 'react';
 import NavTabs from '@/components/nav_tabs';
 
 export default function MarkdownConverterPage() {
-  const [rich_content, set_rich_content] = useState('');
   const [markdown_content, set_markdown_content] = useState('');
   const [is_updating_from_rich, set_is_updating_from_rich] = useState(false);
   const [is_updating_from_markdown, set_is_updating_from_markdown] = useState(false);
@@ -222,7 +221,6 @@ export default function MarkdownConverterPage() {
   const handle_rich_text_change = () => {
     if (rich_editor_ref.current && !is_updating_from_markdown) {
       const html = rich_editor_ref.current.innerHTML;
-      set_rich_content(html);
 
       if (rich_timeout_ref.current) clearTimeout(rich_timeout_ref.current);
 
@@ -249,7 +247,6 @@ export default function MarkdownConverterPage() {
           if (rich_editor_ref.current) {
             const html = markdown_to_html(markdown);
             rich_editor_ref.current.innerHTML = html;
-            set_rich_content(html);
           }
         } finally {
           set_is_updating_from_markdown(false);
@@ -269,7 +266,6 @@ export default function MarkdownConverterPage() {
   const clear_rich_text = () => {
     if (rich_editor_ref.current) {
       rich_editor_ref.current.innerHTML = '';
-      set_rich_content('');
       set_markdown_content('');
     }
   };
@@ -278,7 +274,6 @@ export default function MarkdownConverterPage() {
     set_markdown_content('');
     if (rich_editor_ref.current) {
       rich_editor_ref.current.innerHTML = '';
-      set_rich_content('');
     }
   };
 
@@ -316,7 +311,6 @@ export default function MarkdownConverterPage() {
       if (rich_editor_ref.current) {
         set_is_updating_from_markdown(true);
         rich_editor_ref.current.innerHTML = html;
-        set_rich_content(html);
         const markdown = html_to_markdown(html);
         set_markdown_content(markdown);
         set_is_updating_from_markdown(false);

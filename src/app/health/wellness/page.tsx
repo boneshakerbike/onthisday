@@ -168,6 +168,7 @@ function WellnessContent() {
       set_error(`Connection failed: ${error_param}`);
     }
     fetch_data(new Date().toLocaleDateString('en-CA'));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fetch_data defined in component body, intentionally excluded
   }, [search_params]);
 
   async function fetch_data(date: string) {
