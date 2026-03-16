@@ -11,6 +11,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import NavTabs from '@/components/nav_tabs';
+import { copy_to_clipboard } from '@/lib/clipboard';
 
 interface Story {
   id: string;
@@ -128,34 +129,40 @@ export default function ArchivePage() {
   };
 
   const copy_story = async (story: Story, format: 'substack' | 'social' | 'markdown') => {
-    try {
-      if (format === 'substack') {
-        const blob = new Blob([story.content], { type: 'text/html' });
-        await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
-        set_copy_status('Copied for Substack!');
-      } else if (format === 'social') {
-        const story_url = `${window.location.origin}/story/${story.id}`;
-        const text = `On This Day: ${story.date_display}\n\n${story.post_count} post${story.post_count !== 1 ? 's' : ''} from my journal.\n\n${story_url}`;
-        await navigator.clipboard.writeText(text);
-        set_copy_status('Copied for Social!');
-      } else {
-        let md = story.content;
-        md = md.replace(/<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi, '[$2]($1)');
-        md = md.replace(/<h1[^>]*>([^<]+)<\/h1>/gi, '# $1\n\n');
-        md = md.replace(/<h2[^>]*>([^<]+)<\/h2>/gi, '## $1\n\n');
-        md = md.replace(/<h3[^>]*>([^<]+)<\/h3>/gi, '### $1\n\n');
-        md = md.replace(/<\/p>/gi, '\n\n');
-        md = md.replace(/<p[^>]*>/gi, '');
-        md = md.replace(/<[^>]+>/g, '');
-        md = md.replace(/\n{3,}/g, '\n\n').trim();
-        const temp = document.createElement('div');
-        temp.innerHTML = md;
-        md = temp.textContent || md;
-        await navigator.clipboard.writeText(md);
-        set_copy_status('Copied as Markdown!');
-      }
-    } catch {
+    let html = '';
+    let text = '';
+
+    if (format === 'substack') {
+      html = story.content;
+      const temp = document.createElement('div');
+      temp.innerHTML = story.content;
+      text = temp.textContent || '';
+    } else if (format === 'social') {
+      const story_url = `${window.location.origin}/story/${story.id}`;
+      text = `On This Day: ${story.date_display}\n\n${story.post_count} post${story.post_count !== 1 ? 's' : ''} from my journal.\n\n${story_url}`;
+      html = text;
+    } else {
+      let md = story.content;
+      md = md.replace(/<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi, '[$2]($1)');
+      md = md.replace(/<h1[^>]*>([^<]+)<\/h1>/gi, '# $1\n\n');
+      md = md.replace(/<h2[^>]*>([^<]+)<\/h2>/gi, '## $1\n\n');
+      md = md.replace(/<h3[^>]*>([^<]+)<\/h3>/gi, '### $1\n\n');
+      md = md.replace(/<\/p>/gi, '\n\n');
+      md = md.replace(/<p[^>]*>/gi, '');
+      md = md.replace(/<[^>]+>/g, '');
+      md = md.replace(/\n{3,}/g, '\n\n').trim();
+      const temp = document.createElement('div');
+      temp.innerHTML = md;
+      text = temp.textContent || md;
+      html = text;
+    }
+
+    const result = await copy_to_clipboard(html, text);
+    if (result === 'failed') {
       set_copy_status('Copy failed');
+    } else {
+      const labels = { substack: 'Copied for Substack!', social: 'Copied for Social!', markdown: 'Copied as Markdown!' };
+      set_copy_status(labels[format]);
     }
     setTimeout(() => set_copy_status(null), 3000);
   };
