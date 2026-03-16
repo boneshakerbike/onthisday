@@ -11,6 +11,7 @@ import JSZip from 'jszip';
 import Papa from 'papaparse';
 import NavTabs from '@/components/nav_tabs';
 import { extract_story_title } from '@/lib/story_markup';
+import { copy_to_clipboard } from '@/lib/clipboard';
 
 interface Post {
   post_id: string;
@@ -217,7 +218,6 @@ export default function OnThisDay() {
 
   const copy_for_substack = async (version: 'simple' | 'full') => {
     if (!posts.length || !date) return;
-    set_copy_status('');
 
     let html = '<h2>On This Day</h2>\n';
     for (const post of posts) {
@@ -228,20 +228,10 @@ export default function OnThisDay() {
         html += `<p>${post.year}: <a href="${post.url}">${post.title}</a>${blurb_part}</p>\n`;
       }
     }
+    const text = posts.map(p => `${p.year}: ${p.title} - ${p.url}`).join('\n');
 
-    try {
-      const blob = new Blob([html], { type: 'text/html' });
-      await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
-      set_copy_status('Copied!');
-    } catch {
-      try {
-        const text = posts.map(p => `${p.year}: ${p.title} - ${p.url}`).join('\n');
-        await navigator.clipboard.writeText(text);
-        set_copy_status('Copied as text');
-      } catch {
-        set_copy_status('Copy failed');
-      }
-    }
+    const result = await copy_to_clipboard(html, text);
+    set_copy_status(result === 'failed' ? 'Copy failed' : result === 'html' ? 'Copied!' : 'Copied as text');
     set_copy_preview(html);
     setTimeout(() => set_copy_status(''), 3000);
   };
@@ -302,7 +292,6 @@ export default function OnThisDay() {
   const copy_story_card = async () => {
     const active_story_id = story_id || existing_story?.id;
     if (!active_story_id || !existing_story?.blurb) return;
-    set_copy_status('');
 
     const base_url = window.location.origin;
     const link = `${base_url}/story/${active_story_id}`;
@@ -310,20 +299,10 @@ export default function OnThisDay() {
       s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
     const html = `<h2>${escape_html(existing_story.title)}</h2>\n<p>${escape_html(existing_story.blurb)}</p>\n<p>Read more: <a href="${link}">${link}</a></p>`;
+    const text = `${existing_story.title}\n\n${existing_story.blurb}\n\nRead more: ${link}`;
 
-    try {
-      const blob = new Blob([html], { type: 'text/html' });
-      await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
-      set_copy_status('Story card copied!');
-    } catch {
-      try {
-        const text = `${existing_story.title}\n\n${existing_story.blurb}\n\nRead more: ${link}`;
-        await navigator.clipboard.writeText(text);
-        set_copy_status('Story card copied as text');
-      } catch {
-        set_copy_status('Copy failed');
-      }
-    }
+    const result = await copy_to_clipboard(html, text);
+    set_copy_status(result === 'failed' ? 'Copy failed' : 'Story card copied!');
     setTimeout(() => set_copy_status(''), 3000);
   };
 
