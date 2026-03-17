@@ -105,6 +105,7 @@ export default function HomePage() {
       links: [
         { label: 'On This Day', href: '/creative' },
         { label: 'Archive', href: '/creative/archive' },
+        { label: 'What Am I Trying To Say', href: '/creative/text-cleaner' },
       ],
     },
     {

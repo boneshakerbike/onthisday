@@ -32,12 +32,13 @@ src/
       page.tsx                    # On This Day: browse posts, generate stories
       archive/page.tsx            # Story archive (public)
       edit/[id]/page.tsx          # Story editor
+      text-cleaner/               # What Am I Trying To Say: text cleaning + story builder
     story/[id]/page.tsx           # Shareable story page (public)
     tools/
       markdown/                   # Rich text → Markdown converter
       knowledge-diff/             # Compare knowledge docs
       prompt-library/             # Versioned prompt storage with AI review
-      text-cleaner/               # Text cleaning + story builder
+      text-cleaner/               # Redirects to /creative/text-cleaner
       instruction-stripper/       # Strip instructions from text
       admin/                      # Admin reference
     health/

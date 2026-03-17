@@ -118,6 +118,9 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
                   <DropdownMenu.Item asChild>
                     <Link href="/creative/archive" className={item_class}>Archive</Link>
                   </DropdownMenu.Item>
+                  <DropdownMenu.Item asChild>
+                    <Link href="/creative/text-cleaner" className={item_class}>What Am I Trying To Say</Link>
+                  </DropdownMenu.Item>
                 </DropdownMenu.Content>
               </DropdownMenu.Portal>
             </DropdownMenu.Root>
