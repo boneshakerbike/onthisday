@@ -333,7 +333,7 @@ function StravaInner() {
 
             {/* Athlete Profile Card */}
             <div className="border border-white/10 rounded-lg p-5 flex gap-5 items-start">
-              {athlete.profile && (
+              {!!athlete.profile && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={athlete.profile as string}
@@ -345,7 +345,7 @@ function StravaInner() {
                 <h2 className="text-lg font-bold">
                   {athlete.firstname as string} {athlete.lastname as string}
                 </h2>
-                {(athlete.city || athlete.country) && (
+                {!!(athlete.city || athlete.country) && (
                   <p className="text-gray-400 text-sm">
                     {[athlete.city, athlete.state, athlete.country].filter(Boolean).join(', ')}
                   </p>
