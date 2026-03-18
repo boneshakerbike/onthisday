@@ -115,6 +115,7 @@ export default function HomePage() {
       color: 'green',
       links: [
         { label: 'Wellness', href: '/health/wellness' },
+        { label: 'Strava', href: '/health/strava' },
       ],
     },
     {
