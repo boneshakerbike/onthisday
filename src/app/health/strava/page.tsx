@@ -1,0 +1,518 @@
+/**
+ * Strava Dashboard - Athlete profile, stats, and recent activities
+ */
+
+'use client';
+
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import NavTabs from '@/components/nav_tabs';
+
+const SPORT_ICONS: Record<string, string> = {
+  Run: '🏃', VirtualRun: '🏃', TrailRun: '🏃',
+  Ride: '🚴', VirtualRide: '🚴', EBikeRide: '⚡', MountainBikeRide: '🚵', GravelRide: '🚵',
+  Swim: '🏊',
+  Walk: '🚶', Hike: '🥾',
+  AlpineSki: '⛷️', NordicSki: '🎿', BackcountrySki: '⛷️',
+  Snowboard: '🏂', IceSkate: '⛸️',
+  WeightTraining: '🏋️', Workout: '💪', Crossfit: '💪',
+  Yoga: '🧘', Pilates: '🧘',
+  RockClimbing: '🧗',
+  Kayaking: '🛶', Rowing: '🚣', Canoeing: '🛶', Surfing: '🏄',
+  Soccer: '⚽', Tennis: '🎾', Golf: '⛳', Basketball: '🏀',
+  Skateboard: '🛹',
+};
+
+function sport_icon(sport_type: string | undefined, type: string | undefined): string {
+  const key = sport_type || type || '';
+  return SPORT_ICONS[key] || '🏅';
+}
+
+function format_duration(seconds: number | null | undefined): string {
+  if (seconds == null) return '—';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+function meters_to_miles(m: number | null | undefined): string {
+  if (m == null || m === 0) return '—';
+  return (m / 1609.344).toFixed(1) + ' mi';
+}
+
+function meters_to_feet(m: number | null | undefined): string {
+  if (m == null || m === 0) return '—';
+  return Math.round(m * 3.28084).toLocaleString() + ' ft';
+}
+
+function km_to_miles(km: number | null | undefined): string {
+  if (km == null || km === 0) return '—';
+  return ((km * 1000) / 1609.344).toFixed(1) + ' mi';
+}
+
+function time_ago(iso: string | null): string {
+  if (!iso) return '';
+  const diff_ms = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diff_ms / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
+function format_activity_date(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch { return '—'; }
+}
+
+interface SportTotals {
+  count: number;
+  distance: number;
+  moving_time: number;
+  elevation_gain: number;
+}
+
+interface StatGroup {
+  recent: SportTotals;
+  ytd: SportTotals;
+  all: SportTotals;
+}
+
+function stat_group(stats: Record<string, unknown>, prefix: string): StatGroup {
+  function totals(key: string): SportTotals {
+    const t = stats[key] as Record<string, unknown> | null | undefined;
+    return {
+      count: (t?.count as number) ?? 0,
+      distance: (t?.distance as number) ?? 0,
+      moving_time: (t?.moving_time as number) ?? 0,
+      elevation_gain: (t?.elevation_gain as number) ?? 0,
+    };
+  }
+  return {
+    recent: totals(`recent_${prefix}_totals`),
+    ytd: totals(`ytd_${prefix}_totals`),
+    all: totals(`all_${prefix}_totals`),
+  };
+}
+
+function has_activity(g: StatGroup): boolean {
+  return g.all.count > 0;
+}
+
+interface StatCardProps {
+  label: string;
+  emoji: string;
+  group: StatGroup;
+}
+
+function StatCard({ label, emoji, group }: StatCardProps) {
+  const cols = [
+    { title: 'Recent', data: group.recent },
+    { title: 'YTD', data: group.ytd },
+    { title: 'All Time', data: group.all },
+  ];
+
+  return (
+    <div className="border border-white/10 rounded-lg p-4">
+      <h3 className="text-cyan-400 font-semibold mb-3">{emoji} {label}</h3>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-gray-400 text-xs border-b border-white/10">
+            <th className="text-left pb-1 font-normal"></th>
+            {cols.map(c => (
+              <th key={c.title} className="text-right pb-1 font-normal">{c.title}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="text-gray-200">
+          <tr>
+            <td className="py-1 text-gray-400 text-xs">Distance</td>
+            {cols.map(c => (
+              <td key={c.title} className="py-1 text-right">{meters_to_miles(c.data.distance)}</td>
+            ))}
+          </tr>
+          <tr>
+            <td className="py-1 text-gray-400 text-xs">Time</td>
+            {cols.map(c => (
+              <td key={c.title} className="py-1 text-right">{format_duration(c.data.moving_time)}</td>
+            ))}
+          </tr>
+          <tr>
+            <td className="py-1 text-gray-400 text-xs">Elevation</td>
+            {cols.map(c => (
+              <td key={c.title} className="py-1 text-right">{meters_to_feet(c.data.elevation_gain)}</td>
+            ))}
+          </tr>
+          <tr>
+            <td className="py-1 text-gray-400 text-xs">Activities</td>
+            {cols.map(c => (
+              <td key={c.title} className="py-1 text-right">{c.data.count || '—'}</td>
+            ))}
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ─── Inner component (uses useSearchParams) ──────────────────
+
+function StravaInner() {
+  const search_params = useSearchParams();
+  const [connected, set_connected] = useState<boolean | null>(null);
+  const [loading, set_loading] = useState(true);
+  const [refreshing, set_refreshing] = useState(false);
+  const [athlete, set_athlete] = useState<Record<string, unknown> | null>(null);
+  const [stats, set_stats] = useState<Record<string, unknown> | null>(null);
+  const [activities, set_activities] = useState<Record<string, unknown>[]>([]);
+  const [cached_at, set_cached_at] = useState<string | null>(null);
+  const [error, set_error] = useState<string | null>(null);
+  const [toast, set_toast] = useState<string | null>(null);
+
+  function show_toast(msg: string) {
+    set_toast(msg);
+    setTimeout(() => set_toast(null), 3500);
+  }
+
+  async function fetch_data(force = false) {
+    try {
+      const url = force ? '/api/strava/data?force=true' : '/api/strava/data';
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (res.status === 404 && data.connected === false) {
+        set_connected(false);
+        return;
+      }
+      if (!res.ok) {
+        set_error(data.error || 'Failed to load Strava data');
+        set_connected(true);
+        return;
+      }
+
+      set_connected(true);
+      set_athlete(data.athlete);
+      set_stats(data.stats);
+      set_activities(data.activities || []);
+      set_cached_at(data.cached_at || null);
+      set_error(null);
+    } catch {
+      set_error('Failed to load Strava data');
+    }
+  }
+
+  useEffect(() => {
+    document.title = '8i11 | Strava';
+
+    const conn = search_params.get('connected');
+    const err = search_params.get('error');
+
+    if (conn === 'true') show_toast('Strava connected!');
+    if (err) set_error(`OAuth error: ${err}`);
+
+    fetch_data().finally(() => set_loading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handle_refresh() {
+    set_refreshing(true);
+    try {
+      await fetch('/api/strava/sync', { method: 'POST' });
+      await fetch_data(true);
+      show_toast('Refreshed');
+    } catch {
+      set_error('Refresh failed');
+    } finally {
+      set_refreshing(false);
+    }
+  }
+
+  async function handle_disconnect() {
+    if (!confirm('Disconnect Strava? This will remove all cached data.')) return;
+    try {
+      await fetch('/api/strava/disconnect', { method: 'DELETE' });
+      set_connected(false);
+      set_athlete(null);
+      set_stats(null);
+      set_activities([]);
+      set_cached_at(null);
+      show_toast('Disconnected from Strava');
+    } catch {
+      set_error('Disconnect failed');
+    }
+  }
+
+  const gear_shoes = (athlete?.shoes as Record<string, unknown>[] | null) || [];
+  const gear_bikes = (athlete?.bikes as Record<string, unknown>[] | null) || [];
+
+  const run_group = stats ? stat_group(stats, 'run') : null;
+  const ride_group = stats ? stat_group(stats, 'ride') : null;
+  const swim_group = stats ? stat_group(stats, 'swim') : null;
+
+  const biggest_ride_distance = stats ? (stats.biggest_ride_distance as number | null) : null;
+  const biggest_climb = stats ? (stats.biggest_climb_elevation_gain as number | null) : null;
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[#0f0f1a] to-[#1a1a2e] text-white">
+      <NavTabs />
+      <div className="max-w-4xl mx-auto px-4 py-8">
+
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold text-cyan-400">Strava</h1>
+          {connected && !loading && (
+            <div className="flex gap-2">
+              <button
+                onClick={handle_refresh}
+                disabled={refreshing}
+                className="px-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded hover:bg-white/10 disabled:opacity-50 transition"
+              >
+                {refreshing ? 'Refreshing…' : 'Refresh'}
+              </button>
+              <button
+                onClick={handle_disconnect}
+                className="px-3 py-1.5 text-sm bg-white/5 border border-red-500/30 text-red-400 rounded hover:bg-red-500/10 transition"
+              >
+                Disconnect
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Toast */}
+        {toast && (
+          <div className="mb-4 px-4 py-2 bg-green-500/20 border border-green-500/40 rounded text-green-300 text-sm">
+            {toast}
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div className="mb-4 px-4 py-2 bg-red-500/20 border border-red-500/40 rounded text-red-300 text-sm">
+            {error}
+          </div>
+        )}
+
+        {/* Loading */}
+        {loading && (
+          <div className="text-gray-400 text-center py-16">Loading…</div>
+        )}
+
+        {/* Not connected */}
+        {!loading && connected === false && (
+          <div className="border border-white/10 rounded-lg p-8 text-center">
+            <div className="text-4xl mb-4">🚴</div>
+            <h2 className="text-lg font-semibold mb-2">Connect Strava</h2>
+            <p className="text-gray-400 text-sm mb-6">
+              See your athlete profile, training stats, and recent activities.
+            </p>
+            <a
+              href="/api/strava/authorize"
+              className="inline-block px-6 py-2.5 bg-orange-500 hover:bg-orange-400 text-white font-semibold rounded transition"
+            >
+              Connect with Strava
+            </a>
+          </div>
+        )}
+
+        {/* Connected: data */}
+        {!loading && connected && athlete && (
+          <div className="space-y-6">
+
+            {/* Cache freshness */}
+            {cached_at && (
+              <p className="text-xs text-gray-500 text-right">
+                Last updated: {time_ago(cached_at)}
+              </p>
+            )}
+
+            {/* Athlete Profile Card */}
+            <div className="border border-white/10 rounded-lg p-5 flex gap-5 items-start">
+              {athlete.profile && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={athlete.profile as string}
+                  alt="Profile"
+                  className="w-16 h-16 rounded-full flex-shrink-0 bg-gray-700"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg font-bold">
+                  {athlete.firstname as string} {athlete.lastname as string}
+                </h2>
+                {(athlete.city || athlete.country) && (
+                  <p className="text-gray-400 text-sm">
+                    {[athlete.city, athlete.state, athlete.country].filter(Boolean).join(', ')}
+                  </p>
+                )}
+                <div className="flex gap-4 mt-1 text-sm text-gray-400">
+                  {athlete.follower_count != null && (
+                    <span>{(athlete.follower_count as number).toLocaleString()} followers</span>
+                  )}
+                  {athlete.friend_count != null && (
+                    <span>{(athlete.friend_count as number).toLocaleString()} following</span>
+                  )}
+                </div>
+
+                {/* Gear */}
+                {(gear_shoes.length > 0 || gear_bikes.length > 0) && (
+                  <div className="mt-3 space-y-1">
+                    {gear_bikes.map((b, i) => (
+                      <div key={i} className="text-xs text-gray-400">
+                        🚴 {(b.name as string) || 'Bike'}: {km_to_miles(b.distance as number / 1000)}
+                      </div>
+                    ))}
+                    {gear_shoes.map((s, i) => (
+                      <div key={i} className="text-xs text-gray-400">
+                        👟 {(s.name as string) || 'Shoes'}: {meters_to_miles(s.distance as number)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Stats */}
+            {stats && (
+              <div>
+                <h2 className="text-lg font-semibold text-cyan-400 mb-3">Training Stats</h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {run_group && has_activity(run_group) && (
+                    <StatCard label="Running" emoji="🏃" group={run_group} />
+                  )}
+                  {ride_group && has_activity(ride_group) && (
+                    <StatCard label="Cycling" emoji="🚴" group={ride_group} />
+                  )}
+                  {swim_group && has_activity(swim_group) && (
+                    <StatCard label="Swimming" emoji="🏊" group={swim_group} />
+                  )}
+                </div>
+
+                {/* Highlight PRs */}
+                {(biggest_ride_distance || biggest_climb) && (
+                  <div className="flex gap-3 mt-4">
+                    {biggest_ride_distance != null && biggest_ride_distance > 0 && (
+                      <div className="flex-1 border border-white/10 rounded-lg p-3 text-center">
+                        <div className="text-xs text-gray-400 mb-1">Longest Ride</div>
+                        <div className="text-lg font-bold text-cyan-300">
+                          {meters_to_miles(biggest_ride_distance)}
+                        </div>
+                      </div>
+                    )}
+                    {biggest_climb != null && biggest_climb > 0 && (
+                      <div className="flex-1 border border-white/10 rounded-lg p-3 text-center">
+                        <div className="text-xs text-gray-400 mb-1">Biggest Climb</div>
+                        <div className="text-lg font-bold text-cyan-300">
+                          {meters_to_feet(biggest_climb)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Recent Activities */}
+            <div>
+              <h2 className="text-lg font-semibold text-cyan-400 mb-3">
+                Recent Activities
+                <span className="text-sm text-gray-500 font-normal ml-2">
+                  ({activities.length})
+                </span>
+              </h2>
+
+              {activities.length === 0 ? (
+                <p className="text-gray-500 text-sm">No activities found.</p>
+              ) : (
+                <div className="space-y-2">
+                  {activities.map((act, i) => {
+                    const id = act.id as number;
+                    const name = act.name as string | undefined;
+                    const sport = act.sport_type as string | undefined;
+                    const type = act.type as string | undefined;
+                    const distance = act.distance as number | undefined;
+                    const moving_time = act.moving_time as number | undefined;
+                    const elevation = act.total_elevation_gain as number | undefined;
+                    const start_date = act.start_date_local as string | undefined;
+                    const avg_hr = act.average_heartrate as number | undefined;
+                    const avg_watts = act.average_watts as number | undefined;
+                    const avg_cadence = act.average_cadence as number | undefined;
+                    const suffer_score = act.suffer_score as number | undefined;
+
+                    return (
+                      <div
+                        key={id || i}
+                        className="border border-white/10 rounded-lg px-4 py-3 flex items-start gap-3 hover:bg-white/5 transition"
+                      >
+                        <span className="text-xl flex-shrink-0 mt-0.5">{sport_icon(sport, type)}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold truncate">{name || sport || 'Activity'}</span>
+                            <span className="text-xs text-gray-500">{format_activity_date(start_date)}</span>
+                            {id && (
+                              <a
+                                href={`https://www.strava.com/activities/${id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-orange-400 hover:text-orange-300 ml-auto flex-shrink-0"
+                              >
+                                View ↗
+                              </a>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-sm text-gray-300">
+                            {distance != null && distance > 0 && (
+                              <span>{meters_to_miles(distance)}</span>
+                            )}
+                            {moving_time != null && (
+                              <span>{format_duration(moving_time)}</span>
+                            )}
+                            {elevation != null && elevation > 0 && (
+                              <span>↑ {meters_to_feet(elevation)}</span>
+                            )}
+                            {avg_hr != null && (
+                              <span className="text-red-400">♥ {Math.round(avg_hr)} bpm</span>
+                            )}
+                            {avg_watts != null && (
+                              <span className="text-yellow-400">⚡ {Math.round(avg_watts)}w</span>
+                            )}
+                            {avg_cadence != null && (
+                              <span className="text-gray-400">{Math.round(avg_cadence)} rpm</span>
+                            )}
+                            {suffer_score != null && suffer_score > 0 && (
+                              <span className="text-purple-400">💜 {suffer_score}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Page wrapper with Suspense ──────────────────────────────
+
+export default function StravaPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-b from-[#0f0f1a] to-[#1a1a2e] text-white flex items-center justify-center">
+        <div className="text-gray-400">Loading…</div>
+      </div>
+    }>
+      <StravaInner />
+    </Suspense>
+  );
+}
