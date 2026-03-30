@@ -54,12 +54,22 @@ export async function refresh_schedule(season: number): Promise<F1RaceSchedule[]
 
 export async function get_drivers(season: number): Promise<F1Driver[]> {
   const cached = await get_cached_drivers(season);
-  if (cached) return cached;
+  const has_unknown = cached?.some(d => d.constructor_name === 'Unknown');
+
+  if (cached && !has_unknown) return cached;
 
   const adapter = get_f1_adapter();
   const drivers = await adapter.fetch_drivers(season);
-  await save_drivers(season, drivers);
-  return drivers;
+
+  // Only update DB if the fresh data actually has team info
+  const fresh_has_teams = drivers.some(d => d.constructor_name !== 'Unknown');
+  if (fresh_has_teams) {
+    await save_drivers(season, drivers);
+    return drivers;
+  }
+
+  // If fresh data also has no teams, return cached if available
+  return cached || drivers;
 }
 
 // ΓöÇΓöÇ Results (fetch on reveal only, cache forever) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ

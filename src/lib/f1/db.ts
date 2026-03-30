@@ -460,7 +460,7 @@ export async function save_drivers(season: number, drivers: F1Driver[]): Promise
 
   for (const d of drivers) {
     await db.execute({
-      sql: `INSERT OR IGNORE INTO f1_drivers
+      sql: `INSERT OR REPLACE INTO f1_drivers
             (season, driver_id, code, given_name, family_name, constructor_name, constructor_id)
             VALUES (?, ?, ?, ?, ?, ?, ?)`,
       args: [season, d.driver_id, d.code, d.given_name, d.family_name, d.constructor_name, d.constructor_id],
