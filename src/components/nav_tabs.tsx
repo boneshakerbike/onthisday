@@ -163,7 +163,7 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
                   avoidCollisions
                 >
                   <DropdownMenu.Item asChild>
-                    <Link href="/health/wellness" className={item_class}>Wellness</Link>
+                    <Link href="/health/oura" className={item_class}>Oura</Link>
                   </DropdownMenu.Item>
                   <DropdownMenu.Item asChild>
                     <Link href="/health/strava" className={item_class}>Strava</Link>

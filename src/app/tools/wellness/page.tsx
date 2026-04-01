@@ -1,10 +1,10 @@
 /**
  * Wellness redirect - backwards compatibility
- * Redirects to /health/wellness
+ * Redirects to /health/oura
  */
 
 import { redirect } from 'next/navigation';
 
 export default function WellnessRedirect() {
-  redirect('/health/wellness');
+  redirect('/health/oura');
 }

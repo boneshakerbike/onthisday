@@ -67,7 +67,7 @@ function extract_headline_scores(data: Record<string, unknown>): Partial<Wellnes
   const activity = data.daily_activity as Record<string, unknown> | null;
   const stress = data.daily_stress as Record<string, unknown> | null;
   const sleep_detail_arr = data.sleep_detail as Record<string, unknown>[] | null;
-  const sleep_detail = sleep_detail_arr?.[0];
+  const sleep_detail = sleep_detail_arr?.find(s => s.type === 'long_sleep') ?? sleep_detail_arr?.[0];
   const spo2 = data.daily_spo2 as Record<string, unknown> | null;
 
   return {

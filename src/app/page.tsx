@@ -110,11 +110,11 @@ export default function HomePage() {
     },
     {
       title: 'Health',
-      description: 'Oura Ring wellness — scores, HRV, stress, sleep details, and more',
+      description: 'Oura Ring, Strava, and COROS training data',
       icon: '🚴',
       color: 'green',
       links: [
-        { label: 'Wellness', href: '/health/wellness' },
+        { label: 'Oura', href: '/health/oura' },
         { label: 'Strava', href: '/health/strava' },
         { label: 'COROS', href: '/health/coros' },
       ],
