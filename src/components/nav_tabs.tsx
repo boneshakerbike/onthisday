@@ -168,6 +168,9 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
                   <DropdownMenu.Item asChild>
                     <Link href="/health/strava" className={item_class}>Strava</Link>
                   </DropdownMenu.Item>
+                  <DropdownMenu.Item asChild>
+                    <Link href="/health/coros" className={item_class}>COROS</Link>
+                  </DropdownMenu.Item>
                 </DropdownMenu.Content>
               </DropdownMenu.Portal>
             </DropdownMenu.Root>

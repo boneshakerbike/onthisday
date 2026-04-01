@@ -121,6 +121,16 @@ async function init_schema(): Promise<void> {
     )
   `);
 
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS coros_data (
+      date TEXT PRIMARY KEY,
+      data_json TEXT NOT NULL,
+      source TEXT DEFAULT 'chrome_extension',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Migration: add image_url column if missing
   try {
     await db.execute(`ALTER TABLE stories ADD COLUMN image_url TEXT`);
@@ -854,6 +864,59 @@ export async function get_adjacent_stories(date_key: string): Promise<{
       ? { id: next_result.rows[0].id as string, date_display: next_result.rows[0].date_display as string }
       : null
   };
+}
+
+// ============================================================================
+// COROS Data
+// ============================================================================
+
+export async function save_coros_data(date: string, data_json: string): Promise<void> {
+  await ensure_schema();
+  const db = get_client();
+
+  await db.execute({
+    sql: `INSERT OR REPLACE INTO coros_data (date, data_json, updated_at) VALUES (?, ?, datetime('now'))`,
+    args: [date, data_json]
+  });
+}
+
+export async function get_coros_data(date: string): Promise<{ date: string; data: unknown; source: string; created_at: string; updated_at: string } | null> {
+  await ensure_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'SELECT * FROM coros_data WHERE date = ?',
+    args: [date]
+  });
+
+  if (result.rows.length === 0) return null;
+
+  const row = result.rows[0];
+  return {
+    date: row.date as string,
+    data: JSON.parse(row.data_json as string),
+    source: row.source as string,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string
+  };
+}
+
+export async function get_coros_range(start: string, end: string): Promise<Array<{ date: string; data: unknown; source: string; created_at: string; updated_at: string }>> {
+  await ensure_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'SELECT * FROM coros_data WHERE date >= ? AND date <= ? ORDER BY date DESC',
+    args: [start, end]
+  });
+
+  return result.rows.map(row => ({
+    date: row.date as string,
+    data: JSON.parse(row.data_json as string),
+    source: row.source as string,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string
+  }));
 }
 
 // ============================================================================
