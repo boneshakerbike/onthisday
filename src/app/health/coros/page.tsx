@@ -144,7 +144,7 @@ export default function CorosPage() {
             type="date"
             value={date}
             onChange={e => setDate(e.target.value)}
-            className="bg-[#0f0f1a] border border-white/20 rounded px-2 py-1 text-gray-200 text-sm"
+            className="bg-[#0f0f1a] border border-white/20 rounded px-2 py-1 text-gray-200 text-sm [color-scheme:dark]"
           />
         </div>
 
@@ -243,7 +243,7 @@ export default function CorosPage() {
         <div className="mt-4 border-t border-white/10 pt-4">
           <details className="bg-[#0f0f1a] border border-white/10 rounded">
             <summary className="cursor-pointer flex justify-between items-center px-3 py-2 text-sm text-cyan-400">
-              <span>Chrome Extension Prompt</span>
+              <span>Chrome Extension Prompt (replace &apos;[YOUR_PIN]&apos; with your value)</span>
               <button
                 onClick={copy_section('prompt', CHROME_PROMPT)}
                 className="text-xs text-cyan-400 hover:text-cyan-300 px-2 py-1 border border-white/10 rounded"
