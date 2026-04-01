@@ -1,5 +1,6 @@
 'use client'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from 'react'
 import NavTabs from '@/components/nav_tabs'
 
@@ -69,7 +70,7 @@ const CHROME_PROMPT = `Generate a comprehensive morning training report from the
      }
    }
 
-   Use yesterday's date for the "date" field (the date the activities are from).
+   Use today's date for the "date" field.
 
 8. Once the POST succeeds, close all browser tabs and windows that were opened or used for this automation and terminate the session.
 
@@ -85,8 +86,7 @@ export default function CorosPage() {
   const [row, setRow] = useState<{ date: string; data: Record<string, unknown>; source: string; updated_at: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [showRaw, setShowRaw] = useState(false)
-  const [showPrompt, setShowPrompt] = useState(false)
+  const [copiedSection, setCopiedSection] = useState<string | null>(null)
 
   useEffect(() => {
     document.title = '8i11 | COROS'
@@ -114,7 +114,23 @@ export default function CorosPage() {
       })
   }, [date])
 
-  const data_entries = row ? Object.entries(row.data as Record<string, unknown>) : []
+  function copy_section(name: string, content: string) {
+    return (e: React.MouseEvent) => {
+      e.stopPropagation()
+      e.preventDefault()
+      navigator.clipboard.writeText(content)
+      setCopiedSection(name)
+      setTimeout(() => setCopiedSection(null), 1500)
+    }
+  }
+
+  const activities = row ? (row.data as any).activities as any[] | undefined : undefined
+  const training_status = row ? (row.data as any)?.dashboard?.training_status?.status ?? '—' : null
+  const recovery_pct = row ? (row.data as any)?.dashboard?.recovery?.percentage ?? null : null
+  const recovery_status = row ? (row.data as any)?.dashboard?.recovery?.status ?? null : null
+  const recovery_str = recovery_pct != null || recovery_status != null
+    ? `${recovery_pct != null ? recovery_pct + '%' : '—'} — ${recovery_status ?? '—'}`
+    : '—'
 
   return (
     <div className="min-h-screen bg-[#1a1a2e] text-gray-200 p-4">
@@ -141,46 +157,104 @@ export default function CorosPage() {
 
         {row && (
           <div className="mb-4">
-            <p className="text-xs text-gray-500 mb-2">Source: {row.source} &bull; Updated: {row.updated_at}</p>
-            <table className="w-full text-sm border-collapse">
-              <tbody>
-                {data_entries.map(([key, val]) => (
-                  <tr key={key} className="border-b border-white/10">
-                    <td className="py-1 pr-4 text-gray-400 align-top w-1/2">{key}</td>
-                    <td className="py-1 text-gray-200 align-top">
-                      {typeof val === 'object' ? JSON.stringify(val) : String(val)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <p className="text-xs text-gray-500 mb-3">Source: {row.source} &bull; Updated: {row.updated_at}</p>
 
-            <button
-              onClick={() => setShowRaw(v => !v)}
-              className="mt-3 text-xs text-cyan-400 hover:text-cyan-300 underline"
-            >
-              {showRaw ? 'Hide' : 'Show'} raw JSON
-            </button>
-            {showRaw && (
-              <pre className="mt-2 text-xs bg-[#0f0f1a] border border-white/10 rounded p-3 overflow-x-auto text-gray-300">
+            {/* Status bar */}
+            <div className="flex gap-6 mb-3 text-sm">
+              <span>
+                <span className="text-gray-400">Training Status: </span>
+                <span className="text-gray-200">{training_status}</span>
+              </span>
+              <span>
+                <span className="text-gray-400">Recovery: </span>
+                <span className="text-gray-200">{recovery_str}</span>
+              </span>
+            </div>
+
+            {/* Activities table */}
+            {(!activities || activities.length === 0) ? (
+              <p className="text-sm text-gray-500 mb-4">No activities.</p>
+            ) : (
+              <table className="w-full text-sm border-collapse mb-4">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="py-1 pr-4 text-gray-400 text-left font-normal">Name</th>
+                    <th className="py-1 pr-4 text-gray-400 text-left font-normal">Distance</th>
+                    <th className="py-1 text-gray-400 text-left font-normal">Training Load</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {activities.map((act: any, i: number) => {
+                    const distance = act.distance_mi != null
+                      ? `${act.distance_mi} mi`
+                      : act.sets != null
+                        ? `${act.sets} sets`
+                        : '—'
+                    const tl = act.training_load != null ? `${act.training_load} TL` : '—'
+                    return (
+                      <tr key={i} className="border-b border-white/10">
+                        <td className="py-1 pr-4 text-gray-200 align-top">{act.name ?? '—'}</td>
+                        <td className="py-1 pr-4 text-gray-200 align-top">{distance}</td>
+                        <td className="py-1 text-gray-200 align-top">{tl}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+
+            {/* Report Markdown */}
+            {(row.data as any).report_markdown && (
+              <details className="mb-3 bg-[#0f0f1a] border border-white/10 rounded">
+                <summary className="cursor-pointer flex justify-between items-center px-3 py-2 text-sm text-cyan-400">
+                  <span>Report Markdown</span>
+                  <button
+                    onClick={copy_section('report', (row.data as any).report_markdown)}
+                    className="text-xs text-cyan-400 hover:text-cyan-300 px-2 py-1 border border-white/10 rounded"
+                  >
+                    {copiedSection === 'report' ? 'Copied!' : 'Copy'}
+                  </button>
+                </summary>
+                <pre className="text-xs text-gray-300 p-3 overflow-x-auto whitespace-pre-wrap">
+                  {(row.data as any).report_markdown}
+                </pre>
+              </details>
+            )}
+
+            {/* Raw JSON */}
+            <details className="mb-3 bg-[#0f0f1a] border border-white/10 rounded">
+              <summary className="cursor-pointer flex justify-between items-center px-3 py-2 text-sm text-cyan-400">
+                <span>Raw JSON</span>
+                <button
+                  onClick={copy_section('raw', JSON.stringify(row.data, null, 2))}
+                  className="text-xs text-cyan-400 hover:text-cyan-300 px-2 py-1 border border-white/10 rounded"
+                >
+                  {copiedSection === 'raw' ? 'Copied!' : 'Copy'}
+                </button>
+              </summary>
+              <pre className="text-xs text-gray-300 p-3 overflow-x-auto">
                 {JSON.stringify(row.data, null, 2)}
               </pre>
-            )}
+            </details>
           </div>
         )}
 
-        <div className="mt-8 border-t border-white/10 pt-4">
-          <button
-            onClick={() => setShowPrompt(v => !v)}
-            className="text-sm text-cyan-400 hover:text-cyan-300 underline"
-          >
-            {showPrompt ? 'Hide' : 'Show'} Chrome Extension Prompt
-          </button>
-          {showPrompt && (
-            <pre className="mt-3 text-xs bg-[#0f0f1a] border border-white/10 rounded p-3 overflow-x-auto text-gray-300 whitespace-pre-wrap">
+        {/* Chrome Extension Prompt */}
+        <div className="mt-4 border-t border-white/10 pt-4">
+          <details className="bg-[#0f0f1a] border border-white/10 rounded">
+            <summary className="cursor-pointer flex justify-between items-center px-3 py-2 text-sm text-cyan-400">
+              <span>Chrome Extension Prompt</span>
+              <button
+                onClick={copy_section('prompt', CHROME_PROMPT)}
+                className="text-xs text-cyan-400 hover:text-cyan-300 px-2 py-1 border border-white/10 rounded"
+              >
+                {copiedSection === 'prompt' ? 'Copied!' : 'Copy'}
+              </button>
+            </summary>
+            <pre className="text-xs text-gray-300 p-3 overflow-x-auto whitespace-pre-wrap">
               {CHROME_PROMPT}
             </pre>
-          )}
+          </details>
         </div>
       </div>
     </div>
