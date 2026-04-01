@@ -163,6 +163,7 @@ Bill describes what failed. Agent proposes a fix, gets approval, pushes, retests
 ### PR Hygiene
 - Commit messages: short imperative sentence, no body unless the why isn't obvious
 - Never include `Closes #N` / `Fixes #N` / `Resolves #N` in commits or PRs
+- All commits must be followed by `git push` to origin before considering a task complete
 - Bill closes issues after confirming the fix in production
 
 ## Task Management
