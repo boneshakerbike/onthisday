@@ -116,6 +116,7 @@ export default function HomePage() {
       links: [
         { label: 'Wellness', href: '/health/wellness' },
         { label: 'Strava', href: '/health/strava' },
+        { label: 'COROS', href: '/health/coros' },
       ],
     },
     {
