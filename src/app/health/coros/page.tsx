@@ -3,41 +3,77 @@
 import { useEffect, useState } from 'react'
 import NavTabs from '@/components/nav_tabs'
 
-const CHROME_PROMPT = `Navigate to https://training.coros.com and log in if needed.
+const CHROME_PROMPT = `Generate a comprehensive morning training report from the COROS Training Hub by collecting data from all key sections:
 
-Once on the dashboard, find today's daily summary data including:
-- Sleep duration and quality
-- Resting heart rate
-- HRV (Heart Rate Variability)
-- SpO2
-- Steps
-- Training load
-- Any workout/activity summaries
+1. Start at the Dashboard tab (https://t.coros.com/admin/views/dash-board)
+2. Capture all Dashboard metrics including:
+   - Weekly Activity chart data
+   - Recent Activities list
+   - Overnight HRV status and ranges
+   - Training Status (Maintaining/Optimized/etc.)
+   - 7-Day Efficiency Scores
+   - Threshold Heart Rate Zones
+   - Recovery status and percentage
+   - Personal Cycling Records
+   - Race Predictor data
 
-Scrape all available metrics and POST them as JSON to:
+3. Navigate to EvoLab Metrics tab and capture:
+   - Training Status (12 weeks) graph
+   - Training Summary (4 weeks): Total Distance, Total Time, Total Load, Times, Average HR
+   - Activity Data (12 weeks): Training Load chart
+   - Running Fitness & Efficiency (12 weeks)
+   - 4-Week Intensity Distribution (Hard/Med/Easy breakdown by training load)
+   - VO2 Max (12 weeks) with Max and Avg values
+   - Distance Zone Distribution (4 weeks) with frequency percentages
+   - Threshold Heart Rate Zones Distribution (4 weeks) with load breakdown
+   - Overnight HRV (4 weeks) with average value
+   - Weekly Training Load (12 weeks) chart data
+   - Resting Heart Rate (12 weeks) with Low and Avg values
 
-POST https://8i11.vercel.app/api/coros/save
-Headers:
-  Content-Type: application/json
-  X-Guest-Pin: [YOUR_PIN]
+4. Navigate to Activity List tab and identify yesterday's date
+5. For EACH activity from yesterday (sort by date descending):
+   - Click on the activity name to open detailed view
+   - Capture summary metrics: Distance/Sets, Activity Time, Total Time, Avg Speed/Pace, Avg HR, Elevation Gain, Total Descent, Calories, Training Load
+   - Expand "Time in Zones" section and capture HR Zone breakdown (zone ranges, times, percentages)
+   - For running activities: Expand Pace Zone breakdown instead
+   - For strength/flexibility activities: Capture exercise list with load/rest/time/calories per exercise, sets count, total reps
+   - Capture Efficiency, Aerobic TE, Anaerobic TE values
+   - Note the activity timestamp (date and time)
+   - Go back to Activity List and repeat for next activity
 
-Body:
-{
-  "date": "YYYY-MM-DD",
-  "data": {
-    "sleep_duration_min": ...,
-    "sleep_quality": ...,
-    "resting_hr": ...,
-    "hrv": ...,
-    "spo2": ...,
-    "steps": ...,
-    "training_load": ...,
-    "workouts": [...],
-    ... any other available metrics
-  }
-}
+6. Compile all collected data into a structured markdown report with sections for:
+   - Overnight HRV & Recovery Status
+   - Training Status & Fitness metrics
+   - Yesterday's Activities (each activity with full details, HR/pace zone tables, key observations)
+   - Daily/Weekly Training Load summaries
+   - EvoLab 4-Week metrics with zone distribution tables
+   - Personal Records section
+   - Race Predictor table
+   - Key Takeaways based on recovery status, training load, and overall patterns
 
-Use the actual date shown on the COROS dashboard. Include every metric visible on the page.`
+7. POST the compiled report as JSON to:
+
+   POST https://8i11.vercel.app/api/coros/save
+   Headers:
+     Content-Type: application/json
+     X-Guest-Pin: [YOUR_PIN]
+
+   Body:
+   {
+     "date": "YYYY-MM-DD",
+     "data": {
+       "report_markdown": "<the full markdown report>",
+       "dashboard": { ... captured dashboard metrics ... },
+       "evolab": { ... captured EvoLab metrics ... },
+       "activities": [ ... yesterday's activity details ... ]
+     }
+   }
+
+   Use yesterday's date for the "date" field (the date the activities are from).
+
+8. Once the POST succeeds, close all browser tabs and windows that were opened or used for this automation and terminate the session.
+
+Format the report as a professional morning briefing suitable for a cyclist/runner with training data visualization through tables and emojis for quick scanning. Include specific values, not ranges. Calculate daily totals and weekly totals where applicable.`
 
 function today_str(): string {
   const d = new Date()
