@@ -22,9 +22,11 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const nav_ref = useRef<HTMLElement>(null);
+  const has_peeked = useRef(false);
   const [can_scroll_left, set_can_scroll_left] = useState(false);
   const [can_scroll_right, set_can_scroll_right] = useState(false);
   const [is_local, set_is_local] = useState(false);
+  const [show_hint, set_show_hint] = useState(true);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- SSR-safe: window only accessible client-side
   useEffect(() => { set_is_local(window.location.hostname === 'localhost'); }, []);
@@ -47,6 +49,28 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
       nav.removeEventListener('scroll', check_scroll);
       observer.disconnect();
     };
+  }, []);
+
+  // Scroll-peek animation on mount
+  useEffect(() => {
+    const nav = nav_ref.current;
+    if (!nav || has_peeked.current) return;
+    let t2: ReturnType<typeof setTimeout>;
+    const t1 = setTimeout(() => {
+      if (nav.scrollWidth <= nav.clientWidth) return;
+      has_peeked.current = true;
+      nav.scrollTo({ left: 48 });
+      t2 = setTimeout(() => {
+        nav.scrollTo({ left: 0, behavior: 'smooth' });
+      }, 600);
+    }, 300);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+
+  // Hide scroll hint after 3 seconds
+  useEffect(() => {
+    const t = setTimeout(() => set_show_hint(false), 3000);
+    return () => clearTimeout(t);
   }, []);
 
   const is_active = (path: string) => {
@@ -87,10 +111,14 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
         {/* Left: Navigation tabs - scrollable on mobile */}
         <div className="relative flex-1 min-w-0">
           {can_scroll_left && (
-            <div className={`absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-r ${is_light ? 'from-[#faf8f5]' : 'from-[#1a1a2e]'} to-transparent`} />
+            <div className={`absolute left-0 top-0 bottom-0 w-12 z-10 pointer-events-none bg-gradient-to-r ${is_light ? 'from-[#faf8f5] border-r border-black/5' : 'from-[#1a1a2e] border-r border-white/5'} to-transparent`} />
           )}
           {can_scroll_right && (
-            <div className={`absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-l ${is_light ? 'from-[#faf8f5]' : 'from-[#1a1a2e]'} to-transparent`} />
+            <div className={`absolute right-0 top-0 bottom-0 w-12 z-10 pointer-events-none bg-gradient-to-l ${is_light ? 'from-[#faf8f5] border-l border-black/5' : 'from-[#1a1a2e] border-l border-white/5'} to-transparent flex items-center justify-end pr-1`}>
+              {show_hint && (
+                <span className={`text-xs animate-pulse ${is_light ? 'text-[#c4704b]/60' : 'text-cyan-400/60'}`}>›</span>
+              )}
+            </div>
           )}
           <nav ref={nav_ref} className="flex items-center overflow-x-auto scrollbar-hide">
             {/* Home */}
