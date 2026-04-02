@@ -22,6 +22,7 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const nav_ref = useRef<HTMLElement>(null);
+  const has_peeked = useRef(false);
   const [can_scroll_left, set_can_scroll_left] = useState(false);
   const [can_scroll_right, set_can_scroll_right] = useState(false);
   const [is_local, set_is_local] = useState(false);
@@ -48,6 +49,23 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
       observer.disconnect();
     };
   }, []);
+
+  // Scroll-peek animation on mount
+  useEffect(() => {
+    const nav = nav_ref.current;
+    if (!nav || has_peeked.current) return;
+    let t2: ReturnType<typeof setTimeout>;
+    const t1 = setTimeout(() => {
+      if (nav.scrollWidth <= nav.clientWidth) return;
+      has_peeked.current = true;
+      nav.scrollTo({ left: 48 });
+      t2 = setTimeout(() => {
+        nav.scrollTo({ left: 0, behavior: 'smooth' });
+      }, 600);
+    }, 300);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
+  }, []);
+
 
   const is_active = (path: string) => {
     if (path === '/') return pathname === '/';
@@ -87,12 +105,30 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
         {/* Left: Navigation tabs - scrollable on mobile */}
         <div className="relative flex-1 min-w-0">
           {can_scroll_left && (
-            <div className={`absolute left-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-r ${is_light ? 'from-[#faf8f5]' : 'from-[#1a1a2e]'} to-transparent`} />
+            <button
+              onClick={() => nav_ref.current?.scrollBy({ left: -120, behavior: 'smooth' })}
+              className={`absolute left-0 top-0 bottom-0 w-8 z-20 flex items-center justify-center font-bold text-lg ${is_light ? 'text-[#c4704b]' : 'text-cyan-400'}`}
+              aria-label="Scroll navigation left"
+            >
+              ‹
+            </button>
+          )}
+          {can_scroll_left && (
+            <div className={`absolute left-8 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-r ${is_light ? 'from-[#faf8f5]' : 'from-[#1a1a2e]'} to-transparent`} />
           )}
           {can_scroll_right && (
-            <div className={`absolute right-0 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-l ${is_light ? 'from-[#faf8f5]' : 'from-[#1a1a2e]'} to-transparent`} />
+            <div className={`absolute right-8 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-l ${is_light ? 'from-[#faf8f5]' : 'from-[#1a1a2e]'} to-transparent`} />
           )}
-          <nav ref={nav_ref} className="flex items-center overflow-x-auto scrollbar-hide">
+          {can_scroll_right && (
+            <button
+              onClick={() => nav_ref.current?.scrollBy({ left: 120, behavior: 'smooth' })}
+              className={`absolute right-0 top-0 bottom-0 w-8 z-20 flex items-center justify-center font-bold text-lg animate-pulse ${is_light ? 'text-[#c4704b]' : 'text-cyan-400'}`}
+              aria-label="Scroll navigation right"
+            >
+              ›
+            </button>
+          )}
+          <nav ref={nav_ref} className="flex items-center overflow-x-auto scrollbar-hide pr-8">
             {/* Home */}
             <Link href="/" className={tab_class('/')}>
               Home
