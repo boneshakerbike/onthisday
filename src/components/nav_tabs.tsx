@@ -26,7 +26,6 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
   const [can_scroll_left, set_can_scroll_left] = useState(false);
   const [can_scroll_right, set_can_scroll_right] = useState(false);
   const [is_local, set_is_local] = useState(false);
-  const [show_hint, set_show_hint] = useState(true);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- SSR-safe: window only accessible client-side
   useEffect(() => { set_is_local(window.location.hostname === 'localhost'); }, []);
@@ -67,11 +66,6 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
 
-  // Hide scroll hint after 3 seconds
-  useEffect(() => {
-    const t = setTimeout(() => set_show_hint(false), 3000);
-    return () => clearTimeout(t);
-  }, []);
 
   const is_active = (path: string) => {
     if (path === '/') return pathname === '/';
@@ -115,9 +109,7 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
           )}
           {can_scroll_right && (
             <div className={`absolute right-0 top-0 bottom-0 w-12 z-10 pointer-events-none bg-gradient-to-l ${is_light ? 'from-[#faf8f5] border-l border-black/5' : 'from-[#1a1a2e] border-l border-white/5'} to-transparent flex items-center justify-end pr-1`}>
-              {show_hint && (
-                <span className={`text-xs animate-pulse ${is_light ? 'text-[#c4704b]/60' : 'text-cyan-400/60'}`}>›</span>
-              )}
+              <span className={`text-base font-bold animate-pulse ${is_light ? 'text-[#c4704b]' : 'text-cyan-400'}`}>›</span>
             </div>
           )}
           <nav ref={nav_ref} className="flex items-center overflow-x-auto scrollbar-hide">
