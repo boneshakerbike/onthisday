@@ -105,14 +105,30 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
         {/* Left: Navigation tabs - scrollable on mobile */}
         <div className="relative flex-1 min-w-0">
           {can_scroll_left && (
-            <div className={`absolute left-0 top-0 bottom-0 w-12 z-10 pointer-events-none bg-gradient-to-r ${is_light ? 'from-[#faf8f5] border-r border-black/5' : 'from-[#1a1a2e] border-r border-white/5'} to-transparent`} />
+            <button
+              onClick={() => nav_ref.current?.scrollBy({ left: -120, behavior: 'smooth' })}
+              className={`absolute left-0 top-0 bottom-0 w-8 z-20 flex items-center justify-center font-bold text-lg ${is_light ? 'text-[#c4704b]' : 'text-cyan-400'}`}
+              aria-label="Scroll navigation left"
+            >
+              ‹
+            </button>
+          )}
+          {can_scroll_left && (
+            <div className={`absolute left-8 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-r ${is_light ? 'from-[#faf8f5]' : 'from-[#1a1a2e]'} to-transparent`} />
           )}
           {can_scroll_right && (
-            <div className={`absolute right-0 top-0 bottom-0 w-12 z-10 pointer-events-none bg-gradient-to-l ${is_light ? 'from-[#faf8f5] border-l border-black/5' : 'from-[#1a1a2e] border-l border-white/5'} to-transparent flex items-center justify-end pr-1`}>
-              <span className={`text-base font-bold animate-pulse ${is_light ? 'text-[#c4704b]' : 'text-cyan-400'}`}>›</span>
-            </div>
+            <div className={`absolute right-8 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-l ${is_light ? 'from-[#faf8f5]' : 'from-[#1a1a2e]'} to-transparent`} />
           )}
-          <nav ref={nav_ref} className="flex items-center overflow-x-auto scrollbar-hide">
+          {can_scroll_right && (
+            <button
+              onClick={() => nav_ref.current?.scrollBy({ left: 120, behavior: 'smooth' })}
+              className={`absolute right-0 top-0 bottom-0 w-8 z-20 flex items-center justify-center font-bold text-lg animate-pulse ${is_light ? 'text-[#c4704b]' : 'text-cyan-400'}`}
+              aria-label="Scroll navigation right"
+            >
+              ›
+            </button>
+          )}
+          <nav ref={nav_ref} className="flex items-center overflow-x-auto scrollbar-hide pr-8">
             {/* Home */}
             <Link href="/" className={tab_class('/')}>
               Home
