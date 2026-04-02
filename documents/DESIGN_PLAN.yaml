@@ -1,0 +1,114 @@
+# 8i11 Global Design & Migration Specification
+# This document is the source of truth for the 8i11 visual overhaul.
+# All changes must be verified against this spec before implementation.
+
+project_meta:
+  version: 1.4
+  status: planning_complete
+  auditor_ready: true # READY FOR OPUS AUDIT
+
+global_look_and_feel:
+  theme: "Cosmic/Material 3 Hybrid"
+  palette:
+    background: "#060e20" # Deep Navy
+    surface_container: "#0f1930"
+    surface_container_low: "#091328"
+    primary: "#b79fff" # Periwinkle/Violet
+    secondary: "#69f6b8" # Seafoam Green
+    tertiary: "#ffb148" # Amber
+    outline: "#6d758c"
+    on_surface: "#dee5ff"
+    on_surface_variant: "#a3aac4"
+  typography:
+    headlines: "Manrope (Bold/Black, Tight Tracking)"
+    body: "Inter (Medium/Regular/Light)"
+  geometry:
+    rounding: "rounded-xl (Cards), rounded-full (Buttons/Sections)"
+    glow_bars:
+      violet: "#b79fff (Creative/Primary)"
+      emerald: "#69f6b8 (Health/Secondary)"
+      amber: "#ffb148 (Tools/Tertiary)"
+      ruby: "#ff6e84 (Games/Error-dim)"
+  effects:
+    glass: "backdrop-blur-xl bg-slate-900/60"
+    shadows: "shadow-[0_8px_24px_rgba(0,0,0,0.15)]"
+
+layout_architecture:
+  navigation:
+    top: "Fixed (h-20), Contextual Sub-nav"
+    side: "Dynamic/Contextual. Hubs show category switcher; Spokes show category-specific tools. REMOVED on Editorial/Focus pages."
+    mobile: "Fixed Bottom Nav (h-20), Hub-focused"
+  pattern: "Hub-and-Spoke. Sidebar context shifts or disappears based on page depth."
+
+page_specific_specs:
+  home_page:
+    structure:
+      - section: "Hero (Cosmic Gradient/Image Background, 320px height)"
+      - section: "Quick Stats Grid (4-column, asymmetric, data-driven)"
+      - section: "Category Bento Grid (Asymmetric spans, animated hover states)"
+    functional_requirements:
+      - "Integrate existing 'AdminSection' logic into the new surface cards"
+      - "Preserve real-time data fetching for Health and Stats"
+
+  category_hubs: # Standard pattern for Creative, Tools, Health, etc.
+    structure:
+      - section: "Category Hero (6xl headline, tracking-tighter, descriptive body)"
+      - section: "Feature Bento (md:col-span-8 for primary tool, md:col-span-4 for secondary info/stats)"
+      - section: "Recent Activity/List (Glow-bar styled container, item rows with icons)"
+    elements:
+      glow_bar: "border-l-4 with category-specific color"
+      atmospheric_card: "bg-surface-container with low-opacity backgrounds"
+
+  tools_hub:
+    route: "/tools"
+    elements:
+      primary_feature: "Prompt Library (v2.4 Stable tag)"
+      utility_grid: ["Markdown Converter", "Knowledge Diff", "Instruction Stripper", "Text Cleaner"]
+      admin_context_panel: "Side panel (xl:col-span-4) for External Portals (GitHub, Vercel, etc.) and Usage Credits"
+    color: "amber"
+
+  utility_editor_pages: # e.g., Markdown Editor, Prompt Editor
+    layout: "SideNav (Hub-specific) + Main Canvas (pl-64)"
+    structure:
+      - section: "Split-Pane Editor (lg:col-span-7 Editor, lg:col-span-5 Preview/Output)"
+      - section: "Tool-specific Sidebar (e.g., Markdown, Prompts, Versioning links)"
+    functional_requirements:
+      - "Integrate 'Import .docx' (Mammoth.js) logic"
+      - "Live sync between Editor and Preview panes"
+
+  spoke_pages: # e.g., On This Day, Oura Detail, F1 Predictions
+    structure:
+      - section: "Atmospheric Header (Date navigation, breadcrumbs, status pill)"
+      - section: "Feature Bento (md:col-span-4 Tool Card, md:col-span-8 Narrative/Detail Card)"
+      - section: "Chronological Feed (2-column grid of Year/Post cards)"
+    elements:
+      narrative_card: "Glow-bar-violet, 10px padding, large quotes, transition-aware text"
+      post_card: "bg-surface-container, Year-focused header, tag pills, hover-border-primary"
+
+  data_intensive_pages: # e.g., F1 Standings, Leaderboards
+    structure:
+      - section: "Asymmetric Grid (Column 1: Standings Table, Column 2: Contextual Sidebar/Calendar, Column 3: Interactive Visualizer)"
+    elements:
+      leaderboard_table: "surface-container-low, rounded-3xl, tracking-widest headers"
+      podium_visualizer: "backdrop-blur-md, P1 glow shadow, drag-and-drop hint text"
+
+  editorial_focus_pages: # e.g., A specific Story, Long-form article
+    layout: "No Sidebar, Centered Column (max-w-4xl)"
+    structure:
+      - section: "Full-width Hero (h-[870px]), Grayscale image, bottom-aligned large text"
+      - section: "Prose Body (Inter, 1.125rem, border-l-4 primary accent for pull-quotes)"
+    elements:
+      prose_config: "Tailwind Typography with custom primary-dim/on-surface-variant colors"
+
+migration_rules:
+  - "NEVER hardcode hex values; use the CSS variables defined in globals.css"
+  - "Maintain all existing API routes and Auth session logic"
+  - "Dynamic Sidebar: Detect 'editorial' or 'utility' routes to shift sidebar context"
+  - "Preserve Data Logic: Re-wrap existing functional components (like COROS/Oura/Auth/F1) in new Bento containers."
+  - "Use Lucide React icons initially but styled to match Material Symbols weights"
+
+audit_notes_for_opus:
+  - "Architecture: Handling Sidebar state transitions without jarring layout shifts."
+  - "Complexity: Standardizing BentoCell components to handle various column spans (4, 5, 7, 8, 12)."
+  - "Data Migration: Mapping F1 Prediction logic (locks, points, standings) to new Table/Podium components."
+  - "Data Migration: Ensuring COROS/Oura date-picker state flows into the new Atmospheric Header."
