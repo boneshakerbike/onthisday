@@ -124,7 +124,6 @@ export default function CorosPage() {
     }
   }
 
-  const activities = row ? (row.data as any).activities as any[] | undefined : undefined
   const training_status = row ? (row.data as any)?.dashboard?.training_status?.status ?? '—' : null
   const recovery_pct = row ? (row.data as any)?.dashboard?.recovery?.percentage ?? null : null
   const recovery_status = row ? (row.data as any)?.dashboard?.recovery?.status ?? null : null
@@ -171,37 +170,6 @@ export default function CorosPage() {
               </span>
             </div>
 
-            {/* Activities table */}
-            {(!activities || activities.length === 0) ? (
-              <p className="text-sm text-gray-500 mb-4">No activities.</p>
-            ) : (
-              <table className="w-full text-sm border-collapse mb-4">
-                <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="py-1 pr-4 text-gray-400 text-left font-normal">Name</th>
-                    <th className="py-1 pr-4 text-gray-400 text-left font-normal">Distance</th>
-                    <th className="py-1 text-gray-400 text-left font-normal">Training Load</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {activities.map((act: any, i: number) => {
-                    const distance = act.distance_mi != null
-                      ? `${act.distance_mi} mi`
-                      : act.sets != null
-                        ? `${act.sets} sets`
-                        : '—'
-                    const tl = act.training_load != null ? `${act.training_load} TL` : '—'
-                    return (
-                      <tr key={i} className="border-b border-white/10">
-                        <td className="py-1 pr-4 text-gray-200 align-top">{act.name ?? '—'}</td>
-                        <td className="py-1 pr-4 text-gray-200 align-top">{distance}</td>
-                        <td className="py-1 text-gray-200 align-top">{tl}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            )}
 
             {/* Report Markdown */}
             {(row.data as any).report_markdown && (
