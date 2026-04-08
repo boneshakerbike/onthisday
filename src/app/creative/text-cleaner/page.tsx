@@ -5,14 +5,20 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import NavTabs from '@/components/nav_tabs';
+
+interface TextNote {
+  id: string;
+  content: string;
+  created_at: string;
+}
 
 export default function TextCleanerPage() {
   const [input, set_input] = useState('');
   const [cleaned, set_cleaned] = useState('');
   const [story, set_story] = useState('');
-  const [loading_action, set_loading_action] = useState<'clean' | 'story' | 'substack' | null>(null);
+  const [loading_action, set_loading_action] = useState<'clean' | 'story' | 'substack' | 'save' | 'delete' | null>(null);
   const [error, set_error] = useState<string | null>(null);
   const [copy_status, set_copy_status] = useState<string | null>(null);
   const [clean_usage, set_clean_usage] = useState<{ input_tokens: number; output_tokens: number } | null>(null);
@@ -21,6 +27,25 @@ export default function TextCleanerPage() {
   const [image_previews, set_image_previews] = useState<string[]>([]);
   const [substack, set_substack] = useState('');
   const [substack_usage, set_substack_usage] = useState<{ input_tokens: number; output_tokens: number } | null>(null);
+  const [notes, set_notes] = useState<TextNote[]>([]);
+  const [confirm_delete_id, set_confirm_delete_id] = useState<string | null>(null);
+  const [confirm_delete_context, set_confirm_delete_context] = useState<'copy' | 'story' | null>(null);
+
+  const fetch_notes = useCallback(async () => {
+    try {
+      const res = await fetch('/api/text-notes');
+      if (res.ok) {
+        const data = await res.json();
+        set_notes(data.notes || []);
+      }
+    } catch {
+      // silently fail — notes list is supplementary
+    }
+  }, []);
+
+  useEffect(() => {
+    fetch_notes();
+  }, [fetch_notes]);
 
   const clean = async () => {
     if (!input.trim()) return;
@@ -55,8 +80,9 @@ export default function TextCleanerPage() {
     }
   };
 
-  const turn_into_story = async () => {
-    if (!cleaned.trim()) return;
+  const turn_into_story = async (content?: string) => {
+    const text = content || cleaned;
+    if (!text.trim()) return;
 
     set_loading_action('story');
     set_error(null);
@@ -67,7 +93,7 @@ export default function TextCleanerPage() {
       const res = await fetch('/api/clean-text', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: cleaned, mode: 'story' }),
+        body: JSON.stringify({ content: text, mode: 'story' }),
       });
 
       const data = await res.json();
@@ -110,6 +136,79 @@ export default function TextCleanerPage() {
     set_image_previews([]);
     set_substack('');
     set_substack_usage(null);
+  };
+
+  const save_note = async () => {
+    if (!cleaned.trim()) return;
+
+    set_loading_action('save');
+    try {
+      const res = await fetch('/api/text-notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: cleaned }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        set_error(data.error || 'Failed to save note');
+        return;
+      }
+
+      await fetch_notes();
+      set_copy_status('Note saved!');
+      setTimeout(() => set_copy_status(null), 2000);
+    } catch {
+      set_error('Network error — try again');
+    } finally {
+      set_loading_action(null);
+    }
+  };
+
+  const delete_note = async (id: string) => {
+    set_loading_action('delete');
+    try {
+      const res = await fetch('/api/text-notes', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        set_error(data.error || 'Failed to delete note');
+        return;
+      }
+
+      await fetch_notes();
+    } catch {
+      set_error('Network error — try again');
+    } finally {
+      set_loading_action(null);
+      set_confirm_delete_id(null);
+      set_confirm_delete_context(null);
+    }
+  };
+
+  const handle_note_copy = async (note: TextNote) => {
+    await copy_output(note.content);
+    set_confirm_delete_id(note.id);
+    set_confirm_delete_context('copy');
+  };
+
+  const handle_note_story = (note: TextNote) => {
+    set_cleaned(note.content);
+    set_story('');
+    set_story_usage(null);
+    set_substack('');
+    set_substack_usage(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Use setTimeout so the cleaned state is set before triggering story generation
+    setTimeout(() => {
+      turn_into_story(note.content);
+    }, 100);
+    set_confirm_delete_id(note.id);
+    set_confirm_delete_context('story');
   };
 
   const resize_image = (file: File): Promise<{ data: string; media_type: string }> => {
@@ -195,6 +294,15 @@ export default function TextCleanerPage() {
     }
   };
 
+  const format_date = (iso: string) => {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    } catch {
+      return iso;
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] text-gray-200 p-5">
       <div className="max-w-4xl mx-auto">
@@ -211,6 +319,35 @@ export default function TextCleanerPage() {
         {copy_status && (
           <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
             {copy_status}
+          </div>
+        )}
+
+        {/* Confirm delete modal */}
+        {confirm_delete_id && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#1e2a3a] border border-white/20 rounded-xl p-6 max-w-sm w-full shadow-2xl">
+              <h3 className="text-lg font-medium text-gray-200 mb-2">Delete this note?</h3>
+              <p className="text-sm text-gray-400 mb-5">
+                {confirm_delete_context === 'copy'
+                  ? "You just copied it — want to delete the saved note?"
+                  : "It's been loaded for story creation — want to delete the saved note?"}
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => delete_note(confirm_delete_id)}
+                  disabled={loading_action === 'delete'}
+                  className="flex-1 px-4 py-2 bg-red-500/80 hover:bg-red-500 disabled:bg-white/10 text-white rounded-lg text-sm font-medium transition-all"
+                >
+                  {loading_action === 'delete' ? 'Deleting...' : 'Yes, delete'}
+                </button>
+                <button
+                  onClick={() => { set_confirm_delete_id(null); set_confirm_delete_context(null); }}
+                  className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm text-gray-300 transition-all"
+                >
+                  Keep it
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -247,6 +384,18 @@ export default function TextCleanerPage() {
             </button>
           </div>
 
+          {/* Jump to saved notes */}
+          {notes.length > 0 && (
+            <div className="text-center">
+              <button
+                onClick={() => document.getElementById('saved-notes')?.scrollIntoView({ behavior: 'smooth' })}
+                className="text-xs text-cyan-400/70 hover:text-cyan-400 transition-colors"
+              >
+                View saved notes ({notes.length})
+              </button>
+            </div>
+          )}
+
           {/* Error */}
           {error && (
             <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
@@ -266,11 +415,18 @@ export default function TextCleanerPage() {
                     </span>
                   )}
                   <button
-                    onClick={turn_into_story}
+                    onClick={() => turn_into_story()}
                     disabled={!!loading_action}
                     className="px-3 py-2 sm:py-1 bg-[#333] sm:bg-white/10 hover:bg-emerald-400/20 disabled:bg-white/10 disabled:text-gray-500 rounded border border-[#555] sm:border-white/20 text-sm text-gray-300 transition-all"
                   >
                     {loading_action === 'story' ? 'Building Story...' : 'Turn Into Story'}
+                  </button>
+                  <button
+                    onClick={save_note}
+                    disabled={!!loading_action}
+                    className="px-3 py-2 sm:py-1 bg-[#333] sm:bg-white/10 hover:bg-amber-400/20 disabled:bg-white/10 disabled:text-gray-500 rounded border border-[#555] sm:border-white/20 text-sm text-gray-300 transition-all"
+                  >
+                    {loading_action === 'save' ? 'Saving...' : 'Save'}
                   </button>
                   <button
                     onClick={() => copy_output(cleaned)}
@@ -374,6 +530,55 @@ export default function TextCleanerPage() {
               />
             </div>
           )}
+
+          {/* Saved Notes */}
+          <div id="saved-notes" className="pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-medium text-gray-300">
+                Saved Notes {notes.length > 0 && <span className="text-sm text-gray-500">({notes.length})</span>}
+              </h2>
+            </div>
+
+            {notes.length === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-6">No saved notes yet</p>
+            ) : (
+              <div className="space-y-3">
+                {notes.map(note => (
+                  <div key={note.id} className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
+                    <div className="p-4">
+                      <p className="text-sm text-gray-300 whitespace-pre-wrap line-clamp-4">{note.content}</p>
+                    </div>
+                    <div className="px-4 py-2 border-t border-white/10 flex items-center justify-between">
+                      <span className="text-xs text-gray-500">{format_date(note.created_at)}</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handle_note_copy(note)}
+                          disabled={!!loading_action}
+                          className="px-3 py-1 bg-[#333] sm:bg-white/10 hover:bg-cyan-400/20 disabled:bg-white/10 disabled:text-gray-500 rounded border border-[#555] sm:border-white/20 text-xs text-gray-300 transition-all"
+                        >
+                          Copy
+                        </button>
+                        <button
+                          onClick={() => handle_note_story(note)}
+                          disabled={!!loading_action}
+                          className="px-3 py-1 bg-[#333] sm:bg-white/10 hover:bg-emerald-400/20 disabled:bg-white/10 disabled:text-gray-500 rounded border border-[#555] sm:border-white/20 text-xs text-gray-300 transition-all"
+                        >
+                          Turn Into Story
+                        </button>
+                        <button
+                          onClick={() => delete_note(note.id)}
+                          disabled={!!loading_action}
+                          className="px-3 py-1 bg-[#333] sm:bg-white/10 hover:bg-red-400/20 disabled:bg-white/10 disabled:text-gray-500 rounded border border-[#555] sm:border-white/20 text-xs text-gray-300 transition-all"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
