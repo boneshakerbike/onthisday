@@ -131,6 +131,14 @@ async function init_schema(): Promise<void> {
     )
   `);
 
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS text_notes (
+      id TEXT PRIMARY KEY,
+      content TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Migration: add image_url column if missing
   try {
     await db.execute(`ALTER TABLE stories ADD COLUMN image_url TEXT`);
@@ -1909,6 +1917,51 @@ export async function save_strava_activities_cache(cache: StravaActivitiesCache)
             fetched_at = excluded.fetched_at`,
     args: [JSON.stringify(cache.activities), cache.fetched_at]
   });
+}
+
+// ============================================================================
+// Text Notes (What Am I Trying To Say saved notes)
+// ============================================================================
+
+export interface TextNote {
+  id: string;
+  content: string;
+  created_at: string;
+}
+
+export async function save_text_note(content: string): Promise<string> {
+  await ensure_schema();
+  const db = get_client();
+
+  const id = generate_story_id();
+  await db.execute({
+    sql: 'INSERT INTO text_notes (id, content) VALUES (?, ?)',
+    args: [id, content]
+  });
+  return id;
+}
+
+export async function get_text_notes(): Promise<TextNote[]> {
+  await ensure_schema();
+  const db = get_client();
+
+  const result = await db.execute('SELECT * FROM text_notes ORDER BY created_at DESC');
+  return result.rows.map(row => ({
+    id: row.id as string,
+    content: row.content as string,
+    created_at: row.created_at as string
+  }));
+}
+
+export async function delete_text_note(id: string): Promise<boolean> {
+  await ensure_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'DELETE FROM text_notes WHERE id = ?',
+    args: [id]
+  });
+  return result.rowsAffected > 0;
 }
 
 // ============================================================================
