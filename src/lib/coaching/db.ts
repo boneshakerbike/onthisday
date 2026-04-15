@@ -136,6 +136,38 @@ export async function compute_trends(target_date: number): Promise<{ metrics_com
   return { metrics_computed: TREND_METRICS.length, rows_written };
 }
 
+export interface TrendRow {
+  date: number;
+  metric_name: string;
+  value_7day_avg: number | null;
+  value_30day_avg: number | null;
+  value_7day_direction: string | null;
+  value_30day_direction: string | null;
+  value_7day_change_pct: number | null;
+  value_30day_change_pct: number | null;
+}
+
+/**
+ * Get all trend rows for a given date
+ */
+export async function get_trends(target_date: number): Promise<TrendRow[]> {
+  const db = get_client();
+  const result = await db.execute({
+    sql: `SELECT * FROM trend_cache WHERE date = ?`,
+    args: [target_date],
+  });
+  return result.rows.map(row => ({
+    date: Number(row.date),
+    metric_name: row.metric_name as string,
+    value_7day_avg: row.value_7day_avg !== null ? Number(row.value_7day_avg) : null,
+    value_30day_avg: row.value_30day_avg !== null ? Number(row.value_30day_avg) : null,
+    value_7day_direction: row.value_7day_direction as string | null,
+    value_30day_direction: row.value_30day_direction as string | null,
+    value_7day_change_pct: row.value_7day_change_pct !== null ? Number(row.value_7day_change_pct) : null,
+    value_30day_change_pct: row.value_30day_change_pct !== null ? Number(row.value_30day_change_pct) : null,
+  }));
+}
+
 /**
  * Clean up trend_cache entries older than 90 days
  */
