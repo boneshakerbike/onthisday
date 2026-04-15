@@ -193,3 +193,24 @@ export async function cleanup_daily_metrics(today: number): Promise<number> {
   });
   return result.rowsAffected;
 }
+
+/**
+ * Save a coaching session to coaching_history
+ */
+export async function save_coaching_session(session: {
+  date: number;
+  advice_full: string;
+  advice_summary: string | null;
+  conversation_turns: number;
+  token_count: number;
+}): Promise<void> {
+  const db = get_client();
+  const now = Math.floor(Date.now() / 1000);
+
+  await db.execute({
+    sql: `INSERT OR REPLACE INTO coaching_history
+          (date, advice_full, advice_summary, conversation_turns, token_count, framework_version, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    args: [session.date, session.advice_full, session.advice_summary, session.conversation_turns, session.token_count, '1.0', now],
+  });
+}
