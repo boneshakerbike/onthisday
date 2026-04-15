@@ -139,6 +139,62 @@ async function init_schema(): Promise<void> {
     )
   `);
 
+  // Coaching tables
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS daily_metrics (
+      date INTEGER PRIMARY KEY,
+      sleep_duration_min INTEGER,
+      sleep_efficiency_pct REAL,
+      deep_sleep_min INTEGER,
+      rem_sleep_min INTEGER,
+      hrv_rmssd REAL,
+      resting_hr INTEGER,
+      readiness_score INTEGER,
+      cardiovascular_age INTEGER,
+      vo2_max REAL,
+      training_load_acute INTEGER,
+      training_load_chronic INTEGER,
+      recovery_pct INTEGER,
+      zone2_min_weekly INTEGER,
+      vo2max_intervals_weekly INTEGER,
+      weight_lbs REAL,
+      back_pain_scale INTEGER,
+      back_mobility_notes TEXT,
+      bowel_status TEXT,
+      injury_notes TEXT,
+      created_at INTEGER,
+      updated_at INTEGER
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS trend_cache (
+      date INTEGER,
+      metric_name TEXT,
+      value_7day_avg REAL,
+      value_30day_avg REAL,
+      value_7day_direction TEXT,
+      value_30day_direction TEXT,
+      value_7day_change_pct REAL,
+      value_30day_change_pct REAL,
+      computed_at INTEGER,
+      PRIMARY KEY (date, metric_name)
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS coaching_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date INTEGER UNIQUE,
+      advice_full TEXT,
+      advice_summary TEXT,
+      conversation_turns INTEGER,
+      token_count INTEGER,
+      framework_version TEXT,
+      created_at INTEGER
+    )
+  `);
+
   // Migration: add image_url column if missing
   try {
     await db.execute(`ALTER TABLE stories ADD COLUMN image_url TEXT`);
