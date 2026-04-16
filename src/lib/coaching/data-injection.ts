@@ -61,11 +61,27 @@ export async function build_data_injection(
   manual: ManualInputs
 ): Promise<string> {
   // Fetch all data sources in parallel
-  const [oura, coros, trend_rows] = await Promise.all([
+  // Try today first; fall back to yesterday if no cached data yet
+  // (Oura sync typically caches through yesterday, not today)
+  const yesterday = new Date(date_str + 'T12:00:00');
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterday_str = yesterday.toISOString().split('T')[0];
+
+  let [oura, coros, trend_rows] = await Promise.all([
     get_wellness_cache(date_str),
     get_coros_data(date_str),
     get_trends(epoch_day),
   ]);
+
+  // Fall back to yesterday's data if today is empty
+  if (!oura || !coros) {
+    const [oura_y, coros_y] = await Promise.all([
+      !oura ? get_wellness_cache(yesterday_str) : Promise.resolve(oura),
+      !coros ? get_coros_data(yesterday_str) : Promise.resolve(coros),
+    ]);
+    oura = oura_y;
+    coros = coros_y;
+  }
 
   const trends = new Map<string, TrendRow>();
   for (const row of trend_rows) {
@@ -77,7 +93,8 @@ export async function build_data_injection(
   lines.push('');
 
   // --- SLEEP & RECOVERY (Oura) ---
-  lines.push('SLEEP & RECOVERY (Oura):');
+  const oura_label = oura?.date === yesterday_str ? `Oura — using ${yesterday_str} data` : 'Oura';
+  lines.push(`SLEEP & RECOVERY (${oura_label}):`);
   if (oura) {
     const sleep = oura.daily_sleep as OuraSleepDetail | null;
     const readiness = oura.daily_readiness as OuraReadinessDetail | null;
@@ -107,7 +124,8 @@ export async function build_data_injection(
   lines.push('');
 
   // --- PERFORMANCE (COROS) ---
-  lines.push('PERFORMANCE (COROS):');
+  const coros_label = coros && (coros as { date: string }).date === yesterday_str ? `COROS — using ${yesterday_str} data` : 'COROS';
+  lines.push(`PERFORMANCE (${coros_label}):`);
   if (coros) {
     const d = coros.data as Record<string, unknown>;
     // COROS data is a flexible JSON blob from the Chrome extension
