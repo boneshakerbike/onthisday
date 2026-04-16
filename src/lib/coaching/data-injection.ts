@@ -58,11 +58,10 @@ function fmt_trend(value: number | null, trends: Map<string, TrendRow>, metric: 
 export async function build_data_injection(
   date_str: string,
   epoch_day: number,
-  manual: ManualInputs
+  manual: ManualInputs,
+  oura_live?: Record<string, unknown> | null
 ): Promise<string> {
   // Fetch all data sources in parallel
-  // Try today first; fall back to yesterday if no cached data yet
-  // (Oura sync typically caches through yesterday, not today)
   const yesterday = new Date(date_str + 'T12:00:00');
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterday_str = yesterday.toISOString().split('T')[0];
@@ -73,7 +72,41 @@ export async function build_data_injection(
     get_trends(epoch_day),
   ]);
 
-  // Fall back to yesterday's data if today is empty
+  // If live Oura data was passed from the client, use it over cache
+  if (oura_live && oura_live.success) {
+    const scores = oura_live.scores as Record<string, unknown> | undefined;
+    const daily_sleep = oura_live.daily_sleep as OuraSleepDetail | undefined;
+    const readiness = oura_live.readiness as OuraReadinessDetail | undefined;
+    oura = {
+      date: date_str,
+      sleep_score: (scores?.sleep as number) ?? null,
+      readiness_score: (scores?.readiness as number) ?? null,
+      activity_score: (scores?.activity as number) ?? null,
+      stress_high: (scores?.stress_high as number) ?? null,
+      recovery_high: (scores?.recovery_high as number) ?? null,
+      hrv_average: (scores?.hrv_average as number) ?? null,
+      resting_hr: (scores?.resting_hr as number) ?? null,
+      spo2_average: (scores?.spo2_average as number) ?? null,
+      steps: (scores?.steps as number) ?? null,
+      active_calories: (scores?.active_calories as number) ?? null,
+      daily_sleep: daily_sleep ?? null,
+      daily_readiness: readiness ?? null,
+      daily_activity: null,
+      daily_stress: null,
+      daily_resilience: null,
+      daily_cardiovascular_age: null,
+      daily_spo2: null,
+      sleep_detail: null,
+      heartrate: null,
+      vo2_max: null,
+      workouts: null,
+      sessions: null,
+      sleep_time: null,
+      fetched_at: new Date().toISOString(),
+    };
+  }
+
+  // Fall back to yesterday's cached data if still empty
   if (!oura || !coros) {
     const [oura_y, coros_y] = await Promise.all([
       !oura ? get_wellness_cache(yesterday_str) : Promise.resolve(oura),

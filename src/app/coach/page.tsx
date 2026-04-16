@@ -53,6 +53,16 @@ export default function CoachPage() {
     setError('');
 
     try {
+      // Fetch live Oura data (cache doesn't store today's data)
+      let oura_snapshot = null;
+      try {
+        const ouraRes = await fetch(`/api/oura/data?date=${dateStr}`);
+        if (ouraRes.ok) {
+          const ouraData = await ouraRes.json();
+          if (ouraData.success) oura_snapshot = ouraData;
+        }
+      } catch { /* Oura fetch is best-effort */ }
+
       // Build data injection on the server
       const injectRes = await fetch('/api/coaching/inject', {
         method: 'POST',
@@ -67,6 +77,7 @@ export default function CoachPage() {
             bowel_status: bowel || undefined,
             injury_notes: injuries || undefined,
           },
+          oura_live: oura_snapshot,
         }),
       });
 

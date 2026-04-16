@@ -16,17 +16,18 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { date_str, epoch_day, manual } = body as {
+    const { date_str, epoch_day, manual, oura_live } = body as {
       date_str: string;
       epoch_day: number;
       manual: ManualInputs;
+      oura_live?: Record<string, unknown>;
     };
 
     if (!date_str || !epoch_day) {
       return NextResponse.json({ error: 'date_str and epoch_day are required' }, { status: 400 });
     }
 
-    const injection = await build_data_injection(date_str, epoch_day, manual || {});
+    const injection = await build_data_injection(date_str, epoch_day, manual || {}, oura_live);
 
     return NextResponse.json({ injection });
   } catch (error) {
