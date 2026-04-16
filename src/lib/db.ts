@@ -219,7 +219,8 @@ async function init_schema(): Promise<void> {
 
 // Initialize schema on module load
 let schema_initialized = false;
-async function ensure_schema(): Promise<void> {
+export { get_client };
+export async function ensure_schema(): Promise<void> {
   if (!schema_initialized) {
     await init_schema();
     schema_initialized = true;

@@ -3,32 +3,7 @@
  * Reads from daily_metrics, writes trend_cache and coaching_history
  */
 
-import { createClient, Client } from '@libsql/client';
-import path from 'path';
-import fs from 'fs';
-
-const is_turso = !!process.env.TURSO_DATABASE_URL;
-
-let client: Client | null = null;
-
-function get_client(): Client {
-  if (!client) {
-    if (is_turso) {
-      client = createClient({
-        url: process.env.TURSO_DATABASE_URL!,
-        authToken: process.env.TURSO_AUTH_TOKEN,
-      });
-    } else {
-      const db_path = path.join(process.cwd(), 'data', 'posts.db');
-      const dir = path.dirname(db_path);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-      client = createClient({ url: `file:${db_path}` });
-    }
-  }
-  return client;
-}
+import { get_client, ensure_schema } from '@/lib/db';
 
 // Numeric columns in daily_metrics that get trend computation
 const TREND_METRICS = [
@@ -76,6 +51,7 @@ function compute_change_pct(values: number[]): number {
  * and write to trend_cache. Called by the cron endpoint.
  */
 export async function compute_trends(target_date: number): Promise<{ metrics_computed: number; rows_written: number }> {
+  await ensure_schema();
   const db = get_client();
   const now = Math.floor(Date.now() / 1000);
 
@@ -151,6 +127,7 @@ export interface TrendRow {
  * Get all trend rows for a given date
  */
 export async function get_trends(target_date: number): Promise<TrendRow[]> {
+  await ensure_schema();
   const db = get_client();
   const result = await db.execute({
     sql: `SELECT * FROM trend_cache WHERE date = ?`,
@@ -172,6 +149,7 @@ export async function get_trends(target_date: number): Promise<TrendRow[]> {
  * Clean up trend_cache entries older than 90 days
  */
 export async function cleanup_trend_cache(today: number): Promise<number> {
+  await ensure_schema();
   const db = get_client();
   const cutoff = today - 90;
   const result = await db.execute({
@@ -185,6 +163,7 @@ export async function cleanup_trend_cache(today: number): Promise<number> {
  * Clean up daily_metrics entries older than 365 days
  */
 export async function cleanup_daily_metrics(today: number): Promise<number> {
+  await ensure_schema();
   const db = get_client();
   const cutoff = today - 365;
   const result = await db.execute({
@@ -204,6 +183,7 @@ export async function save_coaching_session(session: {
   conversation_turns: number;
   token_count: number;
 }): Promise<void> {
+  await ensure_schema();
   const db = get_client();
   const now = Math.floor(Date.now() / 1000);
 
