@@ -20,6 +20,13 @@ interface UsageStats {
   cache_read_input_tokens: number;
 }
 
+interface HistorySession {
+  date: number;
+  advice_full: string;
+  advice_summary: string | null;
+  conversation_turns: number;
+}
+
 export default function CoachPage() {
   useEffect(() => { document.title = '8i11 | Coach'; }, []);
 
@@ -29,6 +36,11 @@ export default function CoachPage() {
   const [backNotes, setBackNotes] = useState('');
   const [bowel, setBowel] = useState('');
   const [injuries, setInjuries] = useState('');
+
+  // History
+  const [history, setHistory] = useState<HistorySession[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -185,9 +197,17 @@ export default function CoachPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           date: epochDay,
+          date_str: dateStr,
           advice_full: adviceFull,
           conversation_turns: Math.floor(messages.length / 2),
           token_count: totalTokens,
+          manual: {
+            weight_lbs: weight ? parseFloat(weight) : undefined,
+            back_pain_scale: backPain,
+            back_mobility_notes: backNotes || undefined,
+            bowel_status: bowel || undefined,
+            injury_notes: injuries || undefined,
+          },
         }),
       });
 
@@ -204,11 +224,58 @@ export default function CoachPage() {
     }
   }
 
+  async function loadHistory() {
+    if (historyLoaded) {
+      setShowHistory(!showHistory);
+      return;
+    }
+    try {
+      const res = await fetch('/api/coaching/history?limit=30');
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data.sessions);
+        setHistoryLoaded(true);
+        setShowHistory(true);
+      }
+    } catch { /* best effort */ }
+  }
+
+  function epochDayToDate(epoch: number): string {
+    return new Date(epoch * 86400000).toISOString().split('T')[0];
+  }
+
   return (
     <main className="min-h-screen bg-black text-white">
       <NavTabs />
       <div className="max-w-2xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold mb-6">Daily Coach</h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold">Daily Coach</h1>
+          <button
+            onClick={loadHistory}
+            className="text-sm text-gray-400 hover:text-white border border-zinc-700 px-3 py-1 rounded transition-colors"
+          >
+            {showHistory ? 'Hide History' : 'Past Sessions'}
+          </button>
+        </div>
+
+        {showHistory && history.length > 0 && (
+          <div className="mb-6 space-y-3">
+            {history.map(s => (
+              <details key={s.date} className="bg-zinc-900 border border-zinc-800 rounded">
+                <summary className="px-4 py-2 cursor-pointer text-sm text-gray-300 hover:text-white">
+                  {epochDayToDate(s.date)} — {s.conversation_turns} turns
+                </summary>
+                <div className="px-4 pb-3 text-sm text-gray-400 whitespace-pre-wrap">
+                  {s.advice_summary || s.advice_full}
+                </div>
+              </details>
+            ))}
+          </div>
+        )}
+
+        {showHistory && history.length === 0 && (
+          <p className="text-gray-500 text-sm mb-6">No past sessions yet.</p>
+        )}
 
         {!sessionStarted ? (
           <div className="space-y-6">

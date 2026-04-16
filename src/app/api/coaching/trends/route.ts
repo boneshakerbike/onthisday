@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { compute_trends, cleanup_trend_cache, cleanup_daily_metrics } from '@/lib/coaching/db';
+import { compute_trends, cleanup_trend_cache, cleanup_daily_metrics, populate_daily_metrics } from '@/lib/coaching/db';
 
 export async function GET(request: NextRequest) {
   // Verify cron secret (Vercel sends this automatically for cron jobs)
@@ -16,8 +16,14 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Use epoch days as the date key (matches daily_metrics.date)
     const today = Math.floor(Date.now() / 86400000);
+
+    // Populate daily_metrics from cached Oura + COROS for yesterday
+    // (cron runs at 9am UTC, so yesterday's data is complete)
+    const yesterday_epoch = today - 1;
+    const yesterday_date = new Date((yesterday_epoch) * 86400000);
+    const yesterday_str = yesterday_date.toISOString().split('T')[0];
+    const populated = await populate_daily_metrics(yesterday_str, yesterday_epoch);
 
     const trend_result = await compute_trends(today);
     const trends_cleaned = await cleanup_trend_cache(today);
@@ -26,6 +32,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       date: today,
+      populated_yesterday: populated,
       trends: trend_result,
       cleaned: { trend_cache: trends_cleaned, daily_metrics: metrics_cleaned },
     });

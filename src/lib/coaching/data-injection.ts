@@ -67,11 +67,13 @@ export async function build_data_injection(
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterday_str = yesterday.toISOString().split('T')[0];
 
-  let [oura, coros, trend_rows] = await Promise.all([
+  const [oura_initial, coros_initial, trend_rows] = await Promise.all([
     get_wellness_cache(date_str),
     get_coros_data(date_str),
     get_trends(epoch_day),
   ]);
+  let oura = oura_initial;
+  let coros = coros_initial;
 
   // If live Oura data was passed from the client, use it over cache
   if (oura_live && oura_live.success) {

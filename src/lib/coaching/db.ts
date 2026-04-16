@@ -3,7 +3,7 @@
  * Reads from daily_metrics, writes trend_cache and coaching_history
  */
 
-import { get_client, ensure_schema } from '@/lib/db';
+import { get_client, ensure_schema, get_wellness_cache, get_coros_data } from '@/lib/db';
 
 // Numeric columns in daily_metrics that get trend computation
 const TREND_METRICS = [
@@ -193,4 +193,131 @@ export async function save_coaching_session(session: {
           VALUES (?, ?, ?, ?, ?, ?, ?)`,
     args: [session.date, session.advice_full, session.advice_summary, session.conversation_turns, session.token_count, '1.0', now],
   });
+}
+
+/**
+ * Populate daily_metrics from wellness_cache (Oura) + coros_data (COROS) + optional manual inputs.
+ * date_str: YYYY-MM-DD, epoch_day: Math.floor(Date.now() / 86400000)
+ */
+export async function populate_daily_metrics(
+  date_str: string,
+  epoch_day: number,
+  manual?: { weight_lbs?: number; back_pain_scale?: number; back_mobility_notes?: string; bowel_status?: string; injury_notes?: string }
+): Promise<boolean> {
+  await ensure_schema();
+  const db = get_client();
+  const now = Math.floor(Date.now() / 1000);
+
+  const [oura, coros] = await Promise.all([
+    get_wellness_cache(date_str),
+    get_coros_data(date_str),
+  ]);
+
+  // Extract Oura fields
+  let sleep_duration_min: number | null = null;
+  let sleep_efficiency_pct: number | null = null;
+  let deep_sleep_min: number | null = null;
+  let rem_sleep_min: number | null = null;
+  let hrv_rmssd: number | null = null;
+  let resting_hr: number | null = null;
+  let readiness_score: number | null = null;
+  let cardiovascular_age: number | null = null;
+
+  if (oura) {
+    hrv_rmssd = oura.hrv_average;
+    resting_hr = oura.resting_hr;
+    readiness_score = oura.readiness_score;
+
+    const sleep = oura.daily_sleep as { total_sleep_duration?: number; efficiency?: number; deep_sleep_duration?: number; rem_sleep_duration?: number } | null;
+    if (sleep) {
+      sleep_duration_min = sleep.total_sleep_duration ? Math.round(sleep.total_sleep_duration / 60) : null;
+      sleep_efficiency_pct = sleep.efficiency ?? null;
+      deep_sleep_min = sleep.deep_sleep_duration ? Math.round(sleep.deep_sleep_duration / 60) : null;
+      rem_sleep_min = sleep.rem_sleep_duration ? Math.round(sleep.rem_sleep_duration / 60) : null;
+    }
+
+    const readiness = oura.daily_readiness as { score?: number } | null;
+    if (readiness?.score) readiness_score = readiness.score;
+
+    const cv = oura.daily_cardiovascular_age as { vascular_age?: number } | null;
+    if (cv?.vascular_age) cardiovascular_age = cv.vascular_age;
+  }
+
+  // Extract COROS fields
+  let vo2_max: number | null = null;
+  let training_load_acute: number | null = null;
+  let training_load_chronic: number | null = null;
+  let recovery_pct: number | null = null;
+
+  if (coros) {
+    const d = coros.data as Record<string, unknown>;
+    const dash = d.dashboard as Record<string, unknown> | undefined;
+
+    if (dash) {
+      const ts = dash.training_status as Record<string, unknown> | undefined;
+      if (ts) {
+        if (ts.load_impact !== undefined) training_load_acute = Number(ts.load_impact);
+        if (ts.base_fitness !== undefined) training_load_chronic = Number(ts.base_fitness);
+      }
+      const rec = dash.recovery as Record<string, unknown> | undefined;
+      if (rec?.percentage !== undefined) recovery_pct = Number(rec.percentage);
+    } else {
+      // Flat field fallback for older data
+      if (d.vo2_max !== undefined) vo2_max = Number(d.vo2_max);
+      if (d.recovery !== undefined) recovery_pct = Number(d.recovery);
+      if (d.training_load !== undefined) training_load_acute = Number(d.training_load);
+    }
+  }
+
+  await db.execute({
+    sql: `INSERT OR REPLACE INTO daily_metrics (
+      date, sleep_duration_min, sleep_efficiency_pct, deep_sleep_min, rem_sleep_min,
+      hrv_rmssd, resting_hr, readiness_score, cardiovascular_age,
+      vo2_max, training_load_acute, training_load_chronic, recovery_pct,
+      zone2_min_weekly, vo2max_intervals_weekly,
+      weight_lbs, back_pain_scale, back_mobility_notes, bowel_status, injury_notes,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      epoch_day,
+      sleep_duration_min, sleep_efficiency_pct, deep_sleep_min, rem_sleep_min,
+      hrv_rmssd, resting_hr, readiness_score, cardiovascular_age,
+      vo2_max, training_load_acute, training_load_chronic, recovery_pct,
+      null, null, // zone2_min_weekly, vo2max_intervals_weekly — computed separately
+      manual?.weight_lbs ?? null, manual?.back_pain_scale ?? null,
+      manual?.back_mobility_notes ?? null, manual?.bowel_status ?? null, manual?.injury_notes ?? null,
+      now, now,
+    ],
+  });
+
+  return true;
+}
+
+export interface CoachingSession {
+  date: number;
+  advice_full: string;
+  advice_summary: string | null;
+  conversation_turns: number;
+  created_at: number;
+}
+
+/**
+ * Get recent coaching sessions for context injection.
+ * Returns most recent N sessions, newest first.
+ */
+export async function get_recent_sessions(limit: number = 3): Promise<CoachingSession[]> {
+  await ensure_schema();
+  const db = get_client();
+  const result = await db.execute({
+    sql: `SELECT date, advice_full, advice_summary, conversation_turns, created_at
+          FROM coaching_history ORDER BY date DESC LIMIT ?`,
+    args: [limit],
+  });
+  return result.rows.map(row => ({
+    date: Number(row.date),
+    advice_full: row.advice_full as string,
+    advice_summary: (row.advice_summary as string) ?? null,
+    conversation_turns: Number(row.conversation_turns),
+    created_at: Number(row.created_at),
+  }));
 }

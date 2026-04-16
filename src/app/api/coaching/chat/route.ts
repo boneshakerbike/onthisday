@@ -9,6 +9,7 @@ import { getToken } from 'next-auth/jwt';
 import Anthropic from '@anthropic-ai/sdk';
 import { MODELS } from '@/lib/models';
 import { COACHING_SYSTEM_PROMPT } from '@/lib/coaching/system-prompt';
+import { get_recent_sessions } from '@/lib/coaching/db';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -16,6 +17,26 @@ interface ChatMessage {
 }
 
 const MAX_TURNS = 10;
+
+/**
+ * Build a session-history context block from recent coaching sessions.
+ * Kept short — summaries preferred, full text as fallback, capped at ~600 tokens.
+ */
+async function build_session_context(): Promise<string | null> {
+  const sessions = await get_recent_sessions(3);
+  if (sessions.length === 0) return null;
+
+  const lines: string[] = ['RECENT COACHING SESSIONS (for continuity — do not repeat advice already given):'];
+  for (const s of sessions) {
+    const date = new Date(s.date * 86400000).toISOString().split('T')[0];
+    const text = s.advice_summary || s.advice_full;
+    // Truncate to ~200 chars per session to stay within budget
+    const truncated = text.length > 200 ? text.slice(0, 200) + '...' : text;
+    lines.push(`\n[${date}] (${s.conversation_turns} turns):`);
+    lines.push(truncated);
+  }
+  return lines.join('\n');
+}
 
 export async function POST(request: NextRequest) {
   const token = await getToken({ req: request });
@@ -48,6 +69,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fetch session history only on first message (no prior conversation)
+    const session_context = history.length === 0 ? await build_session_context() : null;
+
+    const system_blocks: Anthropic.TextBlockParam[] = [
+      {
+        type: 'text',
+        text: COACHING_SYSTEM_PROMPT,
+        cache_control: { type: 'ephemeral' },
+      },
+    ];
+
+    if (session_context) {
+      system_blocks.push({
+        type: 'text',
+        text: session_context,
+      });
+    }
+
     const messages: ChatMessage[] = [
       ...history,
       { role: 'user', content: user_message },
@@ -58,13 +97,7 @@ export async function POST(request: NextRequest) {
     const response = await client.messages.create({
       model: MODELS.COACHING_DAILY,
       max_tokens: 1024,
-      system: [
-        {
-          type: 'text',
-          text: COACHING_SYSTEM_PROMPT,
-          cache_control: { type: 'ephemeral' },
-        },
-      ],
+      system: system_blocks,
       messages,
     });
 
