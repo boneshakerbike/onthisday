@@ -63,6 +63,21 @@ export default function CoachPage() {
         }
       } catch { /* Oura fetch is best-effort */ }
 
+      // Fetch COROS data (try today, fall back to yesterday)
+      let coros_snapshot = null;
+      try {
+        const corosRes = await fetch(`/api/coros/data?date=${dateStr}`);
+        if (corosRes.ok) {
+          coros_snapshot = await corosRes.json();
+        } else {
+          const y = new Date(today);
+          y.setDate(y.getDate() - 1);
+          const yStr = y.toLocaleDateString('en-CA');
+          const corosY = await fetch(`/api/coros/data?date=${yStr}`);
+          if (corosY.ok) coros_snapshot = await corosY.json();
+        }
+      } catch { /* COROS fetch is best-effort */ }
+
       // Build data injection on the server
       const injectRes = await fetch('/api/coaching/inject', {
         method: 'POST',
@@ -78,6 +93,7 @@ export default function CoachPage() {
             injury_notes: injuries || undefined,
           },
           oura_live: oura_snapshot,
+          coros_live: coros_snapshot,
         }),
       });
 

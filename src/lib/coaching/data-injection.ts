@@ -59,7 +59,8 @@ export async function build_data_injection(
   date_str: string,
   epoch_day: number,
   manual: ManualInputs,
-  oura_live?: Record<string, unknown> | null
+  oura_live?: Record<string, unknown> | null,
+  coros_live?: Record<string, unknown> | null
 ): Promise<string> {
   // Fetch all data sources in parallel
   const yesterday = new Date(date_str + 'T12:00:00');
@@ -103,6 +104,17 @@ export async function build_data_injection(
       sessions: null,
       sleep_time: null,
       fetched_at: new Date().toISOString(),
+    };
+  }
+
+  // If live COROS data was passed from the client, use it over cache
+  if (coros_live && coros_live.data) {
+    coros = {
+      date: (coros_live.date as string) ?? date_str,
+      data: coros_live.data,
+      source: 'live',
+      created_at: '',
+      updated_at: '',
     };
   }
 
@@ -161,31 +173,58 @@ export async function build_data_injection(
   lines.push(`PERFORMANCE (${coros_label}):`);
   if (coros) {
     const d = coros.data as Record<string, unknown>;
-    // COROS data is a flexible JSON blob from the Chrome extension
-    // Extract known fields if present
-    if (d.vo2_max !== undefined) lines.push(`- VO2 max: ${fmt_trend(Number(d.vo2_max), trends, 'vo2_max', ' ml/kg/min')}`);
-    if (d.training_load !== undefined || d.load_impact !== undefined) {
-      const acute = d.training_load ?? d.load_impact ?? 'N/A';
-      const chronic = d.base_fitness ?? 'N/A';
-      lines.push(`- Training load: Acute ${acute}, Chronic ${chronic}`);
+    // COROS data comes from Chrome extension scrape of Training Hub
+    // Structure: { dashboard: { training_status, overnight_hrv, ... }, report_markdown }
+    const dash = d.dashboard as Record<string, unknown> | undefined;
+    const ts = dash?.training_status as Record<string, unknown> | undefined;
+    const hrv = dash?.overnight_hrv as Record<string, unknown> | undefined;
+    const activities = dash?.recent_activities as Array<Record<string, unknown>> | undefined;
+
+    // Training status
+    if (ts) {
+      if (ts.load_impact !== undefined) {
+        lines.push(`- Training load: Acute ${ts.load_impact}, Base Fitness ${ts.base_fitness ?? 'N/A'}`);
+      }
+      if (ts.status) lines.push(`- Training status: ${ts.status}`);
+      if (ts.intensity_trend !== undefined) lines.push(`- Intensity trend: ${ts.intensity_trend}%`);
     }
-    if (d.recovery !== undefined || d.recovery_score !== undefined) {
-      lines.push(`- Recovery: ${d.recovery ?? d.recovery_score}%`);
+
+    // Recovery
+    const recovery = dash?.recovery as Record<string, unknown> | undefined;
+    if (recovery) {
+      if (recovery.percentage !== undefined) lines.push(`- Recovery: ${recovery.percentage}% (${recovery.status ?? ''})`);
+      if (recovery.hours_to_full_recovery !== undefined) lines.push(`- Time to full recovery: ${recovery.hours_to_full_recovery} hrs`);
     }
-    if (d.time_to_recovery !== undefined) {
-      lines.push(`- Time to full recovery: ${d.time_to_recovery}`);
+
+    // Overnight HRV
+    if (hrv) {
+      if (hrv.last_night_avg) lines.push(`- Overnight HRV: ${hrv.last_night_avg}ms`);
+      if (hrv.normal_range) lines.push(`- HRV normal range: ${hrv.normal_range}`);
     }
-    if (d.seven_day_load !== undefined) {
-      lines.push(`- 7-day training load: ${d.seven_day_load}`);
+
+    // Resting HR and threshold from dashboard
+    const zones = dash?.threshold_hr_zones as Record<string, unknown> | undefined;
+    if (zones?.resting_hr_bpm) lines.push(`- Resting HR (COROS): ${zones.resting_hr_bpm} bpm`);
+    if (zones?.lactate_threshold_bpm) lines.push(`- Lactate threshold HR: ${zones.lactate_threshold_bpm} bpm`);
+
+    // Weekly activity summary
+    const weekly = dash?.weekly_activity as Record<string, unknown> | undefined;
+    if (weekly?.total_distance_mi) lines.push(`- Weekly distance: ${weekly.total_distance_mi} mi`);
+
+    // Recent activities summary (last 3)
+    if (activities && activities.length > 0) {
+      const recent = activities.slice(0, 3).map(a =>
+        `${a.date}: ${a.volume} (TL: ${a.training_load})`
+      ).join('; ');
+      lines.push(`- Recent activities: ${recent}`);
     }
-    // Pass through any workout summary
-    if (d.workout_summary) {
-      lines.push(`- Last workout: ${d.workout_summary}`);
+
+    // Fall back to flat field names for older data formats
+    if (!dash) {
+      if (d.vo2_max !== undefined) lines.push(`- VO2 max: ${fmt_trend(Number(d.vo2_max), trends, 'vo2_max', ' ml/kg/min')}`);
+      if (d.recovery !== undefined) lines.push(`- Recovery: ${d.recovery}%`);
+      if (d.training_load !== undefined) lines.push(`- Training load: ${d.training_load}`);
     }
-    // Wellness check data
-    if (d.wellness_hr !== undefined) lines.push(`- Morning HR: ${d.wellness_hr} bpm`);
-    if (d.wellness_hrv !== undefined) lines.push(`- Morning HRV: ${d.wellness_hrv}ms`);
-    if (d.overnight_hrv !== undefined) lines.push(`- Overnight HRV: ${d.overnight_hrv}ms`);
   } else {
     lines.push('- No COROS data available for today');
   }
