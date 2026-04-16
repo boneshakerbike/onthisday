@@ -8,4 +8,6 @@ export const MODELS = {
   CLEAN_TEXT:       'claude-sonnet-4-5-20250929',
   STRIP:            'claude-haiku-4-5-20251001',
   SUBSTACK:         'claude-sonnet-4-6',
+  COACHING_DAILY:   'claude-sonnet-4-6',
+  COACHING_REFINE:  'claude-haiku-4-5-20251001',
 }
