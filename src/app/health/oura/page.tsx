@@ -124,7 +124,6 @@ function build_report_markdown(data: OuraData, sleep_period: Record<string, unkn
   }
 
   lines.push(`- Activity Score: ${scores.activity ?? '\u2014'}`);
-  lines.push(`- Steps: ${scores.steps?.toLocaleString() ?? '\u2014'}`);
 
   return lines.join('\n');
 }
@@ -372,8 +371,6 @@ function OuraContent() {
                   <Metric label="Sleep Debt" value={`${sleep_debt_display} ${sleep_debt_label}`} />
                 )}
                 <Metric label="Activity Score" value={scores?.activity} />
-                <Metric label="Steps" value={scores?.steps?.toLocaleString()} />
-                <Metric label="Active Calories" value={scores?.active_calories != null ? `${scores.active_calories}` : null} />
               </div>
             </div>
 

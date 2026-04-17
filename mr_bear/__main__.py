@@ -9,9 +9,13 @@ def main():
     if not args:
         print("Usage:")
         print("  python -m mr_bear predict <year> <round> <session_type>")
+        print("  python -m mr_bear stage <year> <round> [session_type]")
         print("  python -m mr_bear backtest <year> [--round N]")
         print()
         print("session_type: qualifying | race | sprint_qualifying | sprint")
+        print()
+        print("stage: generate picks and POST to server staging table")
+        print("  omit session_type to stage all sessions for the weekend")
         sys.exit(1)
 
     command = args[0]
@@ -33,6 +37,29 @@ def main():
         print(f"  P3: {picks['p3']}")
         if picks["fastest_lap"]:
             print(f"  FL: {picks['fastest_lap']}")
+
+    elif command == "stage":
+        if len(args) < 3:
+            print("Usage: python -m mr_bear stage <year> <round> [session_type]")
+            sys.exit(1)
+
+        year = int(args[1])
+        round_num = int(args[2])
+
+        if len(args) >= 4:
+            from .picks import generate_picks
+            from .submit import stage_picks
+            session_type = args[3]
+            picks = generate_picks(year, round_num, session_type)
+            print(f"Mr Bear's picks — {year} R{round_num} {session_type}:")
+            print(f"  P1: {picks['p1']}  P2: {picks['p2']}  P3: {picks['p3']}", end="")
+            if picks.get("fastest_lap"):
+                print(f"  FL: {picks['fastest_lap']}", end="")
+            print()
+            stage_picks(year, round_num, session_type, picks)
+        else:
+            from .submit import stage_weekend
+            stage_weekend(year, round_num)
 
     elif command == "backtest":
         if len(args) < 2:

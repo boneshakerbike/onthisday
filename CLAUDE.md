@@ -159,17 +159,12 @@ All model IDs are centralised in `src/lib/models.ts`. Import `MODELS` from there
 ### After Completing Work
 1. Commit and push to the working branch
 2. `npm run build` and `npm run lint` must pass before opening a PR
-3. Open a PR to main (never merge — Bill merges after testing)
+3. Open a PR to main
 4. Provide: Vercel preview link, what to test, expected results
-
-### Test Failures
-Bill describes what failed. Agent proposes a fix, gets approval, pushes, retests.
 
 ### PR Hygiene
 - Commit messages: short imperative sentence, no body unless the why isn't obvious
-- Never include `Closes #N` / `Fixes #N` / `Resolves #N` in commits or PRs
 - All commits must be followed by `git push` to origin before considering a task complete
-- Bill closes issues after confirming the fix in production
 
 ## Task Management
 GitHub Issues: https://github.com/boneshakerbike/onthisday/issues

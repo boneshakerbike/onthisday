@@ -6,7 +6,7 @@
  */
 
 import { get_wellness_cache, get_coros_data } from '@/lib/db';
-import { get_trends, type TrendRow } from '@/lib/coaching/db';
+import { get_trends, get_last_known_manual_metrics, type TrendRow } from '@/lib/coaching/db';
 
 export interface ManualInputs {
   weight_lbs?: number;
@@ -67,10 +67,11 @@ export async function build_data_injection(
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterday_str = yesterday.toISOString().split('T')[0];
 
-  const [oura_initial, coros_initial, trend_rows] = await Promise.all([
+  const [oura_initial, coros_initial, trend_rows, last_manual] = await Promise.all([
     get_wellness_cache(date_str),
     get_coros_data(date_str),
     get_trends(epoch_day),
+    get_last_known_manual_metrics(),
   ]);
   let oura = oura_initial;
   let coros = coros_initial;
@@ -237,6 +238,9 @@ export async function build_data_injection(
   lines.push('BODY COMPOSITION (Manual):');
   if (manual.weight_lbs !== undefined) {
     lines.push(`- Weight: ${fmt_trend(manual.weight_lbs, trends, 'weight_lbs', ' lbs')}`);
+  } else if (last_manual.weight_lbs !== null && last_manual.weight_date !== null) {
+    const weight_date_str = new Date(last_manual.weight_date * 86400000).toISOString().split('T')[0];
+    lines.push(`- Weight: ${fmt_trend(last_manual.weight_lbs, trends, 'weight_lbs', ' lbs')} (last entered ${weight_date_str})`);
   } else {
     lines.push('- Weight: not entered');
   }
@@ -244,6 +248,9 @@ export async function build_data_injection(
   if (manual.back_pain_scale !== undefined) {
     const mobility = manual.back_mobility_notes ? `, ${manual.back_mobility_notes}` : '';
     lines.push(`- Back status: ${manual.back_pain_scale}/10 pain${mobility}`);
+  } else if (last_manual.back_pain_scale !== null && last_manual.back_pain_date !== null) {
+    const back_date_str = new Date(last_manual.back_pain_date * 86400000).toISOString().split('T')[0];
+    lines.push(`- Back status: ${last_manual.back_pain_scale}/10 pain (last entered ${back_date_str})`);
   } else {
     lines.push('- Back status: not entered');
   }

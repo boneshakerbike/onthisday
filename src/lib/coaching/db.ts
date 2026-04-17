@@ -293,6 +293,30 @@ export async function populate_daily_metrics(
   return true;
 }
 
+/**
+ * Get the most recent non-null weight and back_pain from daily_metrics.
+ * Used as fallback when manual inputs aren't provided for today's session.
+ */
+export async function get_last_known_manual_metrics(): Promise<{
+  weight_lbs: number | null;
+  weight_date: number | null;
+  back_pain_scale: number | null;
+  back_pain_date: number | null;
+}> {
+  await ensure_schema();
+  const db = get_client();
+  const [weight_row, back_row] = await Promise.all([
+    db.execute({ sql: `SELECT date, weight_lbs FROM daily_metrics WHERE weight_lbs IS NOT NULL ORDER BY date DESC LIMIT 1`, args: [] }),
+    db.execute({ sql: `SELECT date, back_pain_scale FROM daily_metrics WHERE back_pain_scale IS NOT NULL ORDER BY date DESC LIMIT 1`, args: [] }),
+  ]);
+  return {
+    weight_lbs: weight_row.rows.length > 0 ? Number(weight_row.rows[0].weight_lbs) : null,
+    weight_date: weight_row.rows.length > 0 ? Number(weight_row.rows[0].date) : null,
+    back_pain_scale: back_row.rows.length > 0 ? Number(back_row.rows[0].back_pain_scale) : null,
+    back_pain_date: back_row.rows.length > 0 ? Number(back_row.rows[0].date) : null,
+  };
+}
+
 export interface CoachingSession {
   date: number;
   advice_full: string;
