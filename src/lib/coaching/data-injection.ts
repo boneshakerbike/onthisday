@@ -50,6 +50,148 @@ function fmt_trend(value: number | null, trends: Map<string, TrendRow>, metric: 
   return s;
 }
 
+function as_record(v: unknown): Record<string, unknown> | undefined {
+  return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : undefined;
+}
+
+function pick_number(obj: Record<string, unknown> | undefined, ...keys: string[]): number | undefined {
+  if (!obj) return undefined;
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === 'number') return v;
+    if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) return Number(v);
+  }
+  return undefined;
+}
+
+function pick_string(obj: Record<string, unknown> | undefined, ...keys: string[]): string | undefined {
+  if (!obj) return undefined;
+  for (const k of keys) {
+    const v = obj[k];
+    if (typeof v === 'string' && v.trim() !== '') return v;
+    if (typeof v === 'number') return String(v);
+  }
+  return undefined;
+}
+
+function render_kv_block(label: string, obj: Record<string, unknown> | undefined, lines: string[], limit = 6): void {
+  if (!obj) return;
+  const entries = Object.entries(obj).filter(([, v]) =>
+    v !== null && v !== undefined && (typeof v === 'number' || typeof v === 'string' || typeof v === 'boolean')
+  ).slice(0, limit);
+  if (entries.length === 0) return;
+  const parts = entries.map(([k, v]) => `${k.replace(/_/g, ' ')} ${v}`);
+  lines.push(`- ${label}: ${parts.join(', ')}`);
+}
+
+function render_coros_dashboard(
+  dash: Record<string, unknown> | undefined,
+  lines: string[],
+): void {
+  if (!dash) return;
+  const ts = as_record(dash.training_status);
+  if (ts) {
+    if (ts.load_impact !== undefined) lines.push(`- Training load: Acute ${ts.load_impact}, Base Fitness ${ts.base_fitness ?? 'N/A'}`);
+    if (ts.status) lines.push(`- Training status: ${ts.status}`);
+    if (ts.intensity_trend !== undefined) lines.push(`- Intensity trend: ${ts.intensity_trend}%`);
+  }
+  const recovery = as_record(dash.recovery);
+  if (recovery) {
+    if (recovery.percentage !== undefined) lines.push(`- Recovery: ${recovery.percentage}% (${recovery.status ?? ''})`);
+    if (recovery.hours_to_full_recovery !== undefined) lines.push(`- Time to full recovery: ${recovery.hours_to_full_recovery} hrs`);
+  }
+  const hrv = as_record(dash.overnight_hrv);
+  if (hrv) {
+    if (hrv.last_night_avg) lines.push(`- Overnight HRV: ${hrv.last_night_avg}ms`);
+    if (hrv.normal_range) lines.push(`- HRV normal range: ${hrv.normal_range}`);
+  }
+  const zones = as_record(dash.threshold_hr_zones);
+  if (zones?.resting_hr_bpm) lines.push(`- Resting HR (COROS): ${zones.resting_hr_bpm} bpm`);
+  if (zones?.lactate_threshold_bpm) lines.push(`- Lactate threshold HR: ${zones.lactate_threshold_bpm} bpm`);
+  const weekly = as_record(dash.weekly_activity);
+  if (weekly?.total_distance_mi) lines.push(`- Weekly distance: ${weekly.total_distance_mi} mi`);
+  const recent = dash.recent_activities as Array<Record<string, unknown>> | undefined;
+  if (recent && recent.length > 0) {
+    const s = recent.slice(0, 3).map(a => `${a.date}: ${a.volume} (TL: ${a.training_load})`).join('; ');
+    lines.push(`- Recent activities: ${s}`);
+  }
+}
+
+function render_coros_evolab(
+  evolab: Record<string, unknown> | undefined,
+  lines: string[],
+  trends: Map<string, TrendRow>,
+): void {
+  if (!evolab) return;
+
+  // Try nested shapes first (four_week/twelve_week or 4w/12w), fall back to flat evolab.
+  const four = as_record(evolab.four_week) || as_record(evolab['4_week']) || as_record(evolab['4w']);
+  const twelve = as_record(evolab.twelve_week) || as_record(evolab['12_week']) || as_record(evolab['12w']);
+
+  const buckets: Array<[string, Record<string, unknown> | undefined]> = [
+    ['4-week', four],
+    ['12-week', twelve],
+  ];
+  let any_nested = false;
+  for (const [label, bucket] of buckets) {
+    if (!bucket) continue;
+    any_nested = true;
+    const vo2 = pick_number(bucket, 'vo2_max', 'vo2max');
+    const hrv = pick_number(bucket, 'hrv_avg', 'hrv_average', 'avg_hrv');
+    const rhr = pick_number(bucket, 'resting_hr', 'rhr', 'resting_heart_rate');
+    const parts: string[] = [];
+    if (vo2 !== undefined) parts.push(`VO2 ${vo2}`);
+    if (hrv !== undefined) parts.push(`HRV ${hrv}ms`);
+    if (rhr !== undefined) parts.push(`RHR ${rhr}bpm`);
+    if (parts.length > 0) lines.push(`- Evolab ${label}: ${parts.join(', ')}`);
+    render_kv_block(`Evolab ${label} intensity`, as_record(bucket.intensity_distribution), lines);
+    render_kv_block(`Evolab ${label} zones`, as_record(bucket.zone_distribution) || as_record(bucket.zones), lines);
+  }
+
+  if (!any_nested) {
+    // Flat evolab — pull top-level metrics.
+    const vo2 = pick_number(evolab, 'vo2_max', 'vo2max');
+    const hrv = pick_number(evolab, 'hrv_avg', 'hrv_average', 'avg_hrv');
+    const rhr = pick_number(evolab, 'resting_hr', 'rhr', 'resting_heart_rate');
+    if (vo2 !== undefined) lines.push(`- Evolab VO2 max: ${fmt_trend(vo2, trends, 'vo2_max', ' ml/kg/min')}`);
+    if (hrv !== undefined) lines.push(`- Evolab HRV avg: ${hrv}ms`);
+    if (rhr !== undefined) lines.push(`- Evolab resting HR: ${rhr} bpm`);
+    render_kv_block('Evolab intensity', as_record(evolab.intensity_distribution), lines);
+    render_kv_block('Evolab zones', as_record(evolab.zone_distribution) || as_record(evolab.zones), lines);
+  }
+}
+
+function render_coros_activities(activities: Array<Record<string, unknown>>, lines: string[]): void {
+  const cap = Math.min(activities.length, 5);
+  lines.push(`- Activities (${cap} of ${activities.length}):`);
+  for (let i = 0; i < cap; i++) {
+    const a = activities[i];
+    const title = pick_string(a, 'title', 'name') ?? 'Activity';
+    const type = pick_string(a, 'type', 'sport') ?? '';
+    const ts = pick_string(a, 'timestamp', 'date', 'start_time') ?? '';
+    const summary = pick_string(a, 'summary');
+    const eff = pick_number(a, 'efficiency');
+    const ate = pick_number(a, 'aerobic_te', 'aerobic_training_effect');
+    const nte = pick_number(a, 'anaerobic_te', 'anaerobic_training_effect');
+    const head_parts = [title, type, ts].filter(Boolean).join(' · ');
+    const tail_parts: string[] = [];
+    if (eff !== undefined) tail_parts.push(`eff ${eff}`);
+    if (ate !== undefined) tail_parts.push(`aTE ${ate}`);
+    if (nte !== undefined) tail_parts.push(`anTE ${nte}`);
+    const zones = as_record(a.zones);
+    if (zones) {
+      const ze = Object.entries(zones).filter(([, v]) => typeof v === 'number' || typeof v === 'string').slice(0, 5);
+      if (ze.length) tail_parts.push('zones ' + ze.map(([k, v]) => `${k}:${v}`).join('/'));
+    }
+    const exercises = a.exercises as Array<unknown> | undefined;
+    if (Array.isArray(exercises) && exercises.length > 0) tail_parts.push(`${exercises.length} exercises`);
+    let line = `  · ${head_parts}`;
+    if (tail_parts.length) line += ` — ${tail_parts.join(', ')}`;
+    if (summary) line += ` — ${summary.slice(0, 160)}`;
+    lines.push(line);
+  }
+}
+
 /**
  * Build the data injection string for a coaching session.
  * date_str: YYYY-MM-DD format
@@ -176,57 +318,41 @@ export async function build_data_injection(
   lines.push(`PERFORMANCE (${coros_label}):`);
   if (coros) {
     const d = coros.data as Record<string, unknown>;
-    // COROS data comes from Chrome extension scrape of Training Hub
-    // Structure: { dashboard: { training_status, overnight_hrv, ... }, report_markdown }
-    const dash = d.dashboard as Record<string, unknown> | undefined;
-    const ts = dash?.training_status as Record<string, unknown> | undefined;
-    const hrv = dash?.overnight_hrv as Record<string, unknown> | undefined;
-    const activities = dash?.recent_activities as Array<Record<string, unknown>> | undefined;
+    const before = lines.length;
 
-    // Training status
-    if (ts) {
-      if (ts.load_impact !== undefined) {
-        lines.push(`- Training load: Acute ${ts.load_impact}, Base Fitness ${ts.base_fitness ?? 'N/A'}`);
-      }
-      if (ts.status) lines.push(`- Training status: ${ts.status}`);
-      if (ts.intensity_trend !== undefined) lines.push(`- Intensity trend: ${ts.intensity_trend}%`);
-    }
+    // Dashboard (Chrome extension Training Hub scrape)
+    render_coros_dashboard(d.dashboard as Record<string, unknown> | undefined, lines);
 
-    // Recovery
-    const recovery = dash?.recovery as Record<string, unknown> | undefined;
-    if (recovery) {
-      if (recovery.percentage !== undefined) lines.push(`- Recovery: ${recovery.percentage}% (${recovery.status ?? ''})`);
-      if (recovery.hours_to_full_recovery !== undefined) lines.push(`- Time to full recovery: ${recovery.hours_to_full_recovery} hrs`);
-    }
+    // Evolab (multi-week training metrics: VO2 max, HRV, RHR, zone/intensity distributions)
+    render_coros_evolab(d.evolab as Record<string, unknown> | undefined, lines, trends);
 
-    // Overnight HRV
-    if (hrv) {
-      if (hrv.last_night_avg) lines.push(`- Overnight HRV: ${hrv.last_night_avg}ms`);
-      if (hrv.normal_range) lines.push(`- HRV normal range: ${hrv.normal_range}`);
-    }
-
-    // Resting HR and threshold from dashboard
-    const zones = dash?.threshold_hr_zones as Record<string, unknown> | undefined;
-    if (zones?.resting_hr_bpm) lines.push(`- Resting HR (COROS): ${zones.resting_hr_bpm} bpm`);
-    if (zones?.lactate_threshold_bpm) lines.push(`- Lactate threshold HR: ${zones.lactate_threshold_bpm} bpm`);
-
-    // Weekly activity summary
-    const weekly = dash?.weekly_activity as Record<string, unknown> | undefined;
-    if (weekly?.total_distance_mi) lines.push(`- Weekly distance: ${weekly.total_distance_mi} mi`);
-
-    // Recent activities summary (last 3)
+    // Activities (per-activity detail: title, type, timestamp, summary, zones, TE)
+    const activities = d.activities as Array<Record<string, unknown>> | undefined;
     if (activities && activities.length > 0) {
-      const recent = activities.slice(0, 3).map(a =>
-        `${a.date}: ${a.volume} (TL: ${a.training_load})`
-      ).join('; ');
-      lines.push(`- Recent activities: ${recent}`);
+      render_coros_activities(activities, lines);
     }
 
-    // Fall back to flat field names for older data formats
-    if (!dash) {
+    // Flat fallback for older data shapes
+    if (!d.dashboard && !d.evolab && !activities) {
       if (d.vo2_max !== undefined) lines.push(`- VO2 max: ${fmt_trend(Number(d.vo2_max), trends, 'vo2_max', ' ml/kg/min')}`);
       if (d.recovery !== undefined) lines.push(`- Recovery: ${d.recovery}%`);
       if (d.training_load !== undefined) lines.push(`- Training load: ${d.training_load}`);
+    }
+
+    // Report markdown: included only if structured rendering produced nothing,
+    // or appended as a trimmed narrative if present. Keeps token budget bounded.
+    const report_md = typeof d.report_markdown === 'string' ? (d.report_markdown as string) : '';
+    if (report_md) {
+      const wrote_structured = lines.length > before;
+      const budget = wrote_structured ? 1200 : 2500;
+      const trimmed = report_md.length > budget ? report_md.slice(0, budget) + '…(truncated)' : report_md;
+      lines.push('');
+      lines.push('COROS briefing:');
+      lines.push(trimmed);
+    }
+
+    if (lines.length === before) {
+      lines.push('- COROS data present but no recognised fields');
     }
   } else {
     lines.push('- No COROS data available for today');
