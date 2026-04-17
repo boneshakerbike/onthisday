@@ -114,7 +114,7 @@ export default function HomePage() {
       icon: '🚴',
       color: 'green',
       links: [
-        { label: 'Coach', href: '/coach' },
+        ...(is_admin ? [{ label: 'Coach', href: '/coach' }] : []),
         { label: 'Oura', href: '/health/oura' },
         { label: 'Strava', href: '/health/strava' },
         { label: 'COROS', href: '/health/coros' },
