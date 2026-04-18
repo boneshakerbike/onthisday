@@ -15,6 +15,16 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(login_url);
   }
 
+  // /coach and /api/coaching/* are admin-only (non-guest).
+  const path = request.nextUrl.pathname;
+  const is_coach = path === '/coach' || path.startsWith('/coach/') || path.startsWith('/api/coaching');
+  if (is_coach && token.sub === 'guest') {
+    if (path.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+    }
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+
   return NextResponse.next();
 }
 

@@ -198,9 +198,11 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
                   align="start"
                   avoidCollisions
                 >
-                  <DropdownMenu.Item asChild>
-                    <Link href="/coach" className={item_class}>Coach</Link>
-                  </DropdownMenu.Item>
+                  {session && (session.user as { id?: string })?.id !== 'guest' && (
+                    <DropdownMenu.Item asChild>
+                      <Link href="/coach" className={item_class}>Coach</Link>
+                    </DropdownMenu.Item>
+                  )}
                   <DropdownMenu.Item asChild>
                     <Link href="/health/oura" className={item_class}>Oura</Link>
                   </DropdownMenu.Item>
