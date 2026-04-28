@@ -1,7 +1,7 @@
 /**
  * API route: POST /api/coaching/chat
- * Multi-turn coaching conversation with cached system prompt.
- * Receives conversation history + user message, returns coaching response + usage stats.
+ * Multi-turn coaching conversation. Optimized for 1-3 turns.
+ * Oura drives decisions. Strava is context. No COROS.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -16,24 +16,18 @@ interface ChatMessage {
   content: string;
 }
 
-const MAX_TURNS = 10;
+const MAX_TURNS = 5;
 
-/**
- * Build a session-history context block from recent coaching sessions.
- * Kept short — summaries preferred, full text as fallback, capped at ~600 tokens.
- */
 async function build_session_context(): Promise<string | null> {
   const sessions = await get_recent_sessions(3);
   if (sessions.length === 0) return null;
 
-  const lines: string[] = ['RECENT COACHING SESSIONS (for continuity — do not repeat advice already given):'];
+  const lines: string[] = ['Recent sessions (for continuity — do not repeat advice already given):'];
   for (const s of sessions) {
     const date = new Date(s.date * 86400000).toISOString().split('T')[0];
     const text = s.advice_summary || s.advice_full;
-    // Truncate to ~200 chars per session to stay within budget
-    const truncated = text.length > 200 ? text.slice(0, 200) + '...' : text;
-    lines.push(`\n[${date}] (${s.conversation_turns} turns):`);
-    lines.push(truncated);
+    const truncated = text.length > 300 ? text.slice(0, 300) + '...' : text;
+    lines.push(`\n[${date}]: ${truncated}`);
   }
   return lines.join('\n');
 }
@@ -61,21 +55,30 @@ export async function POST(request: NextRequest) {
     }
 
     const history = Array.isArray(conversation_history) ? conversation_history : [];
+    const turn_number = Math.floor(history.length / 2) + 1;
 
     if (history.length >= MAX_TURNS * 2) {
       return NextResponse.json(
-        { error: 'Maximum conversation length reached. Please finalize your session.' },
+        { error: 'Maximum conversation length reached. Please save your session.' },
         { status: 400 }
       );
     }
 
-    // Fetch session history only on first message (no prior conversation)
+    // Fetch session history only on first message
     const session_context = history.length === 0 ? await build_session_context() : null;
+
+    // Build turn-aware prompt suffix
+    let turn_hint = '';
+    if (turn_number === 2) {
+      turn_hint = '\n\n(This is turn 2. The user is clarifying. Be direct and wrap up unless they have more.)';
+    } else if (turn_number >= 3) {
+      turn_hint = '\n\n(This is turn 3+. Wrap up concisely. One last thing if important, then done.)';
+    }
 
     const system_blocks: Anthropic.TextBlockParam[] = [
       {
         type: 'text',
-        text: COACHING_SYSTEM_PROMPT,
+        text: COACHING_SYSTEM_PROMPT + turn_hint,
         cache_control: { type: 'ephemeral' },
       },
     ];
@@ -96,7 +99,7 @@ export async function POST(request: NextRequest) {
 
     const response = await client.messages.create({
       model: MODELS.COACHING_DAILY,
-      max_tokens: 1024,
+      max_tokens: 800,
       system: system_blocks,
       messages,
     });
@@ -108,6 +111,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       response: content.text,
+      turn: turn_number,
       usage: {
         input_tokens: response.usage.input_tokens,
         output_tokens: response.usage.output_tokens,
