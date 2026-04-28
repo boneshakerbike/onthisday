@@ -1,7 +1,7 @@
 /**
  * API route: POST /api/coaching/inject
- * Builds the data injection string from Oura + COROS + manual inputs.
- * Called by /coach page before starting a chat session.
+ * Builds the data injection string from Oura + Strava + manual inputs.
+ * No COROS. Called by /coach page before starting a chat session.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -16,21 +16,23 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { date_str, epoch_day, manual, oura_live, coros_live } = body as {
+    const { date_str, epoch_day, manual, oura_live, strava_activities } = body as {
       date_str: string;
       epoch_day: number;
       manual: ManualInputs;
       oura_live?: Record<string, unknown>;
-      coros_live?: Record<string, unknown>;
+      strava_activities?: Record<string, unknown>[];
     };
 
     if (!date_str || !epoch_day) {
       return NextResponse.json({ error: 'date_str and epoch_day are required' }, { status: 400 });
     }
 
-    const injection = await build_data_injection(date_str, epoch_day, manual || {}, oura_live, coros_live);
+    const { injection, metrics } = await build_data_injection(
+      date_str, epoch_day, manual || {}, oura_live, strava_activities
+    );
 
-    return NextResponse.json({ injection });
+    return NextResponse.json({ injection, metrics });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Injection build failed' },

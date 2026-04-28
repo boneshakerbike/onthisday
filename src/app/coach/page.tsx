@@ -1,6 +1,8 @@
 /**
  * /coach — Daily AI Health Coaching
- * Manual inputs + data review + multi-turn coaching chat + finalize
+ * Pre-chat: key metrics display + manual inputs
+ * Chat: clean 1-3 turn coaching conversation
+ * History: summary + expandable full conversation
  */
 
 'use client';
@@ -13,11 +15,29 @@ interface ChatMessage {
   content: string;
 }
 
-interface UsageStats {
-  input_tokens: number;
-  output_tokens: number;
-  cache_creation_input_tokens: number;
-  cache_read_input_tokens: number;
+interface Metrics {
+  readiness?: number | null;
+  hrv?: number | null;
+  resting_hr?: number | null;
+  spo2?: number | null;
+  sleep_score?: number | null;
+  sleep_total?: number | null;
+  deep_sleep_min?: number | null;
+  sleep_efficiency?: number | null;
+  cv_age?: number | null;
+  stress_min?: number | null;
+  restored_min?: number | null;
+  weight?: number | null;
+  weight_stale?: boolean;
+  back_pain?: number | null;
+  yesterday_activities?: {
+    name?: string;
+    type?: string;
+    distance?: number;
+    moving_time?: number;
+    total_elevation_gain?: number;
+    average_heartrate?: number;
+  }[];
 }
 
 interface HistorySession {
@@ -25,6 +45,31 @@ interface HistorySession {
   advice_full: string;
   advice_summary: string | null;
   conversation_turns: number;
+}
+
+function MetricCard({ label, value, unit, warn }: { label: string; value: unknown; unit?: string; warn?: boolean }) {
+  if (value === null || value === undefined) return null;
+  return (
+    <div className={`bg-zinc-900 border ${warn ? 'border-yellow-600' : 'border-zinc-800'} rounded-lg px-3 py-2`}>
+      <div className="text-xs text-gray-500">{label}</div>
+      <div className="text-lg font-semibold text-white">{String(value)}{unit && <span className="text-sm text-gray-400 ml-0.5">{unit}</span>}</div>
+    </div>
+  );
+}
+
+function ActivityRow({ activity }: { activity: Metrics['yesterday_activities'] extends (infer T)[] | undefined ? T : never }) {
+  const dist = activity.distance ? `${(activity.distance / 1609.34).toFixed(1)}mi` : '';
+  const elev = activity.total_elevation_gain ? `${Math.round(activity.total_elevation_gain * 3.281)}ft` : '';
+  const time = activity.moving_time ? `${Math.round(activity.moving_time / 60)}min` : '';
+  const hr = activity.average_heartrate ? `HR ${Math.round(activity.average_heartrate)}` : '';
+  const parts = [dist, elev, time, hr].filter(Boolean).join(' · ');
+  return (
+    <div className="text-sm text-gray-300">
+      <span className="text-white">{activity.name || 'Activity'}</span>
+      <span className="text-gray-500 ml-1">({activity.type})</span>
+      {parts && <span className="text-gray-400 ml-2">{parts}</span>}
+    </div>
+  );
 }
 
 export default function CoachPage() {
@@ -36,6 +81,11 @@ export default function CoachPage() {
   const [backNotes, setBackNotes] = useState('');
   const [bowel, setBowel] = useState('');
   const [injuries, setInjuries] = useState('');
+
+  // Data state
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
+  const [dataInjection, setDataInjection] = useState('');
 
   // History
   const [history, setHistory] = useState<HistorySession[]>([]);
@@ -49,46 +99,99 @@ export default function CoachPage() {
   const [error, setError] = useState('');
   const [sessionStarted, setSessionStarted] = useState(false);
   const [finalized, setFinalized] = useState(false);
+  const [savedSummary, setSavedSummary] = useState('');
   const [totalTokens, setTotalTokens] = useState(0);
+  const [turnCount, setTurnCount] = useState(0);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('en-CA');
+  const epochDay = Math.floor(Date.now() / 86400000);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const today = new Date();
-  const dateStr = today.toLocaleDateString('en-CA'); // YYYY-MM-DD
-  const epochDay = Math.floor(Date.now() / 86400000);
+  // Load metrics on mount (Oura + Strava, no manual yet)
+  useEffect(() => {
+    async function loadMetrics() {
+      try {
+        // Fetch Oura and Strava in parallel
+        const [ouraRes, stravaRes] = await Promise.all([
+          fetch(`/api/oura/data?date=${dateStr}`).catch(() => null),
+          fetch('/api/strava/data').catch(() => null),
+        ]);
+
+        const ouraData = ouraRes?.ok ? await ouraRes.json() : null;
+        const stravaData = stravaRes?.ok ? await stravaRes.json() : null;
+
+        // Build a preview injection to get metrics
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toLocaleDateString('en-CA');
+
+        // Extract yesterday's activities from Strava
+        const stravaActivities = stravaData?.activities?.filter(
+          (a: { start_date_local?: string }) => a.start_date_local?.startsWith(yesterdayStr)
+        ) || [];
+
+        // Quick metrics extraction from Oura data
+        const m: Metrics = {};
+        if (ouraData?.success) {
+          const scores = ouraData.scores || {};
+          m.readiness = scores.readiness ?? null;
+          m.hrv = scores.hrv_average ?? null;
+          m.resting_hr = scores.resting_hr ?? null;
+          m.spo2 = scores.spo2_average ?? null;
+          m.sleep_score = scores.sleep ?? null;
+
+          const sleep = ouraData.daily_sleep;
+          if (sleep) {
+            m.sleep_total = sleep.total_sleep_duration ? Math.round(sleep.total_sleep_duration / 60) : null;
+            m.deep_sleep_min = sleep.deep_sleep_duration ? Math.round(sleep.deep_sleep_duration / 60) : null;
+            m.sleep_efficiency = sleep.efficiency ?? null;
+          }
+
+          const stress = ouraData.daily_stress;
+          if (stress) {
+            m.stress_min = stress.stress_high ? Math.round(stress.stress_high / 60) : null;
+            m.restored_min = stress.recovery_high ? Math.round(stress.recovery_high / 60) : null;
+          }
+        }
+
+        if (stravaActivities.length > 0) {
+          m.yesterday_activities = stravaActivities.slice(0, 5).map((a: Record<string, unknown>) => ({
+            name: a.name, type: a.sport_type || a.type,
+            distance: a.distance as number, moving_time: a.moving_time as number,
+            total_elevation_gain: a.total_elevation_gain as number,
+            average_heartrate: a.average_heartrate as number,
+          }));
+        }
+
+        setMetrics(m);
+      } catch {
+        // Best effort — metrics pane just won't show
+      } finally {
+        setMetricsLoading(false);
+      }
+    }
+    loadMetrics();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function startSession() {
     setLoading(true);
     setError('');
 
     try {
-      // Fetch live Oura data (cache doesn't store today's data)
-      let oura_snapshot = null;
-      try {
-        const ouraRes = await fetch(`/api/oura/data?date=${dateStr}`);
-        if (ouraRes.ok) {
-          const ouraData = await ouraRes.json();
-          if (ouraData.success) oura_snapshot = ouraData;
-        }
-      } catch { /* Oura fetch is best-effort */ }
+      // Fetch live data
+      const [ouraRes, stravaRes] = await Promise.all([
+        fetch(`/api/oura/data?date=${dateStr}`).catch(() => null),
+        fetch('/api/strava/data').catch(() => null),
+      ]);
 
-      // Fetch COROS data (try today, fall back to yesterday)
-      let coros_snapshot = null;
-      try {
-        const corosRes = await fetch(`/api/coros/data?date=${dateStr}`);
-        if (corosRes.ok) {
-          coros_snapshot = await corosRes.json();
-        } else {
-          const y = new Date(today);
-          y.setDate(y.getDate() - 1);
-          const yStr = y.toLocaleDateString('en-CA');
-          const corosY = await fetch(`/api/coros/data?date=${yStr}`);
-          if (corosY.ok) coros_snapshot = await corosY.json();
-        }
-      } catch { /* COROS fetch is best-effort */ }
+      const ouraData = ouraRes?.ok ? await ouraRes.json() : null;
+      const stravaData = stravaRes?.ok ? await stravaRes.json() : null;
 
       // Build data injection on the server
       const injectRes = await fetch('/api/coaching/inject', {
@@ -104,13 +207,19 @@ export default function CoachPage() {
             bowel_status: bowel || undefined,
             injury_notes: injuries || undefined,
           },
-          oura_live: oura_snapshot,
-          coros_live: coros_snapshot,
+          oura_live: ouraData?.success ? ouraData : undefined,
+          strava_activities: stravaData?.activities || undefined,
         }),
       });
 
       if (!injectRes.ok) throw new Error('Failed to build health data');
-      const { injection } = await injectRes.json();
+      const { injection, metrics: serverMetrics } = await injectRes.json();
+      setDataInjection(injection);
+
+      // Update metrics with server-computed values (includes weight trend)
+      if (serverMetrics) {
+        setMetrics(prev => ({ ...prev, ...serverMetrics, weight: weight ? parseFloat(weight) : prev?.weight }));
+      }
 
       // Send to coaching chat
       const chatRes = await fetch('/api/coaching/chat', {
@@ -128,8 +237,8 @@ export default function CoachPage() {
       }
 
       const data = await chatRes.json();
-      const usage = data.usage as UsageStats;
-      setTotalTokens(usage.input_tokens + usage.output_tokens);
+      setTotalTokens((data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0));
+      setTurnCount(1);
 
       setMessages([
         { role: 'user', content: injection },
@@ -170,9 +279,8 @@ export default function CoachPage() {
       }
 
       const data = await res.json();
-      const usage = data.usage as UsageStats;
-      setTotalTokens(prev => prev + usage.input_tokens + usage.output_tokens);
-
+      setTotalTokens(prev => prev + (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0));
+      setTurnCount(data.turn || turnCount + 1);
       setMessages([...newMessages, { role: 'assistant', content: data.response }]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to send message');
@@ -181,16 +289,14 @@ export default function CoachPage() {
     }
   }
 
-  async function finalizeSession() {
+  async function saveSession() {
     setLoading(true);
     setError('');
 
     try {
-      // Combine all assistant responses as the full advice
       const adviceFull = messages
-        .filter(m => m.role === 'assistant')
-        .map(m => m.content)
-        .join('\n\n---\n\n');
+        .map(m => `${m.role === 'assistant' ? 'Coach' : 'You'}: ${m.content}`)
+        .join('\n\n');
 
       const res = await fetch('/api/coaching/finalize', {
         method: 'POST',
@@ -199,8 +305,9 @@ export default function CoachPage() {
           date: epochDay,
           date_str: dateStr,
           advice_full: adviceFull,
-          conversation_turns: Math.floor(messages.length / 2),
+          conversation_turns: turnCount,
           token_count: totalTokens,
+          data_snapshot: dataInjection,
           manual: {
             weight_lbs: weight ? parseFloat(weight) : undefined,
             back_pain_scale: backPain,
@@ -213,12 +320,14 @@ export default function CoachPage() {
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || 'Finalize failed');
+        throw new Error(err.error || 'Save failed');
       }
 
+      const data = await res.json();
       setFinalized(true);
+      setSavedSummary(data.summary || '');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to finalize');
+      setError(e instanceof Error ? e.message : 'Failed to save');
     } finally {
       setLoading(false);
     }
@@ -244,110 +353,141 @@ export default function CoachPage() {
     return new Date(epoch * 86400000).toISOString().split('T')[0];
   }
 
+  function formatMinutes(min: number | null | undefined): string {
+    if (!min) return '—';
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  }
+
   return (
     <main className="min-h-screen bg-black text-white">
       <NavTabs />
       <div className="max-w-2xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Daily Coach</h1>
-          <button
-            onClick={loadHistory}
-            className="text-sm text-gray-400 hover:text-white border border-zinc-700 px-3 py-1 rounded transition-colors"
-          >
-            {showHistory ? 'Hide History' : 'Past Sessions'}
-          </button>
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-xl font-bold">Coach</h1>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500">{dateStr}</span>
+            <button
+              onClick={loadHistory}
+              className="text-sm text-gray-400 hover:text-white border border-zinc-700 px-3 py-1 rounded transition-colors"
+            >
+              {showHistory ? 'Hide' : 'History'}
+            </button>
+          </div>
         </div>
 
-        {showHistory && history.length > 0 && (
-          <div className="mb-6 space-y-3">
+        {/* Past Sessions */}
+        {showHistory && (
+          <div className="mb-6 space-y-2">
+            {history.length === 0 && <p className="text-gray-500 text-sm">No past sessions.</p>}
             {history.map(s => (
               <details key={s.date} className="bg-zinc-900 border border-zinc-800 rounded">
-                <summary className="px-4 py-2 cursor-pointer text-sm text-gray-300 hover:text-white">
-                  {epochDayToDate(s.date)} — {s.conversation_turns} turns
+                <summary className="px-4 py-2 cursor-pointer text-sm text-gray-300 hover:text-white flex justify-between">
+                  <span>{epochDayToDate(s.date)}</span>
+                  <span className="text-gray-500">{s.conversation_turns} turn{s.conversation_turns !== 1 ? 's' : ''}</span>
                 </summary>
-                <div className="px-4 pb-3 text-sm text-gray-400 whitespace-pre-wrap">
-                  {s.advice_summary || s.advice_full}
+                <div className="px-4 pb-3">
+                  {s.advice_summary && (
+                    <p className="text-sm text-gray-300 mb-2">{s.advice_summary}</p>
+                  )}
+                  <details className="text-xs">
+                    <summary className="text-gray-500 cursor-pointer">Full conversation</summary>
+                    <div className="mt-2 text-gray-400 whitespace-pre-wrap">{s.advice_full}</div>
+                  </details>
                 </div>
               </details>
             ))}
           </div>
         )}
 
-        {showHistory && history.length === 0 && (
-          <p className="text-gray-500 text-sm mb-6">No past sessions yet.</p>
-        )}
-
-        {!sessionStarted ? (
-          <div className="space-y-6">
-            <p className="text-gray-400 text-sm">
-              {dateStr} — Enter your manual data, then start your coaching session.
-            </p>
-
-            {/* Manual Input Form */}
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Weight (lbs)</label>
-                <input
-                  type="number"
-                  value={weight}
-                  onChange={e => setWeight(e.target.value)}
-                  placeholder="e.g. 178"
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white"
-                />
+        {/* Pre-Chat: Metrics Pane */}
+        {!sessionStarted && (
+          <div className="space-y-5">
+            {/* Metrics Grid */}
+            {metricsLoading ? (
+              <div className="text-gray-500 text-sm">Loading health data...</div>
+            ) : metrics ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-2">
+                  <MetricCard label="Readiness" value={metrics.readiness} />
+                  <MetricCard label="HRV" value={metrics.hrv} unit="ms" />
+                  <MetricCard label="Resting HR" value={metrics.resting_hr} unit="bpm" />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <MetricCard label="Sleep" value={metrics.sleep_total ? formatMinutes(metrics.sleep_total) : metrics.sleep_score} />
+                  <MetricCard label="Deep Sleep" value={metrics.deep_sleep_min ? formatMinutes(metrics.deep_sleep_min) : null} />
+                  <MetricCard label="SpO2" value={metrics.spo2} unit="%" />
+                </div>
+                {(metrics.stress_min || metrics.restored_min) && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <MetricCard label="Stressed" value={metrics.stress_min} unit="min" />
+                    <MetricCard label="Restored" value={metrics.restored_min} unit="min" />
+                  </div>
+                )}
+                {metrics.yesterday_activities && metrics.yesterday_activities.length > 0 && (
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
+                    <div className="text-xs text-gray-500 mb-1">Yesterday&apos;s Activities</div>
+                    <div className="space-y-1">
+                      {metrics.yesterday_activities.map((a, i) => <ActivityRow key={i} activity={a} />)}
+                    </div>
+                  </div>
+                )}
               </div>
+            ) : (
+              <div className="text-gray-500 text-sm">No health data available. Oura may need to sync.</div>
+            )}
 
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">
-                  Back Pain: {backPain}/10
-                </label>
-                <input
-                  type="range"
-                  min="0"
-                  max="10"
-                  value={backPain}
-                  onChange={e => setBackPain(parseInt(e.target.value))}
-                  className="w-full"
-                />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>None</span>
-                  <span>Severe</span>
+            {/* Manual Inputs */}
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Weight (lbs)</label>
+                  <input
+                    type="number"
+                    value={weight}
+                    onChange={e => setWeight(e.target.value)}
+                    placeholder="e.g. 192"
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">Back Pain: {backPain}/10</label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    value={backPain}
+                    onChange={e => setBackPain(parseInt(e.target.value))}
+                    className="w-full mt-2"
+                  />
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm text-gray-400 mb-1">Back Mobility Notes</label>
-                <input
-                  type="text"
-                  value={backNotes}
-                  onChange={e => setBackNotes(e.target.value)}
-                  placeholder="e.g. full mobility, stiff on left side"
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white"
-                />
-              </div>
-
               <details className="text-sm">
-                <summary className="text-gray-400 cursor-pointer">Optional fields</summary>
-                <div className="space-y-4 mt-3">
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-1">Bowel Status</label>
-                    <input
-                      type="text"
-                      value={bowel}
-                      onChange={e => setBowel(e.target.value)}
-                      placeholder="e.g. normal, loose"
-                      className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-1">Injuries / Notes</label>
-                    <textarea
-                      value={injuries}
-                      onChange={e => setInjuries(e.target.value)}
-                      placeholder="Any injuries, symptoms, or notes"
-                      rows={2}
-                      className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white"
-                    />
-                  </div>
+                <summary className="text-gray-500 cursor-pointer text-xs">More inputs</summary>
+                <div className="space-y-3 mt-2">
+                  <input
+                    type="text"
+                    value={backNotes}
+                    onChange={e => setBackNotes(e.target.value)}
+                    placeholder="Back mobility notes"
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
+                  />
+                  <input
+                    type="text"
+                    value={bowel}
+                    onChange={e => setBowel(e.target.value)}
+                    placeholder="Bowel status"
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
+                  />
+                  <textarea
+                    value={injuries}
+                    onChange={e => setInjuries(e.target.value)}
+                    placeholder="Injuries or notes for today"
+                    rows={2}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
+                  />
                 </div>
               </details>
             </div>
@@ -359,43 +499,46 @@ export default function CoachPage() {
               disabled={loading}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 text-white font-medium py-3 rounded transition-colors"
             >
-              {loading ? 'Loading health data...' : 'Start Coaching Session'}
+              {loading ? 'Starting...' : 'Start Session'}
             </button>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Chat Messages */}
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-              {messages.map((msg, i) => (
+        )}
+
+        {/* Chat */}
+        {sessionStarted && (
+          <div className="space-y-3">
+            {/* Collapsed metrics summary during chat */}
+            <details className="text-xs">
+              <summary className="text-gray-500 cursor-pointer">Today&apos;s data</summary>
+              <div className="mt-1 text-gray-500 whitespace-pre-wrap bg-zinc-950 rounded p-2">{dataInjection}</div>
+            </details>
+
+            {/* Messages — skip the first user message (data injection) */}
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+              {messages.slice(1).map((msg, i) => (
                 <div
                   key={i}
-                  className={`text-sm whitespace-pre-wrap ${
+                  className={`text-sm rounded p-3 ${
                     msg.role === 'assistant'
-                      ? 'bg-zinc-900 border border-zinc-800 rounded p-4'
-                      : i === 0
-                        ? 'text-gray-500 bg-zinc-950 rounded p-3 text-xs'
-                        : 'text-gray-300 bg-zinc-950 rounded p-3'
+                      ? 'bg-zinc-900 border border-zinc-800 text-gray-200'
+                      : 'bg-zinc-950 text-gray-300'
                   }`}
                 >
-                  {msg.role === 'assistant' && (
-                    <span className="text-xs text-gray-500 block mb-2">Coach</span>
-                  )}
-                  {msg.content}
+                  {msg.role === 'assistant' && <span className="text-xs text-gray-500 block mb-1">Coach</span>}
+                  <div className="whitespace-pre-wrap">{msg.content}</div>
                 </div>
               ))}
               <div ref={chatEndRef} />
             </div>
 
-            {/* Input or Finalized */}
+            {/* Input or Saved */}
             {finalized ? (
-              <div className="text-center py-4">
+              <div className="text-center py-3 space-y-2">
                 <p className="text-green-400 text-sm">Session saved.</p>
-                <p className="text-gray-500 text-xs mt-1">
-                  {Math.floor(messages.length / 2)} turns, {totalTokens.toLocaleString()} tokens
-                </p>
+                {savedSummary && <p className="text-gray-400 text-xs">{savedSummary}</p>}
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {error && <p className="text-red-400 text-sm">{error}</p>}
 
                 <div className="flex gap-2">
@@ -404,29 +547,29 @@ export default function CoachPage() {
                     value={input}
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-                    placeholder="Ask a follow-up..."
+                    placeholder={turnCount >= 3 ? 'Last chance to clarify...' : 'Ask a follow-up...'}
                     disabled={loading}
-                    className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white"
+                    className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
                   />
                   <button
                     onClick={sendMessage}
                     disabled={loading || !input.trim()}
-                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 text-white px-4 py-2 rounded transition-colors"
+                    className="bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 text-white px-4 py-2 rounded text-sm transition-colors"
                   >
                     Send
                   </button>
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-gray-500">
-                    {Math.floor(messages.length / 2)} turns, {totalTokens.toLocaleString()} tokens
+                  <span className="text-xs text-gray-600">
+                    Turn {turnCount}
                   </span>
                   <button
-                    onClick={finalizeSession}
+                    onClick={saveSession}
                     disabled={loading}
-                    className="text-sm text-gray-400 hover:text-white border border-zinc-700 px-3 py-1 rounded transition-colors"
+                    className="bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 text-white text-sm px-4 py-1.5 rounded transition-colors"
                   >
-                    Finalize Session
+                    Save Session
                   </button>
                 </div>
               </div>
