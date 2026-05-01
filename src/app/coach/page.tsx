@@ -35,6 +35,7 @@ interface Metrics {
   weight_stale?: boolean;
   back_pain?: number | null;
   yesterday_activities?: {
+    id?: number;
     name?: string;
     type?: string;
     distance?: number;
@@ -67,9 +68,14 @@ function ActivityRow({ activity }: { activity: Metrics['yesterday_activities'] e
   const time = activity.moving_time ? `${Math.round(activity.moving_time / 60)}min` : '';
   const hr = activity.average_heartrate ? `HR ${Math.round(activity.average_heartrate)}` : '';
   const parts = [dist, elev, time, hr].filter(Boolean).join(' · ');
+  const name = activity.name || 'Activity';
   return (
     <div className="text-sm text-gray-300">
-      <span className="text-white">{activity.name || 'Activity'}</span>
+      {activity.id ? (
+        <a href={`https://www.strava.com/activities/${activity.id}`} target="_blank" rel="noopener noreferrer" className="text-white hover:text-orange-400 underline decoration-zinc-600 hover:decoration-orange-400 transition-colors">{name}</a>
+      ) : (
+        <span className="text-white">{name}</span>
+      )}
       <span className="text-gray-500 ml-1">({activity.type})</span>
       {parts && <span className="text-gray-400 ml-2">{parts}</span>}
     </div>
@@ -198,6 +204,7 @@ export default function CoachPage() {
 
         if (stravaActivities.length > 0) {
           m.yesterday_activities = stravaActivities.slice(0, 5).map((a: Record<string, unknown>) => ({
+            id: a.id as number,
             name: a.name, type: a.sport_type || a.type,
             distance: a.distance as number, moving_time: a.moving_time as number,
             total_elevation_gain: a.total_elevation_gain as number,
@@ -430,23 +437,42 @@ export default function CoachPage() {
         {showHistory && (
           <div className="mb-6 space-y-2">
             {history.length === 0 && <p className="text-gray-500 text-sm">No past sessions.</p>}
-            {history.map(s => (
-              <details key={s.date} className="bg-zinc-900 border border-zinc-800 rounded">
-                <summary className="px-4 py-2 cursor-pointer text-sm text-gray-300 hover:text-white flex justify-between">
-                  <span>{epochDayToDate(s.date)}</span>
-                  <span className="text-gray-500">{s.conversation_turns} turn{s.conversation_turns !== 1 ? 's' : ''}</span>
-                </summary>
-                <div className="px-4 pb-3">
-                  {s.advice_summary && (
-                    <p className="text-sm text-gray-300 mb-2">{s.advice_summary}</p>
-                  )}
-                  <details className="text-xs">
-                    <summary className="text-gray-500 cursor-pointer">Full conversation</summary>
-                    <div className="mt-2 text-gray-400 whitespace-pre-wrap">{s.advice_full}</div>
-                  </details>
-                </div>
-              </details>
-            ))}
+            {history.map(s => {
+              // Parse data snapshot from stored advice_full
+              const hasSnapshot = s.advice_full.startsWith('[Data for this session]');
+              const convoMarker = '[Conversation]';
+              const convoIdx = hasSnapshot ? s.advice_full.indexOf(convoMarker) : -1;
+              const dataSnapshot = hasSnapshot && convoIdx > 0
+                ? s.advice_full.slice('[Data for this session]\n'.length, convoIdx).trim()
+                : null;
+              const conversation = convoIdx > 0
+                ? s.advice_full.slice(convoIdx + convoMarker.length).trim()
+                : s.advice_full;
+
+              return (
+                <details key={s.date} className="bg-zinc-900 border border-zinc-800 rounded">
+                  <summary className="px-4 py-2 cursor-pointer text-sm text-gray-300 hover:text-white flex justify-between">
+                    <span>{epochDayToDate(s.date)}</span>
+                    <span className="text-gray-500">{s.conversation_turns} turn{s.conversation_turns !== 1 ? 's' : ''}</span>
+                  </summary>
+                  <div className="px-4 pb-3 space-y-2">
+                    {s.advice_summary && (
+                      <p className="text-sm text-gray-300">{s.advice_summary}</p>
+                    )}
+                    {dataSnapshot && (
+                      <details className="text-xs">
+                        <summary className="text-gray-500 cursor-pointer">Metrics from this day</summary>
+                        <div className="mt-1 text-gray-500 whitespace-pre-wrap bg-zinc-950 rounded p-2">{dataSnapshot}</div>
+                      </details>
+                    )}
+                    <details className="text-xs">
+                      <summary className="text-gray-500 cursor-pointer">Full conversation</summary>
+                      <div className="mt-1 text-gray-400 whitespace-pre-wrap">{conversation}</div>
+                    </details>
+                  </div>
+                </details>
+              );
+            })}
           </div>
         )}
 
