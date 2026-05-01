@@ -23,10 +23,12 @@ interface Metrics {
   sleep_score?: number | null;
   sleep_total?: number | null;
   deep_sleep_min?: number | null;
+  rem_sleep_min?: number | null;
   sleep_efficiency?: number | null;
   cv_age?: number | null;
   stress_min?: number | null;
   restored_min?: number | null;
+  recovery_status?: string | null;
   weight?: number | null;
   weight_stale?: boolean;
   back_pain?: number | null;
@@ -149,6 +151,7 @@ export default function CoachPage() {
           if (sleep) {
             m.sleep_total = sleep.total_sleep_duration ? Math.round(sleep.total_sleep_duration / 60) : null;
             m.deep_sleep_min = sleep.deep_sleep_duration ? Math.round(sleep.deep_sleep_duration / 60) : null;
+            m.rem_sleep_min = sleep.rem_sleep_duration ? Math.round(sleep.rem_sleep_duration / 60) : null;
             m.sleep_efficiency = sleep.efficiency ?? null;
           }
 
@@ -157,6 +160,26 @@ export default function CoachPage() {
             m.stress_min = stress.stress_high ? Math.round(stress.stress_high / 60) : null;
             m.restored_min = stress.recovery_high ? Math.round(stress.recovery_high / 60) : null;
           }
+        }
+
+        // Client-side recovery estimate (upgraded by server after inject)
+        if (m.readiness !== null && m.readiness !== undefined) {
+          const deep_ok = m.deep_sleep_min ? m.deep_sleep_min >= 60 : null;
+          const sleep_ok = m.sleep_total ? m.sleep_total >= 420 : null;
+          const stress_ratio = (m.stress_min && m.restored_min)
+            ? m.restored_min / (m.stress_min + m.restored_min) : null;
+          let score = 0;
+          if (m.readiness >= 85) score += 2; else if (m.readiness >= 70) score += 1;
+          else if (m.readiness < 60) score -= 2; else score -= 1;
+          if (deep_ok === true) score += 1; if (deep_ok === false) score -= 1;
+          if (sleep_ok === true) score += 1; if (sleep_ok === false) score -= 1;
+          if (stress_ratio !== null && stress_ratio >= 0.5) score += 1;
+          if (stress_ratio !== null && stress_ratio < 0.5) score -= 1;
+          if (score >= 4) m.recovery_status = 'Ready to push';
+          else if (score >= 2) m.recovery_status = 'Ready — moderate effort';
+          else if (score >= 0) m.recovery_status = 'Easy day';
+          else if (score >= -2) m.recovery_status = 'Recovery — light movement only';
+          else m.recovery_status = 'Rest day';
         }
 
         if (stravaActivities.length > 0) {
@@ -409,22 +432,57 @@ export default function CoachPage() {
               <div className="text-gray-500 text-sm">Loading health data...</div>
             ) : metrics ? (
               <div className="space-y-3">
-                <div className="grid grid-cols-3 gap-2">
-                  <MetricCard label="Readiness" value={metrics.readiness} />
+                {/* Recovery Status — the primary signal */}
+                {metrics.recovery_status && (
+                  <div className={`border rounded-lg px-4 py-3 ${
+                    metrics.recovery_status.startsWith('Ready to push') ? 'bg-green-950 border-green-800' :
+                    metrics.recovery_status.startsWith('Ready') ? 'bg-emerald-950 border-emerald-800' :
+                    metrics.recovery_status.startsWith('Easy') ? 'bg-yellow-950 border-yellow-800' :
+                    metrics.recovery_status.startsWith('Recovery') ? 'bg-orange-950 border-orange-800' :
+                    'bg-red-950 border-red-800'
+                  }`}>
+                    <div className="text-xs text-gray-400">Today&apos;s Status</div>
+                    <div className="text-lg font-semibold text-white">{metrics.recovery_status}</div>
+                  </div>
+                )}
+
+                {/* Sleep — actual durations */}
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
+                  <div className="text-xs text-gray-500 mb-1">Sleep</div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <div className="text-lg font-semibold text-white">{metrics.sleep_total ? formatMinutes(metrics.sleep_total) : '—'}</div>
+                      <div className="text-xs text-gray-500">total</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold text-white">{metrics.deep_sleep_min ? formatMinutes(metrics.deep_sleep_min) : '—'}</div>
+                      <div className="text-xs text-gray-500">deep</div>
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold text-white">{metrics.rem_sleep_min ? formatMinutes(metrics.rem_sleep_min) : '—'}</div>
+                      <div className="text-xs text-gray-500">REM</div>
+                    </div>
+                  </div>
+                  {metrics.spo2 && (
+                    <div className="mt-1 text-xs text-gray-500">Blood oxygen: {Math.round(metrics.spo2)}%</div>
+                  )}
+                </div>
+
+                {/* Physiology row */}
+                <div className="grid grid-cols-2 gap-2">
                   <MetricCard label="HRV" value={metrics.hrv} unit="ms" />
                   <MetricCard label="Resting HR" value={metrics.resting_hr} unit="bpm" />
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <MetricCard label="Sleep" value={metrics.sleep_total ? formatMinutes(metrics.sleep_total) : metrics.sleep_score} />
-                  <MetricCard label="Deep Sleep" value={metrics.deep_sleep_min ? formatMinutes(metrics.deep_sleep_min) : null} />
-                  <MetricCard label="SpO2" value={metrics.spo2} unit="%" />
-                </div>
+
+                {/* Stress/Recovery */}
                 {(metrics.stress_min || metrics.restored_min) && (
                   <div className="grid grid-cols-2 gap-2">
                     <MetricCard label="Stressed" value={metrics.stress_min} unit="min" />
                     <MetricCard label="Restored" value={metrics.restored_min} unit="min" />
                   </div>
                 )}
+
+                {/* Yesterday's Activities */}
                 {metrics.yesterday_activities && metrics.yesterday_activities.length > 0 && (
                   <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
                     <div className="text-xs text-gray-500 mb-1">Yesterday&apos;s Activities</div>
