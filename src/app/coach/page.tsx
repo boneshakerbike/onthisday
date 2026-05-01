@@ -29,6 +29,8 @@ interface Metrics {
   stress_min?: number | null;
   restored_min?: number | null;
   recovery_status?: string | null;
+  resilience?: string | null;
+  resilience_pct?: number | null;
   weight?: number | null;
   weight_stale?: boolean;
   back_pain?: number | null;
@@ -159,6 +161,18 @@ export default function CoachPage() {
           if (stress) {
             m.stress_min = stress.stress_high ? Math.round(stress.stress_high / 60) : null;
             m.restored_min = stress.recovery_high ? Math.round(stress.recovery_high / 60) : null;
+            // Client-side resilience from today's stress/recovery
+            if (m.stress_min && m.restored_min) {
+              const total = m.stress_min + m.restored_min;
+              if (total > 0) {
+                const pct = Math.round((m.restored_min / total) * 100);
+                m.resilience_pct = pct;
+                if (pct >= 65) m.resilience = 'High recovery, low stress';
+                else if (pct >= 50) m.resilience = 'Balanced';
+                else if (pct >= 35) m.resilience = 'Elevated stress';
+                else m.resilience = 'High stress, low recovery';
+              }
+            }
           }
         }
 
@@ -338,6 +352,18 @@ export default function CoachPage() {
             bowel_status: bowel || undefined,
             injury_notes: injuries || undefined,
           },
+          inject_metrics: metrics ? {
+            readiness: metrics.readiness,
+            hrv: metrics.hrv,
+            resting_hr: metrics.resting_hr,
+            spo2: metrics.spo2,
+            sleep_total: metrics.sleep_total,
+            deep_sleep_min: metrics.deep_sleep_min,
+            rem_sleep_min: metrics.rem_sleep_min,
+            sleep_efficiency: metrics.sleep_efficiency,
+            stress_min: metrics.stress_min,
+            restored_min: metrics.restored_min,
+          } : undefined,
         }),
       });
 
@@ -474,11 +500,26 @@ export default function CoachPage() {
                   <MetricCard label="Resting HR" value={metrics.resting_hr} unit="bpm" />
                 </div>
 
-                {/* Stress/Recovery */}
+                {/* Resilience / Stress-Recovery */}
                 {(metrics.stress_min || metrics.restored_min) && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <MetricCard label="Stressed" value={metrics.stress_min} unit="min" />
-                    <MetricCard label="Restored" value={metrics.restored_min} unit="min" />
+                  <div className={`bg-zinc-900 border rounded-lg px-3 py-2 ${
+                    metrics.resilience?.includes('High recovery') ? 'border-green-800' :
+                    metrics.resilience?.includes('Balanced') ? 'border-zinc-700' :
+                    metrics.resilience?.includes('Elevated') ? 'border-yellow-700' :
+                    metrics.resilience?.includes('High stress') ? 'border-red-800' :
+                    'border-zinc-800'
+                  }`}>
+                    <div className="flex justify-between items-baseline">
+                      <div>
+                        <div className="text-xs text-gray-500">Resilience</div>
+                        <div className="text-sm font-medium text-white">{metrics.resilience || 'Calculating...'}</div>
+                      </div>
+                      <div className="text-right text-xs text-gray-500">
+                        {metrics.stress_min != null && <span>{metrics.stress_min}m stressed</span>}
+                        {metrics.stress_min != null && metrics.restored_min != null && <span> · </span>}
+                        {metrics.restored_min != null && <span>{metrics.restored_min}m restored</span>}
+                      </div>
+                    </div>
                   </div>
                 )}
 

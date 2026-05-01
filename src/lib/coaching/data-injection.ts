@@ -247,6 +247,22 @@ export async function build_data_injection(
         lines.push(`Stress: ${stressed_min ?? '?'}min stressed, ${restored_min ?? '?'}min restored`);
         metrics.stress_min = stressed_min;
         metrics.restored_min = restored_min;
+
+        // Resilience indicator: stress-recovery balance
+        if (stressed_min !== null && restored_min !== null) {
+          const total = stressed_min + restored_min;
+          if (total > 0) {
+            const recovery_pct = Math.round((restored_min / total) * 100);
+            let resilience: string;
+            if (recovery_pct >= 65) resilience = 'High recovery, low stress';
+            else if (recovery_pct >= 50) resilience = 'Balanced';
+            else if (recovery_pct >= 35) resilience = 'Elevated stress';
+            else resilience = 'High stress, low recovery';
+            metrics.resilience = resilience;
+            metrics.resilience_pct = recovery_pct;
+            lines.push(`Resilience: ${resilience} (${recovery_pct}% recovery)`);
+          }
+        }
       }
     }
     // Compute recovery status from available signals
