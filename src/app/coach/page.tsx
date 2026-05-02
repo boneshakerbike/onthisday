@@ -101,6 +101,8 @@ export default function CoachPage() {
   const [history, setHistory] = useState<HistorySession[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false);
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -155,15 +157,19 @@ export default function CoachPage() {
           m.spo2 = scores.spo2_average ?? null;
           m.sleep_score = scores.sleep ?? null;
 
-          const sleep = ouraData.daily_sleep;
-          if (sleep) {
-            m.sleep_total = sleep.total_sleep_duration ? Math.round(sleep.total_sleep_duration / 60) : null;
-            m.deep_sleep_min = sleep.deep_sleep_duration ? Math.round(sleep.deep_sleep_duration / 60) : null;
-            m.rem_sleep_min = sleep.rem_sleep_duration ? Math.round(sleep.rem_sleep_duration / 60) : null;
-            m.sleep_efficiency = sleep.efficiency ?? null;
+          // Sleep durations come from sleep_detail (period data), not daily_sleep (scores only)
+          const sleep_detail_arr = ouraData.sleep_detail as Record<string, unknown>[] | null;
+          const sleep_period = Array.isArray(sleep_detail_arr) && sleep_detail_arr.length > 0
+            ? (sleep_detail_arr.find(s => s.type === 'long_sleep') ?? sleep_detail_arr[0])
+            : null;
+          if (sleep_period) {
+            m.sleep_total = sleep_period.total_sleep_duration ? Math.round(Number(sleep_period.total_sleep_duration) / 60) : null;
+            m.deep_sleep_min = sleep_period.deep_sleep_duration ? Math.round(Number(sleep_period.deep_sleep_duration) / 60) : null;
+            m.rem_sleep_min = sleep_period.rem_sleep_duration ? Math.round(Number(sleep_period.rem_sleep_duration) / 60) : null;
+            m.sleep_efficiency = sleep_period.efficiency ? Number(sleep_period.efficiency) : null;
           }
 
-          const stress = ouraData.daily_stress;
+          const stress = ouraData.stress;
           if (stress) {
             m.stress_min = stress.stress_high ? Math.round(stress.stress_high / 60) : null;
             m.restored_min = stress.recovery_high ? Math.round(stress.recovery_high / 60) : null;
@@ -200,6 +206,13 @@ export default function CoachPage() {
           else if (score >= 0) m.recovery_status = 'Easy day';
           else if (score >= -2) m.recovery_status = 'Recovery — light movement only';
           else m.recovery_status = 'Rest day';
+        }
+
+        // Estimate cardiovascular age from HRV + RHR (Umetani regression)
+        if (m.hrv && m.resting_hr) {
+          const hrv_age = 107 - (12.5 * Math.log(m.hrv));
+          const rhr_age = 1.4 * m.resting_hr - 40;
+          m.cv_age = Math.round(0.65 * hrv_age + 0.35 * rhr_age);
         }
 
         if (stravaActivities.length > 0) {
@@ -395,14 +408,27 @@ export default function CoachPage() {
       return;
     }
     try {
-      const res = await fetch('/api/coaching/history?limit=30');
+      const res = await fetch('/api/coaching/history?limit=10&offset=0');
       if (res.ok) {
         const data = await res.json();
         setHistory(data.sessions);
+        setHistoryTotal(data.total);
         setHistoryLoaded(true);
         setShowHistory(true);
       }
     } catch { /* best effort */ }
+  }
+
+  async function loadMoreHistory() {
+    setHistoryLoadingMore(true);
+    try {
+      const res = await fetch(`/api/coaching/history?limit=10&offset=${history.length}`);
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(prev => [...prev, ...data.sessions]);
+      }
+    } catch { /* best effort */ }
+    setHistoryLoadingMore(false);
   }
 
   function epochDayToDate(epoch: number): string {
@@ -473,6 +499,15 @@ export default function CoachPage() {
                 </details>
               );
             })}
+            {history.length < historyTotal && (
+              <button
+                onClick={loadMoreHistory}
+                disabled={historyLoadingMore}
+                className="w-full text-sm text-gray-400 hover:text-white border border-zinc-700 px-3 py-2 rounded transition-colors disabled:opacity-50"
+              >
+                {historyLoadingMore ? 'Loading...' : `Load more (${history.length} of ${historyTotal})`}
+              </button>
+            )}
           </div>
         )}
 
@@ -515,15 +550,14 @@ export default function CoachPage() {
                       <div className="text-xs text-gray-500">REM</div>
                     </div>
                   </div>
-                  {metrics.spo2 && (
-                    <div className="mt-1 text-xs text-gray-500">Blood oxygen: {Math.round(metrics.spo2)}%</div>
-                  )}
                 </div>
 
                 {/* Physiology row */}
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   <MetricCard label="HRV" value={metrics.hrv} unit="ms" />
                   <MetricCard label="Resting HR" value={metrics.resting_hr} unit="bpm" />
+                  <MetricCard label="Blood Oxygen" value={metrics.spo2 ? Math.round(metrics.spo2) : null} unit="%" />
+                  <MetricCard label="CV Age" value={metrics.cv_age} unit="yr" />
                 </div>
 
                 {/* Resilience / Stress-Recovery */}

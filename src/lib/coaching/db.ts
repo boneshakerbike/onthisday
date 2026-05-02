@@ -242,12 +242,16 @@ export async function populate_daily_metrics(
     resting_hr = oura.resting_hr;
     readiness_score = oura.readiness_score;
 
-    const sleep = oura.daily_sleep as { total_sleep_duration?: number; efficiency?: number; deep_sleep_duration?: number; rem_sleep_duration?: number } | null;
-    if (sleep) {
-      sleep_duration_min = sleep.total_sleep_duration ? Math.round(sleep.total_sleep_duration / 60) : null;
-      sleep_efficiency_pct = sleep.efficiency ?? null;
-      deep_sleep_min = sleep.deep_sleep_duration ? Math.round(sleep.deep_sleep_duration / 60) : null;
-      rem_sleep_min = sleep.rem_sleep_duration ? Math.round(sleep.rem_sleep_duration / 60) : null;
+    // Sleep durations come from sleep_detail (period data), not daily_sleep (scores only)
+    const sleep_detail_arr = oura.sleep_detail as { type?: string; total_sleep_duration?: number; efficiency?: number; deep_sleep_duration?: number; rem_sleep_duration?: number }[] | null;
+    const sleep_period = Array.isArray(sleep_detail_arr) && sleep_detail_arr.length > 0
+      ? (sleep_detail_arr.find(s => s.type === 'long_sleep') ?? sleep_detail_arr[0])
+      : null;
+    if (sleep_period) {
+      sleep_duration_min = sleep_period.total_sleep_duration ? Math.round(sleep_period.total_sleep_duration / 60) : null;
+      sleep_efficiency_pct = sleep_period.efficiency ?? null;
+      deep_sleep_min = sleep_period.deep_sleep_duration ? Math.round(sleep_period.deep_sleep_duration / 60) : null;
+      rem_sleep_min = sleep_period.rem_sleep_duration ? Math.round(sleep_period.rem_sleep_duration / 60) : null;
     }
 
     const readiness = oura.daily_readiness as { score?: number } | null;
@@ -352,13 +356,13 @@ export interface CoachingSession {
  * Get recent coaching sessions for context injection.
  * Returns most recent N sessions, newest first.
  */
-export async function get_recent_sessions(limit: number = 3): Promise<CoachingSession[]> {
+export async function get_recent_sessions(limit: number = 3, offset: number = 0): Promise<CoachingSession[]> {
   await ensure_schema();
   const db = get_client();
   const result = await db.execute({
     sql: `SELECT date, advice_full, advice_summary, conversation_turns, created_at
-          FROM coaching_history ORDER BY date DESC LIMIT ?`,
-    args: [limit],
+          FROM coaching_history ORDER BY date DESC LIMIT ? OFFSET ?`,
+    args: [limit, offset],
   });
   return result.rows.map(row => ({
     date: Number(row.date),
