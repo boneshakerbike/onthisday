@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import Anthropic from '@anthropic-ai/sdk';
 import { MODELS } from '@/lib/models';
-import { save_coaching_session, populate_daily_metrics } from '@/lib/coaching/db';
+import { save_coaching_session, populate_daily_metrics, type InjectMetrics } from '@/lib/coaching/db';
 
 async function generate_summary(conversation: string): Promise<string | null> {
   const api_key = process.env.ANTHROPIC_API_KEY;
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { date, date_str, advice_full, conversation_turns, token_count, manual, data_snapshot } = body as {
+    const { date, date_str, advice_full, conversation_turns, token_count, manual, data_snapshot, inject_metrics } = body as {
       date: number;
       date_str: string;
       advice_full: string;
@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
       token_count: number;
       manual?: { weight_lbs?: number; back_pain_scale?: number; back_mobility_notes?: string; bowel_status?: string; injury_notes?: string };
       data_snapshot?: string;
+      inject_metrics?: InjectMetrics;
     };
 
     if (!date || !advice_full) {
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
     // Generate summary and save in parallel
     const [summary] = await Promise.all([
       generate_summary(advice_full),
-      date_str ? populate_daily_metrics(date_str, date, manual) : Promise.resolve(),
+      date_str ? populate_daily_metrics(date_str, date, manual, inject_metrics) : Promise.resolve(),
     ]);
 
     // Prepend data snapshot to full advice if provided
