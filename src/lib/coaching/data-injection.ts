@@ -143,8 +143,9 @@ export async function build_data_injection(
   // If live Oura data was passed from the client, use it over cache
   if (oura_live && oura_live.success) {
     const scores = oura_live.scores as Record<string, unknown> | undefined;
-    const daily_sleep = oura_live.daily_sleep as OuraSleepDetail | undefined;
-    const readiness = oura_live.readiness as OuraReadinessDetail | undefined;
+    const daily_sleep = (oura_live.sleep ?? oura_live.daily_sleep) as OuraSleepDetail | undefined;
+    const readiness = (oura_live.readiness ?? oura_live.daily_readiness) as OuraReadinessDetail | undefined;
+    const stress = (oura_live.stress ?? oura_live.daily_stress) as OuraStressDetail | undefined;
     oura = {
       date: date_str,
       sleep_score: (scores?.sleep as number) ?? null,
@@ -160,7 +161,7 @@ export async function build_data_injection(
       daily_sleep: daily_sleep ?? null,
       daily_readiness: readiness ?? null,
       daily_activity: null,
-      daily_stress: oura_live.daily_stress ?? null,
+      daily_stress: stress ?? null,
       daily_resilience: null,
       daily_cardiovascular_age: null,
       daily_spo2: null,
@@ -238,6 +239,13 @@ export async function build_data_injection(
     if (cv_age?.vascular_age) {
       lines.push(`Cardiovascular age: ${cv_age.vascular_age}`);
       metrics.cv_age = cv_age.vascular_age;
+    } else if (hrv_val && rhr_val) {
+      // Estimate CV age from HRV + RHR (Umetani regression)
+      const hrv_age = 107 - (12.5 * Math.log(hrv_val));
+      const rhr_age = 1.4 * rhr_val - 40;
+      const estimated_cv_age = Math.round(0.65 * hrv_age + 0.35 * rhr_age);
+      lines.push(`Cardiovascular age: ~${estimated_cv_age} (estimated from HRV + RHR)`);
+      metrics.cv_age = estimated_cv_age;
     }
 
     if (stress) {

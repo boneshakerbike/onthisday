@@ -352,13 +352,13 @@ export interface CoachingSession {
  * Get recent coaching sessions for context injection.
  * Returns most recent N sessions, newest first.
  */
-export async function get_recent_sessions(limit: number = 3): Promise<CoachingSession[]> {
+export async function get_recent_sessions(limit: number = 3, offset: number = 0): Promise<CoachingSession[]> {
   await ensure_schema();
   const db = get_client();
   const result = await db.execute({
     sql: `SELECT date, advice_full, advice_summary, conversation_turns, created_at
-          FROM coaching_history ORDER BY date DESC LIMIT ?`,
-    args: [limit],
+          FROM coaching_history ORDER BY date DESC LIMIT ? OFFSET ?`,
+    args: [limit, offset],
   });
   return result.rows.map(row => ({
     date: Number(row.date),
