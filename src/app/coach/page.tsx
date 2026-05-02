@@ -157,12 +157,16 @@ export default function CoachPage() {
           m.spo2 = scores.spo2_average ?? null;
           m.sleep_score = scores.sleep ?? null;
 
-          const sleep = ouraData.sleep;
-          if (sleep) {
-            m.sleep_total = sleep.total_sleep_duration ? Math.round(sleep.total_sleep_duration / 60) : null;
-            m.deep_sleep_min = sleep.deep_sleep_duration ? Math.round(sleep.deep_sleep_duration / 60) : null;
-            m.rem_sleep_min = sleep.rem_sleep_duration ? Math.round(sleep.rem_sleep_duration / 60) : null;
-            m.sleep_efficiency = sleep.efficiency ?? null;
+          // Sleep durations come from sleep_detail (period data), not daily_sleep (scores only)
+          const sleep_detail_arr = ouraData.sleep_detail as Record<string, unknown>[] | null;
+          const sleep_period = Array.isArray(sleep_detail_arr) && sleep_detail_arr.length > 0
+            ? (sleep_detail_arr.find(s => s.type === 'long_sleep') ?? sleep_detail_arr[0])
+            : null;
+          if (sleep_period) {
+            m.sleep_total = sleep_period.total_sleep_duration ? Math.round(Number(sleep_period.total_sleep_duration) / 60) : null;
+            m.deep_sleep_min = sleep_period.deep_sleep_duration ? Math.round(Number(sleep_period.deep_sleep_duration) / 60) : null;
+            m.rem_sleep_min = sleep_period.rem_sleep_duration ? Math.round(Number(sleep_period.rem_sleep_duration) / 60) : null;
+            m.sleep_efficiency = sleep_period.efficiency ? Number(sleep_period.efficiency) : null;
           }
 
           const stress = ouraData.stress;
