@@ -64,6 +64,7 @@ export default function OnThisDay() {
   const [total_posts, set_total_posts] = useState(0);
   const [loading, set_loading] = useState(true);
   const [copy_status, set_copy_status] = useState('');
+  const [intro_loading, set_intro_loading] = useState(false);
   const [upload_status, set_upload_status] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [uploading, set_uploading] = useState(false);
   const [full_reimport, set_full_reimport] = useState(false);
@@ -218,8 +219,39 @@ export default function OnThisDay() {
 
   const copy_for_substack = async (version: 'simple' | 'full') => {
     if (!posts.length || !date) return;
+    if (version === 'full' && intro_loading) return;
+
+    let intro: string | null = null;
+    if (version === 'full') {
+      set_intro_loading(true);
+      set_copy_status('Generating intro...');
+      try {
+        const res = await fetch('/api/intro', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date_display: date.display,
+            posts: posts.map(p => ({ year: p.year, title: p.title, blurb: p.blurb })),
+          }),
+        });
+        const data = await res.json();
+        if (!data.success || !data.intro) {
+          throw new Error(data.error || 'Intro generation failed');
+        }
+        intro = data.intro as string;
+      } catch (error) {
+        set_intro_loading(false);
+        set_copy_status(error instanceof Error ? `Intro failed: ${error.message}` : 'Intro failed');
+        setTimeout(() => set_copy_status(''), 4000);
+        return;
+      }
+      set_intro_loading(false);
+    }
 
     let html = '<h2>On This Day</h2>\n';
+    if (intro) {
+      html += `<p>${intro}</p>\n`;
+    }
     for (const post of posts) {
       if (version === 'simple') {
         html += `<p>${post.year}: <a href="${post.url}">${post.title}</a></p>\n`;
@@ -228,7 +260,8 @@ export default function OnThisDay() {
         html += `<p>${post.year}: <a href="${post.url}">${post.title}</a>${blurb_part}</p>\n`;
       }
     }
-    const text = posts.map(p => `${p.year}: ${p.title} - ${p.url}`).join('\n');
+    const text_lines = posts.map(p => `${p.year}: ${p.title} - ${p.url}`);
+    const text = intro ? `${intro}\n\n${text_lines.join('\n')}` : text_lines.join('\n');
 
     const result = await copy_to_clipboard(html, text);
     set_copy_status(result === 'failed' ? 'Copy failed' : result === 'html' ? 'Copied!' : 'Copied as text');
@@ -628,9 +661,10 @@ export default function OnThisDay() {
                 </button>
                 <button
                   onClick={() => copy_for_substack('full')}
+                  disabled={intro_loading}
                   className={secondary_button_class}
                 >
-                  Posts + Intro
+                  {intro_loading ? 'Generating intro...' : 'Posts + Intro'}
                 </button>
                 {current_story_id && current_story_blurb && (
                   <button
