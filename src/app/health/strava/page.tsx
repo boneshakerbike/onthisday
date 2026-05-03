@@ -70,6 +70,32 @@ function format_activity_date(iso: string | null | undefined): string {
   } catch { return '—'; }
 }
 
+function format_activity_datetime(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleString('en-US', {
+      weekday: 'short', month: 'short', day: 'numeric',
+      hour: 'numeric', minute: '2-digit',
+    });
+  } catch { return '—'; }
+}
+
+// Returns 0 for today, 1 for yesterday, etc., based on local date.
+function days_ago_local(start_date_local: string | undefined): number | null {
+  if (!start_date_local) return null;
+  const act = new Date(start_date_local);
+  if (isNaN(act.getTime())) return null;
+  const now = new Date();
+  const a = new Date(act.getFullYear(), act.getMonth(), act.getDate()).getTime();
+  const t = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  return Math.round((t - a) / 86_400_000);
+}
+
+function mps_to_mph(mps: number | null | undefined): string {
+  if (mps == null || mps === 0) return '—';
+  return (mps * 2.23694).toFixed(1) + ' mph';
+}
+
 interface SportTotals {
   count: number;
   distance: number;
@@ -173,6 +199,15 @@ function StravaInner() {
   const [cached_at, set_cached_at] = useState<string | null>(null);
   const [error, set_error] = useState<string | null>(null);
   const [toast, set_toast] = useState<string | null>(null);
+  const [expanded_ids, set_expanded_ids] = useState<Set<number>>(new Set());
+
+  function toggle_expanded(id: number) {
+    set_expanded_ids(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
 
   function show_toast(msg: string) {
     set_toast(msg);
@@ -247,15 +282,10 @@ function StravaInner() {
     }
   }
 
-  const gear_shoes = (athlete?.shoes as Record<string, unknown>[] | null) || [];
-  const gear_bikes = (athlete?.bikes as Record<string, unknown>[] | null) || [];
+  const gear_bikes = [...((athlete?.bikes as Record<string, unknown>[] | null) || [])]
+    .sort((a, b) => ((b.distance as number) || 0) - ((a.distance as number) || 0));
 
-  const run_group = stats ? stat_group(stats, 'run') : null;
-  const ride_group = stats ? stat_group(stats, 'ride') : null;
   const swim_group = stats ? stat_group(stats, 'swim') : null;
-
-  const biggest_ride_distance = stats ? (stats.biggest_ride_distance as number | null) : null;
-  const biggest_climb = stats ? (stats.biggest_climb_elevation_gain as number | null) : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#0f0f1a] to-[#1a1a2e] text-white">
@@ -332,89 +362,30 @@ function StravaInner() {
             )}
 
             {/* Athlete Profile Card */}
-            <div className="border border-white/10 rounded-lg p-5 flex gap-5 items-start">
-              {!!athlete.profile && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={athlete.profile as string}
-                  alt="Profile"
-                  className="w-16 h-16 rounded-full flex-shrink-0 bg-gray-700"
-                />
-              )}
-              <div className="flex-1 min-w-0">
-                <h2 className="text-lg font-bold">
-                  {athlete.firstname as string} {athlete.lastname as string}
-                </h2>
-                {!!(athlete.city || athlete.country) && (
-                  <p className="text-gray-400 text-sm">
-                    {[athlete.city, athlete.state, athlete.country].filter(Boolean).join(', ')}
-                  </p>
+            <div className="border border-white/10 rounded-lg p-5">
+              <div className="flex gap-4 text-sm text-gray-400">
+                {athlete.follower_count != null && (
+                  <span>{(athlete.follower_count as number).toLocaleString()} followers</span>
                 )}
-                <div className="flex gap-4 mt-1 text-sm text-gray-400">
-                  {athlete.follower_count != null && (
-                    <span>{(athlete.follower_count as number).toLocaleString()} followers</span>
-                  )}
-                  {athlete.friend_count != null && (
-                    <span>{(athlete.friend_count as number).toLocaleString()} following</span>
-                  )}
-                </div>
-
-                {/* Gear */}
-                {(gear_shoes.length > 0 || gear_bikes.length > 0) && (
-                  <div className="mt-3 space-y-1">
-                    {gear_bikes.map((b, i) => (
-                      <div key={i} className="text-xs text-gray-400">
-                        🚴 {(b.name as string) || 'Bike'}: {km_to_miles(b.distance as number / 1000)}
-                      </div>
-                    ))}
-                    {gear_shoes.map((s, i) => (
-                      <div key={i} className="text-xs text-gray-400">
-                        👟 {(s.name as string) || 'Shoes'}: {meters_to_miles(s.distance as number)}
-                      </div>
-                    ))}
-                  </div>
+                {athlete.friend_count != null && (
+                  <span>{(athlete.friend_count as number).toLocaleString()} following</span>
                 )}
               </div>
+
+              {gear_bikes.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  {gear_bikes.map((b, i) => (
+                    <div key={i} className="text-xs text-gray-400">
+                      🚴 {(b.name as string) || 'Bike'}: {km_to_miles((b.distance as number) / 1000)}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Stats */}
-            {stats && (
-              <div>
-                <h2 className="text-lg font-semibold text-cyan-400 mb-3">Training Stats</h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {run_group && has_activity(run_group) && (
-                    <StatCard label="Running" emoji="🏃" group={run_group} />
-                  )}
-                  {ride_group && has_activity(ride_group) && (
-                    <StatCard label="Cycling" emoji="🚴" group={ride_group} />
-                  )}
-                  {swim_group && has_activity(swim_group) && (
-                    <StatCard label="Swimming" emoji="🏊" group={swim_group} />
-                  )}
-                </div>
-
-                {/* Highlight PRs */}
-                {(biggest_ride_distance || biggest_climb) && (
-                  <div className="flex gap-3 mt-4">
-                    {biggest_ride_distance != null && biggest_ride_distance > 0 && (
-                      <div className="flex-1 border border-white/10 rounded-lg p-3 text-center">
-                        <div className="text-xs text-gray-400 mb-1">Longest Ride</div>
-                        <div className="text-lg font-bold text-cyan-300">
-                          {meters_to_miles(biggest_ride_distance)}
-                        </div>
-                      </div>
-                    )}
-                    {biggest_climb != null && biggest_climb > 0 && (
-                      <div className="flex-1 border border-white/10 rounded-lg p-3 text-center">
-                        <div className="text-xs text-gray-400 mb-1">Biggest Climb</div>
-                        <div className="text-lg font-bold text-cyan-300">
-                          {meters_to_feet(biggest_climb)}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
+            {swim_group && has_activity(swim_group) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <StatCard label="Swimming" emoji="🏊" group={swim_group} />
               </div>
             )}
 
@@ -438,58 +409,195 @@ function StravaInner() {
                     const type = act.type as string | undefined;
                     const distance = act.distance as number | undefined;
                     const moving_time = act.moving_time as number | undefined;
+                    const elapsed_time = act.elapsed_time as number | undefined;
                     const elevation = act.total_elevation_gain as number | undefined;
                     const start_date = act.start_date_local as string | undefined;
                     const avg_hr = act.average_heartrate as number | undefined;
+                    const max_hr = act.max_heartrate as number | undefined;
                     const avg_watts = act.average_watts as number | undefined;
+                    const max_watts = act.max_watts as number | undefined;
+                    const weighted_avg_watts = act.weighted_average_watts as number | undefined;
+                    const kilojoules = act.kilojoules as number | undefined;
                     const avg_cadence = act.average_cadence as number | undefined;
+                    const avg_speed = act.average_speed as number | undefined;
+                    const max_speed = act.max_speed as number | undefined;
+                    const elev_high = act.elev_high as number | undefined;
+                    const elev_low = act.elev_low as number | undefined;
                     const suffer_score = act.suffer_score as number | undefined;
+                    const kudos_count = act.kudos_count as number | undefined;
+                    const comment_count = act.comment_count as number | undefined;
+                    const achievement_count = act.achievement_count as number | undefined;
+                    const pr_count = act.pr_count as number | undefined;
+                    const athlete_count = act.athlete_count as number | undefined;
+                    const location_city = act.location_city as string | undefined;
+                    const location_state = act.location_state as string | undefined;
+                    const location_country = act.location_country as string | undefined;
+
+                    const day_offset = days_ago_local(start_date);
+                    const expandable = day_offset === 0 || day_offset === 1;
+                    const is_expanded = expandable && expanded_ids.has(id);
+                    const day_label = day_offset === 0 ? 'Today' : day_offset === 1 ? 'Yesterday' : null;
+                    const location = [location_city, location_state, location_country].filter(Boolean).join(', ');
 
                     return (
                       <div
                         key={id || i}
-                        className="border border-white/10 rounded-lg px-4 py-3 flex items-start gap-3 hover:bg-white/5 transition"
+                        className="border border-white/10 rounded-lg px-4 py-3 hover:bg-white/5 transition"
                       >
-                        <span className="text-xl flex-shrink-0 mt-0.5">{sport_icon(sport, type)}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-semibold truncate">{name || sport || 'Activity'}</span>
-                            <span className="text-xs text-gray-500">{format_activity_date(start_date)}</span>
-                            {id && (
-                              <a
-                                href={`https://www.strava.com/activities/${id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-xs text-orange-400 hover:text-orange-300 ml-auto flex-shrink-0"
-                              >
-                                View ↗
-                              </a>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-sm text-gray-300">
-                            {distance != null && distance > 0 && (
-                              <span>{meters_to_miles(distance)}</span>
-                            )}
-                            {moving_time != null && (
-                              <span>{format_duration(moving_time)}</span>
-                            )}
-                            {elevation != null && elevation > 0 && (
-                              <span>↑ {meters_to_feet(elevation)}</span>
-                            )}
-                            {avg_hr != null && (
-                              <span className="text-red-400">♥ {Math.round(avg_hr)} bpm</span>
-                            )}
-                            {avg_watts != null && (
-                              <span className="text-yellow-400">⚡ {Math.round(avg_watts)}w</span>
-                            )}
-                            {avg_cadence != null && (
-                              <span className="text-gray-400">{Math.round(avg_cadence)} rpm</span>
-                            )}
-                            {suffer_score != null && suffer_score > 0 && (
-                              <span className="text-purple-400">💜 {suffer_score}</span>
-                            )}
+                        <div
+                          className={`flex items-start gap-3 ${expandable ? 'cursor-pointer' : ''}`}
+                          onClick={expandable && id ? () => toggle_expanded(id) : undefined}
+                        >
+                          <span className="text-xl flex-shrink-0 mt-0.5">{sport_icon(sport, type)}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold truncate">{name || sport || 'Activity'}</span>
+                              {day_label ? (
+                                <span className="text-xs text-cyan-400">{day_label}</span>
+                              ) : (
+                                <span className="text-xs text-gray-500">{format_activity_date(start_date)}</span>
+                              )}
+                              {expandable && (
+                                <span className="text-xs text-gray-500">{is_expanded ? '▾' : '▸'}</span>
+                              )}
+                              {id && (
+                                <a
+                                  href={`https://www.strava.com/activities/${id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-xs text-orange-400 hover:text-orange-300 ml-auto flex-shrink-0"
+                                >
+                                  View ↗
+                                </a>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-sm text-gray-300">
+                              {distance != null && distance > 0 && (
+                                <span>{meters_to_miles(distance)}</span>
+                              )}
+                              {moving_time != null && (
+                                <span>{format_duration(moving_time)}</span>
+                              )}
+                              {elevation != null && elevation > 0 && (
+                                <span>↑ {meters_to_feet(elevation)}</span>
+                              )}
+                              {avg_hr != null && (
+                                <span className="text-red-400">♥ {Math.round(avg_hr)} bpm</span>
+                              )}
+                              {avg_watts != null && (
+                                <span className="text-yellow-400">⚡ {Math.round(avg_watts)}w</span>
+                              )}
+                              {avg_cadence != null && (
+                                <span className="text-gray-400">{Math.round(avg_cadence)} rpm</span>
+                              )}
+                              {suffer_score != null && suffer_score > 0 && (
+                                <span className="text-purple-400">💜 {suffer_score}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
+
+                        {is_expanded && (
+                          <div className="mt-3 pt-3 border-t border-white/10 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-xs">
+                            {start_date && (
+                              <div>
+                                <div className="text-gray-500">Started</div>
+                                <div className="text-gray-200">{format_activity_datetime(start_date)}</div>
+                              </div>
+                            )}
+                            {location && (
+                              <div>
+                                <div className="text-gray-500">Location</div>
+                                <div className="text-gray-200">{location}</div>
+                              </div>
+                            )}
+                            {elapsed_time != null && (
+                              <div>
+                                <div className="text-gray-500">Elapsed</div>
+                                <div className="text-gray-200">{format_duration(elapsed_time)}</div>
+                              </div>
+                            )}
+                            {avg_speed != null && avg_speed > 0 && (
+                              <div>
+                                <div className="text-gray-500">Avg Speed</div>
+                                <div className="text-gray-200">{mps_to_mph(avg_speed)}</div>
+                              </div>
+                            )}
+                            {max_speed != null && max_speed > 0 && (
+                              <div>
+                                <div className="text-gray-500">Max Speed</div>
+                                <div className="text-gray-200">{mps_to_mph(max_speed)}</div>
+                              </div>
+                            )}
+                            {max_hr != null && (
+                              <div>
+                                <div className="text-gray-500">Max HR</div>
+                                <div className="text-red-400">♥ {Math.round(max_hr)} bpm</div>
+                              </div>
+                            )}
+                            {weighted_avg_watts != null && (
+                              <div>
+                                <div className="text-gray-500">Norm. Power</div>
+                                <div className="text-yellow-400">{Math.round(weighted_avg_watts)}w</div>
+                              </div>
+                            )}
+                            {max_watts != null && (
+                              <div>
+                                <div className="text-gray-500">Max Power</div>
+                                <div className="text-yellow-400">{Math.round(max_watts)}w</div>
+                              </div>
+                            )}
+                            {kilojoules != null && kilojoules > 0 && (
+                              <div>
+                                <div className="text-gray-500">Energy</div>
+                                <div className="text-gray-200">{Math.round(kilojoules)} kJ</div>
+                              </div>
+                            )}
+                            {elev_high != null && (
+                              <div>
+                                <div className="text-gray-500">Elev High</div>
+                                <div className="text-gray-200">{meters_to_feet(elev_high)}</div>
+                              </div>
+                            )}
+                            {elev_low != null && (
+                              <div>
+                                <div className="text-gray-500">Elev Low</div>
+                                <div className="text-gray-200">{meters_to_feet(elev_low)}</div>
+                              </div>
+                            )}
+                            {kudos_count != null && (
+                              <div>
+                                <div className="text-gray-500">Kudos</div>
+                                <div className="text-gray-200">{kudos_count}</div>
+                              </div>
+                            )}
+                            {comment_count != null && comment_count > 0 && (
+                              <div>
+                                <div className="text-gray-500">Comments</div>
+                                <div className="text-gray-200">{comment_count}</div>
+                              </div>
+                            )}
+                            {achievement_count != null && achievement_count > 0 && (
+                              <div>
+                                <div className="text-gray-500">Achievements</div>
+                                <div className="text-gray-200">{achievement_count}</div>
+                              </div>
+                            )}
+                            {pr_count != null && pr_count > 0 && (
+                              <div>
+                                <div className="text-gray-500">PRs</div>
+                                <div className="text-gray-200">{pr_count}</div>
+                              </div>
+                            )}
+                            {athlete_count != null && athlete_count > 1 && (
+                              <div>
+                                <div className="text-gray-500">Athletes</div>
+                                <div className="text-gray-200">{athlete_count}</div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
