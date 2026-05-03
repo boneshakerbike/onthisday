@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { get_posts_on_date, get_post_url, save_story, save_story_audit } from '@/lib/db';
 import { build_story_audit } from '@/lib/story_audit';
+import { pick_story_image_url } from '@/lib/story_image';
 import { MODELS } from '@/lib/models';
 
 function stripCodeFences(text: string): string {
@@ -60,22 +61,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Try to extract an image from the posts (first one found)
-    let image_url: string | null = null;
-    for (const post of posts) {
-      if (post.content_html) {
-        // Look for img tags with src attribute
-        const img_match = post.content_html.match(/<img[^>]+src=["']([^"']+)["']/i);
-        if (img_match && img_match[1]) {
-          // Skip tiny images (likely tracking pixels) and data URLs
-          const src = img_match[1];
-          if (!src.startsWith('data:') && !src.includes('pixel') && !src.includes('tracking')) {
-            image_url = src;
-            break;
-          }
-        }
-      }
-    }
+    // Pick a renderable image from the posts. Skips video sources and
+    // tracking pixels, then chooses randomly across remaining candidates so
+    // the same date doesn't always reuse the very first <img> in the feed.
+    const image_url = pick_story_image_url(posts);
 
     // Format posts for the prompt
     const formatted_posts = posts.map(post => {

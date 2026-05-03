@@ -11,6 +11,7 @@ import { get_story, get_adjacent_stories } from '@/lib/db';
 import { auth_options } from '@/lib/auth';
 import { build_story_body_html, extract_story_fallback_blurb, extract_story_title } from '@/lib/story_markup';
 import ShareButton from './share_button';
+import StoryImage from './story_image';
 import NavTabs from '@/components/nav_tabs';
 
 interface PageProps {
@@ -301,16 +302,7 @@ export default async function StoryPage({ params }: PageProps) {
           </header>
 
           {/* Featured image from source posts */}
-          {story.image_url && (
-            // Keep native img here because story image URLs are arbitrary archive sources.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={story.image_url}
-              alt=""
-              className="story-image"
-              loading="lazy"
-            />
-          )}
+          {story.image_url && <StoryImage src={story.image_url} />}
 
           {/* Story content */}
           <article
