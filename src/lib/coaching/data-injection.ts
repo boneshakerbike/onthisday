@@ -68,6 +68,55 @@ function fmt_trend(value: number | null, trends: Map<string, TrendRow>, metric: 
   return s;
 }
 
+function compute_recovery_status(
+  readiness: number | null,
+  hrv: number | null,
+  sleep: OuraSleepDetail | null,
+  stress: OuraStressDetail | null,
+  rhr: number | null,
+  trends: Map<string, TrendRow>,
+): string {
+  if (readiness === null && hrv === null) return 'No data';
+
+  // Gather signals
+  const hrv_trend = trends.get('hrv_rmssd');
+  const hrv_declining = hrv_trend?.value_7day_direction === 'declining';
+  const hrv_improving = hrv_trend?.value_7day_direction === 'improving';
+
+  const deep_ok = sleep?.deep_sleep_duration ? sleep.deep_sleep_duration >= 3600 : null; // >= 1hr deep
+  const sleep_ok = sleep?.total_sleep_duration ? sleep.total_sleep_duration >= 25200 : null; // >= 7hr total
+  const efficiency_ok = sleep?.efficiency ? sleep.efficiency >= 85 : null;
+
+  const stress_ratio = (stress?.stress_high && stress?.recovery_high)
+    ? stress.recovery_high / (stress.stress_high + stress.recovery_high)
+    : null;
+  const well_recovered = stress_ratio !== null ? stress_ratio >= 0.5 : null;
+
+  // Score: each positive signal adds 1, each negative subtracts 1
+  let score = 0;
+  if (readiness !== null) {
+    if (readiness >= 85) score += 2;
+    else if (readiness >= 70) score += 1;
+    else if (readiness < 60) score -= 2;
+    else score -= 1;
+  }
+  if (hrv_declining) score -= 1;
+  if (hrv_improving) score += 1;
+  if (deep_ok === true) score += 1;
+  if (deep_ok === false) score -= 1;
+  if (sleep_ok === true) score += 1;
+  if (sleep_ok === false) score -= 1;
+  if (efficiency_ok === false) score -= 1;
+  if (well_recovered === true) score += 1;
+  if (well_recovered === false) score -= 1;
+
+  if (score >= 4) return 'Ready to push';
+  if (score >= 2) return 'Ready — moderate effort';
+  if (score >= 0) return 'Easy day';
+  if (score >= -2) return 'Recovery — light movement only';
+  return 'Rest day';
+}
+
 /**
  * Build the data injection string for a coaching session.
  * date_str: YYYY-MM-DD format
@@ -94,8 +143,9 @@ export async function build_data_injection(
   // If live Oura data was passed from the client, use it over cache
   if (oura_live && oura_live.success) {
     const scores = oura_live.scores as Record<string, unknown> | undefined;
-    const daily_sleep = oura_live.daily_sleep as OuraSleepDetail | undefined;
-    const readiness = oura_live.readiness as OuraReadinessDetail | undefined;
+    const daily_sleep = (oura_live.sleep ?? oura_live.daily_sleep) as OuraSleepDetail | undefined;
+    const readiness = (oura_live.readiness ?? oura_live.daily_readiness) as OuraReadinessDetail | undefined;
+    const stress = (oura_live.stress ?? oura_live.daily_stress) as OuraStressDetail | undefined;
     oura = {
       date: date_str,
       sleep_score: (scores?.sleep as number) ?? null,
@@ -111,11 +161,11 @@ export async function build_data_injection(
       daily_sleep: daily_sleep ?? null,
       daily_readiness: readiness ?? null,
       daily_activity: null,
-      daily_stress: oura_live.daily_stress ?? null,
+      daily_stress: stress ?? null,
       daily_resilience: null,
       daily_cardiovascular_age: null,
       daily_spo2: null,
-      sleep_detail: null,
+      sleep_detail: oura_live.sleep_detail ?? null,
       heartrate: null,
       vo2_max: null,
       workouts: null,
@@ -144,10 +194,15 @@ export async function build_data_injection(
   // --- OURA ---
   const oura_label = oura?.date === yesterday_str ? `using ${yesterday_str} data` : '';
   if (oura) {
-    const sleep = oura.daily_sleep as OuraSleepDetail | null;
     const readiness = oura.daily_readiness as OuraReadinessDetail | null;
     const cv_age = oura.daily_cardiovascular_age as OuraCardiovascularAge | null;
     const stress = oura.daily_stress as OuraStressDetail | null;
+
+    // Sleep durations come from sleep_detail (period data), not daily_sleep (scores only)
+    const sleep_detail_arr = oura.sleep_detail as Record<string, unknown>[] | null;
+    const sleep_period = Array.isArray(sleep_detail_arr) && sleep_detail_arr.length > 0
+      ? (sleep_detail_arr.find(s => s.type === 'long_sleep') ?? sleep_detail_arr[0]) as OuraSleepDetail
+      : null;
 
     const readiness_val = readiness?.score ?? oura.readiness_score ?? null;
     const hrv_val = oura.hrv_average ?? null;
@@ -165,15 +220,18 @@ export async function build_data_injection(
     lines.push(`HRV: ${fmt_trend(hrv_val, trends, 'hrv_rmssd', 'ms')}`);
     lines.push(`Resting HR: ${fmt_trend(rhr_val, trends, 'resting_hr', ' bpm')}`);
 
-    if (sleep) {
-      const total = sleep.total_sleep_duration ? seconds_to_hm(sleep.total_sleep_duration) : 'N/A';
-      const deep = sleep.deep_sleep_duration ? seconds_to_hm(sleep.deep_sleep_duration) : 'N/A';
-      const deep_min = sleep.deep_sleep_duration ? Math.round(sleep.deep_sleep_duration / 60) : null;
-      const efficiency = sleep.efficiency ? `${sleep.efficiency}%` : 'N/A';
-      lines.push(`Sleep: ${total} total, ${deep} deep, efficiency ${efficiency}`);
-      metrics.sleep_total = sleep.total_sleep_duration ? Math.round(sleep.total_sleep_duration / 60) : null;
+    if (sleep_period) {
+      const total = sleep_period.total_sleep_duration ? seconds_to_hm(sleep_period.total_sleep_duration) : 'N/A';
+      const deep = sleep_period.deep_sleep_duration ? seconds_to_hm(sleep_period.deep_sleep_duration) : 'N/A';
+      const rem = sleep_period.rem_sleep_duration ? seconds_to_hm(sleep_period.rem_sleep_duration) : 'N/A';
+      const deep_min = sleep_period.deep_sleep_duration ? Math.round(sleep_period.deep_sleep_duration / 60) : null;
+      const rem_min = sleep_period.rem_sleep_duration ? Math.round(sleep_period.rem_sleep_duration / 60) : null;
+      const efficiency = sleep_period.efficiency ? `${sleep_period.efficiency}%` : 'N/A';
+      lines.push(`Sleep: ${total} total, ${deep} deep, ${rem} REM, efficiency ${efficiency}`);
+      metrics.sleep_total = sleep_period.total_sleep_duration ? Math.round(sleep_period.total_sleep_duration / 60) : null;
       metrics.deep_sleep_min = deep_min;
-      metrics.sleep_efficiency = sleep.efficiency ?? null;
+      metrics.rem_sleep_min = rem_min;
+      metrics.sleep_efficiency = sleep_period.efficiency ?? null;
     } else if (oura.sleep_score) {
       lines.push(`Sleep score: ${oura.sleep_score}`);
     }
@@ -186,6 +244,13 @@ export async function build_data_injection(
     if (cv_age?.vascular_age) {
       lines.push(`Cardiovascular age: ${cv_age.vascular_age}`);
       metrics.cv_age = cv_age.vascular_age;
+    } else if (hrv_val && rhr_val) {
+      // Estimate CV age from HRV + RHR (Umetani regression)
+      const hrv_age = 107 - (12.5 * Math.log(hrv_val));
+      const rhr_age = 1.4 * rhr_val - 40;
+      const estimated_cv_age = Math.round(0.65 * hrv_age + 0.35 * rhr_age);
+      lines.push(`Cardiovascular age: ~${estimated_cv_age} (estimated from HRV + RHR)`);
+      metrics.cv_age = estimated_cv_age;
     }
 
     if (stress) {
@@ -195,8 +260,30 @@ export async function build_data_injection(
         lines.push(`Stress: ${stressed_min ?? '?'}min stressed, ${restored_min ?? '?'}min restored`);
         metrics.stress_min = stressed_min;
         metrics.restored_min = restored_min;
+
+        // Resilience indicator: stress-recovery balance
+        if (stressed_min !== null && restored_min !== null) {
+          const total = stressed_min + restored_min;
+          if (total > 0) {
+            const recovery_pct = Math.round((restored_min / total) * 100);
+            let resilience: string;
+            if (recovery_pct >= 65) resilience = 'High recovery, low stress';
+            else if (recovery_pct >= 50) resilience = 'Balanced';
+            else if (recovery_pct >= 35) resilience = 'Elevated stress';
+            else resilience = 'High stress, low recovery';
+            metrics.resilience = resilience;
+            metrics.resilience_pct = recovery_pct;
+            lines.push(`Resilience: ${resilience} (${recovery_pct}% recovery)`);
+          }
+        }
       }
     }
+    // Compute recovery status from available signals
+    const recovery_status = compute_recovery_status(
+      readiness_val, hrv_val, sleep_period, stress, rhr_val, trends
+    );
+    metrics.recovery_status = recovery_status;
+    lines.push(`Recovery status: ${recovery_status}`);
   } else {
     lines.push('No Oura data available');
   }

@@ -199,10 +199,24 @@ export async function save_coaching_session(session: {
  * Populate daily_metrics from wellness_cache (Oura) + coros_data (COROS) + optional manual inputs.
  * date_str: YYYY-MM-DD, epoch_day: Math.floor(Date.now() / 86400000)
  */
+export interface InjectMetrics {
+  readiness?: number | null;
+  hrv?: number | null;
+  resting_hr?: number | null;
+  spo2?: number | null;
+  sleep_total?: number | null;
+  deep_sleep_min?: number | null;
+  rem_sleep_min?: number | null;
+  sleep_efficiency?: number | null;
+  stress_min?: number | null;
+  restored_min?: number | null;
+}
+
 export async function populate_daily_metrics(
   date_str: string,
   epoch_day: number,
-  manual?: { weight_lbs?: number; back_pain_scale?: number; back_mobility_notes?: string; bowel_status?: string; injury_notes?: string }
+  manual?: { weight_lbs?: number; back_pain_scale?: number; back_mobility_notes?: string; bowel_status?: string; injury_notes?: string },
+  inject_metrics?: InjectMetrics,
 ): Promise<boolean> {
   await ensure_schema();
   const db = get_client();
@@ -213,7 +227,7 @@ export async function populate_daily_metrics(
     get_coros_data(date_str),
   ]);
 
-  // Extract Oura fields
+  // Extract Oura fields — prefer cache, fall back to inject_metrics from live session
   let sleep_duration_min: number | null = null;
   let sleep_efficiency_pct: number | null = null;
   let deep_sleep_min: number | null = null;
@@ -228,12 +242,16 @@ export async function populate_daily_metrics(
     resting_hr = oura.resting_hr;
     readiness_score = oura.readiness_score;
 
-    const sleep = oura.daily_sleep as { total_sleep_duration?: number; efficiency?: number; deep_sleep_duration?: number; rem_sleep_duration?: number } | null;
-    if (sleep) {
-      sleep_duration_min = sleep.total_sleep_duration ? Math.round(sleep.total_sleep_duration / 60) : null;
-      sleep_efficiency_pct = sleep.efficiency ?? null;
-      deep_sleep_min = sleep.deep_sleep_duration ? Math.round(sleep.deep_sleep_duration / 60) : null;
-      rem_sleep_min = sleep.rem_sleep_duration ? Math.round(sleep.rem_sleep_duration / 60) : null;
+    // Sleep durations come from sleep_detail (period data), not daily_sleep (scores only)
+    const sleep_detail_arr = oura.sleep_detail as { type?: string; total_sleep_duration?: number; efficiency?: number; deep_sleep_duration?: number; rem_sleep_duration?: number }[] | null;
+    const sleep_period = Array.isArray(sleep_detail_arr) && sleep_detail_arr.length > 0
+      ? (sleep_detail_arr.find(s => s.type === 'long_sleep') ?? sleep_detail_arr[0])
+      : null;
+    if (sleep_period) {
+      sleep_duration_min = sleep_period.total_sleep_duration ? Math.round(sleep_period.total_sleep_duration / 60) : null;
+      sleep_efficiency_pct = sleep_period.efficiency ?? null;
+      deep_sleep_min = sleep_period.deep_sleep_duration ? Math.round(sleep_period.deep_sleep_duration / 60) : null;
+      rem_sleep_min = sleep_period.rem_sleep_duration ? Math.round(sleep_period.rem_sleep_duration / 60) : null;
     }
 
     const readiness = oura.daily_readiness as { score?: number } | null;
@@ -241,6 +259,15 @@ export async function populate_daily_metrics(
 
     const cv = oura.daily_cardiovascular_age as { vascular_age?: number } | null;
     if (cv?.vascular_age) cardiovascular_age = cv.vascular_age;
+  } else if (inject_metrics) {
+    // No cache for today — use metrics computed during inject from live Oura data
+    hrv_rmssd = inject_metrics.hrv ?? null;
+    resting_hr = inject_metrics.resting_hr ?? null;
+    readiness_score = inject_metrics.readiness ?? null;
+    sleep_duration_min = inject_metrics.sleep_total ?? null;
+    sleep_efficiency_pct = inject_metrics.sleep_efficiency ?? null;
+    deep_sleep_min = inject_metrics.deep_sleep_min ?? null;
+    rem_sleep_min = inject_metrics.rem_sleep_min ?? null;
   }
 
   // Extract COROS fields
@@ -329,13 +356,13 @@ export interface CoachingSession {
  * Get recent coaching sessions for context injection.
  * Returns most recent N sessions, newest first.
  */
-export async function get_recent_sessions(limit: number = 3): Promise<CoachingSession[]> {
+export async function get_recent_sessions(limit: number = 3, offset: number = 0): Promise<CoachingSession[]> {
   await ensure_schema();
   const db = get_client();
   const result = await db.execute({
     sql: `SELECT date, advice_full, advice_summary, conversation_turns, created_at
-          FROM coaching_history ORDER BY date DESC LIMIT ?`,
-    args: [limit],
+          FROM coaching_history ORDER BY date DESC LIMIT ? OFFSET ?`,
+    args: [limit, offset],
   });
   return result.rows.map(row => ({
     date: Number(row.date),
