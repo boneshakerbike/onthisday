@@ -10,6 +10,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { MODELS } from '@/lib/models';
 import { COACHING_SYSTEM_PROMPT } from '@/lib/coaching/system-prompt';
 import { get_recent_sessions } from '@/lib/coaching/db';
+import { normalizeCoachText } from '@/lib/coaching/normalize-text';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      response: content.text,
+      response: normalizeCoachText(content.text),
       turn: turn_number,
       usage: {
         input_tokens: response.usage.input_tokens,

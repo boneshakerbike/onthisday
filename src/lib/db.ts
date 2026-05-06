@@ -195,6 +195,13 @@ async function init_schema(): Promise<void> {
     )
   `);
 
+  // Migration: add spo2_average column to daily_metrics
+  try {
+    await db.execute(`ALTER TABLE daily_metrics ADD COLUMN spo2_average REAL`);
+  } catch {
+    // Column already exists, ignore error
+  }
+
   // Migration: add image_url column if missing
   try {
     await db.execute(`ALTER TABLE stories ADD COLUMN image_url TEXT`);

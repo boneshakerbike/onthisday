@@ -236,6 +236,7 @@ export async function populate_daily_metrics(
   let resting_hr: number | null = null;
   let readiness_score: number | null = null;
   let cardiovascular_age: number | null = null;
+  let spo2_average: number | null = null;
 
   if (oura) {
     hrv_rmssd = oura.hrv_average;
@@ -254,6 +255,8 @@ export async function populate_daily_metrics(
       rem_sleep_min = sleep_period.rem_sleep_duration ? Math.round(sleep_period.rem_sleep_duration / 60) : null;
     }
 
+    spo2_average = oura.spo2_average ?? null;
+
     const readiness = oura.daily_readiness as { score?: number } | null;
     if (readiness?.score) readiness_score = readiness.score;
 
@@ -268,6 +271,7 @@ export async function populate_daily_metrics(
     sleep_efficiency_pct = inject_metrics.sleep_efficiency ?? null;
     deep_sleep_min = inject_metrics.deep_sleep_min ?? null;
     rem_sleep_min = inject_metrics.rem_sleep_min ?? null;
+    spo2_average = inject_metrics.spo2 ?? null;
   }
 
   // Extract COROS fields
@@ -299,16 +303,16 @@ export async function populate_daily_metrics(
   await db.execute({
     sql: `INSERT OR REPLACE INTO daily_metrics (
       date, sleep_duration_min, sleep_efficiency_pct, deep_sleep_min, rem_sleep_min,
-      hrv_rmssd, resting_hr, readiness_score, cardiovascular_age,
+      hrv_rmssd, resting_hr, readiness_score, cardiovascular_age, spo2_average,
       vo2_max, training_load_acute, training_load_chronic, recovery_pct,
       zone2_min_weekly, vo2max_intervals_weekly,
       weight_lbs, back_pain_scale, back_mobility_notes, bowel_status, injury_notes,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
       epoch_day,
       sleep_duration_min, sleep_efficiency_pct, deep_sleep_min, rem_sleep_min,
-      hrv_rmssd, resting_hr, readiness_score, cardiovascular_age,
+      hrv_rmssd, resting_hr, readiness_score, cardiovascular_age, spo2_average,
       vo2_max, training_load_acute, training_load_chronic, recovery_pct,
       null, null, // zone2_min_weekly, vo2max_intervals_weekly — computed separately
       manual?.weight_lbs ?? null, manual?.back_pain_scale ?? null,

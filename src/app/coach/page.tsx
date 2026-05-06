@@ -8,6 +8,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import NavTabs from '@/components/nav_tabs';
 
 interface ChatMessage {
@@ -52,14 +53,36 @@ interface HistorySession {
   conversation_turns: number;
 }
 
-function MetricCard({ label, value, unit, warn }: { label: string; value: unknown; unit?: string; warn?: boolean }) {
+interface TrendInfo {
+  direction: 'up' | 'down' | 'stable';
+  healthImpact: 'positive' | 'negative' | 'neutral';
+  significant: boolean;
+}
+
+function TrendArrow({ trend }: { trend?: TrendInfo }) {
+  if (!trend || !trend.significant || trend.direction === 'stable') return null;
+  const arrow = trend.direction === 'up' ? '\u25B2' : '\u25BC';
+  const color = trend.healthImpact === 'positive' ? 'text-green-400'
+    : trend.healthImpact === 'negative' ? 'text-red-400'
+    : 'text-gray-400';
+  return <span className={`text-xs ml-1 ${color}`}>{arrow}</span>;
+}
+
+function MetricCard({ label, value, unit, warn, trend, href }: { label: string; value: unknown; unit?: string; warn?: boolean; trend?: TrendInfo; href?: string }) {
   if (value === null || value === undefined) return null;
-  return (
-    <div className={`bg-zinc-900 border ${warn ? 'border-yellow-600' : 'border-zinc-800'} rounded-lg px-3 py-2`}>
+  const content = (
+    <div className={`bg-zinc-900 border ${warn ? 'border-yellow-600' : 'border-zinc-800'} rounded-lg px-3 py-2 ${href ? 'cursor-pointer hover:border-zinc-600 transition-colors' : ''}`}>
       <div className="text-xs text-gray-500">{label}</div>
-      <div className="text-lg font-semibold text-white">{String(value)}{unit && <span className="text-sm text-gray-400 ml-0.5">{unit}</span>}</div>
+      <div className="text-lg font-semibold text-white">
+        {String(value)}{unit && <span className="text-sm text-gray-400 ml-0.5">{unit}</span>}
+        <TrendArrow trend={trend} />
+      </div>
     </div>
   );
+  if (href) {
+    return <Link href={href}>{content}</Link>;
+  }
+  return content;
 }
 
 function ActivityRow({ activity }: { activity: Metrics['yesterday_activities'] extends (infer T)[] | undefined ? T : never }) {
@@ -96,6 +119,7 @@ export default function CoachPage() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [dataInjection, setDataInjection] = useState('');
+  const [trends, setTrends] = useState<Record<string, TrendInfo>>({});
 
   // History
   const [history, setHistory] = useState<HistorySession[]>([]);
@@ -124,15 +148,26 @@ export default function CoachPage() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Load metrics on mount (Oura + Strava, no manual yet)
+  // Load metrics on mount (Oura + Strava + trends, no manual yet)
   useEffect(() => {
     async function loadMetrics() {
       try {
-        // Fetch Oura and Strava in parallel
-        const [ouraRes, stravaRes] = await Promise.all([
+        // Fetch Oura, Strava, and day-over-day trends in parallel
+        const [ouraRes, stravaRes, trendsRes] = await Promise.all([
           fetch(`/api/oura/data?date=${dateStr}`).catch(() => null),
           fetch('/api/strava/data').catch(() => null),
+          fetch('/api/coaching/trends/today').catch(() => null),
         ]);
+
+        // Process trends
+        if (trendsRes?.ok) {
+          const trendsData = await trendsRes.json();
+          const trendMap: Record<string, TrendInfo> = {};
+          for (const t of trendsData.trends || []) {
+            trendMap[t.slug] = { direction: t.direction, healthImpact: t.healthImpact, significant: t.significant };
+          }
+          setTrends(trendMap);
+        }
 
         const ouraData = ouraRes?.ok ? await ouraRes.json() : null;
         const stravaData = stravaRes?.ok ? await stravaRes.json() : null;
@@ -174,7 +209,7 @@ export default function CoachPage() {
             m.stress_min = stress.stress_high ? Math.round(stress.stress_high / 60) : null;
             m.restored_min = stress.recovery_high ? Math.round(stress.recovery_high / 60) : null;
             // Client-side resilience from today's stress/recovery
-            if (m.stress_min && m.restored_min) {
+            if (m.stress_min != null && m.restored_min != null) {
               const total = m.stress_min + m.restored_min;
               if (total > 0) {
                 const pct = Math.round((m.restored_min / total) * 100);
@@ -202,9 +237,9 @@ export default function CoachPage() {
           if (stress_ratio !== null && stress_ratio >= 0.5) score += 1;
           if (stress_ratio !== null && stress_ratio < 0.5) score -= 1;
           if (score >= 4) m.recovery_status = 'Ready to push';
-          else if (score >= 2) m.recovery_status = 'Ready — moderate effort';
+          else if (score >= 2) m.recovery_status = 'Ready, moderate effort';
           else if (score >= 0) m.recovery_status = 'Easy day';
-          else if (score >= -2) m.recovery_status = 'Recovery — light movement only';
+          else if (score >= -2) m.recovery_status = 'Recovery, light movement only';
           else m.recovery_status = 'Rest day';
         }
 
@@ -537,31 +572,40 @@ export default function CoachPage() {
                 <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
                   <div className="text-xs text-gray-500 mb-1">Sleep</div>
                   <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <div className="text-lg font-semibold text-white">{metrics.sleep_total ? formatMinutes(metrics.sleep_total) : '—'}</div>
+                    <Link href="/coach/metric/sleep-total" className="hover:opacity-80 transition-opacity">
+                      <div className="text-lg font-semibold text-white">
+                        {metrics.sleep_total ? formatMinutes(metrics.sleep_total) : '—'}
+                        <TrendArrow trend={trends['sleep-total']} />
+                      </div>
                       <div className="text-xs text-gray-500">total</div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-semibold text-white">{metrics.deep_sleep_min ? formatMinutes(metrics.deep_sleep_min) : '—'}</div>
+                    </Link>
+                    <Link href="/coach/metric/deep-sleep" className="hover:opacity-80 transition-opacity">
+                      <div className="text-lg font-semibold text-white">
+                        {metrics.deep_sleep_min ? formatMinutes(metrics.deep_sleep_min) : '—'}
+                        <TrendArrow trend={trends['deep-sleep']} />
+                      </div>
                       <div className="text-xs text-gray-500">deep</div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-semibold text-white">{metrics.rem_sleep_min ? formatMinutes(metrics.rem_sleep_min) : '—'}</div>
+                    </Link>
+                    <Link href="/coach/metric/rem-sleep" className="hover:opacity-80 transition-opacity">
+                      <div className="text-lg font-semibold text-white">
+                        {metrics.rem_sleep_min ? formatMinutes(metrics.rem_sleep_min) : '—'}
+                        <TrendArrow trend={trends['rem-sleep']} />
+                      </div>
                       <div className="text-xs text-gray-500">REM</div>
-                    </div>
+                    </Link>
                   </div>
                 </div>
 
                 {/* Physiology row */}
                 <div className="grid grid-cols-4 gap-2">
-                  <MetricCard label="HRV" value={metrics.hrv} unit="ms" />
-                  <MetricCard label="Resting HR" value={metrics.resting_hr} unit="bpm" />
-                  <MetricCard label="Blood Oxygen" value={metrics.spo2 ? Math.round(metrics.spo2) : null} unit="%" />
-                  <MetricCard label="CV Age" value={metrics.cv_age} unit="yr" />
+                  <MetricCard label="HRV" value={metrics.hrv} unit="ms" trend={trends['hrv']} href="/coach/metric/hrv" />
+                  <MetricCard label="Resting HR" value={metrics.resting_hr} unit="bpm" trend={trends['resting-hr']} href="/coach/metric/resting-hr" />
+                  <MetricCard label="Blood Oxygen" value={metrics.spo2 ? Math.round(metrics.spo2) : null} unit="%" trend={trends['spo2']} href="/coach/metric/spo2" />
+                  <MetricCard label="CV Age" value={metrics.cv_age} unit="yr" trend={trends['cv-age']} href="/coach/metric/cv-age" />
                 </div>
 
                 {/* Resilience / Stress-Recovery */}
-                {(metrics.stress_min || metrics.restored_min) && (
+                {(metrics.stress_min != null && metrics.restored_min != null) && (
                   <div className={`bg-zinc-900 border rounded-lg px-3 py-2 ${
                     metrics.resilience?.includes('High recovery') ? 'border-green-800' :
                     metrics.resilience?.includes('Balanced') ? 'border-zinc-700' :
@@ -572,12 +616,12 @@ export default function CoachPage() {
                     <div className="flex justify-between items-baseline">
                       <div>
                         <div className="text-xs text-gray-500">Resilience</div>
-                        <div className="text-sm font-medium text-white">{metrics.resilience || 'Calculating...'}</div>
+                        <div className="text-sm font-medium text-white">{metrics.resilience || 'No stress data yet'}</div>
                       </div>
                       <div className="text-right text-xs text-gray-500">
-                        {metrics.stress_min != null && <span>{metrics.stress_min}m stressed</span>}
-                        {metrics.stress_min != null && metrics.restored_min != null && <span> · </span>}
-                        {metrics.restored_min != null && <span>{metrics.restored_min}m restored</span>}
+                        <span>{metrics.stress_min}m stressed</span>
+                        <span> · </span>
+                        <span>{metrics.restored_min}m restored</span>
                       </div>
                     </div>
                   </div>

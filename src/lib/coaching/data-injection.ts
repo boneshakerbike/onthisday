@@ -111,9 +111,9 @@ function compute_recovery_status(
   if (well_recovered === false) score -= 1;
 
   if (score >= 4) return 'Ready to push';
-  if (score >= 2) return 'Ready — moderate effort';
+  if (score >= 2) return 'Ready, moderate effort';
   if (score >= 0) return 'Easy day';
-  if (score >= -2) return 'Recovery — light movement only';
+  if (score >= -2) return 'Recovery, light movement only';
   return 'Rest day';
 }
 
