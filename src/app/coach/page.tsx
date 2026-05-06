@@ -148,26 +148,15 @@ export default function CoachPage() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Load metrics on mount (Oura + Strava + trends, no manual yet)
+  // Load metrics on mount (Oura + Strava, then trends)
   useEffect(() => {
     async function loadMetrics() {
       try {
-        // Fetch Oura, Strava, and day-over-day trends in parallel
-        const [ouraRes, stravaRes, trendsRes] = await Promise.all([
+        // Fetch Oura and Strava in parallel
+        const [ouraRes, stravaRes] = await Promise.all([
           fetch(`/api/oura/data?date=${dateStr}`).catch(() => null),
           fetch('/api/strava/data').catch(() => null),
-          fetch('/api/coaching/trends/today').catch(() => null),
         ]);
-
-        // Process trends
-        if (trendsRes?.ok) {
-          const trendsData = await trendsRes.json();
-          const trendMap: Record<string, TrendInfo> = {};
-          for (const t of trendsData.trends || []) {
-            trendMap[t.slug] = { direction: t.direction, healthImpact: t.healthImpact, significant: t.significant };
-          }
-          setTrends(trendMap);
-        }
 
         const ouraData = ouraRes?.ok ? await ouraRes.json() : null;
         const stravaData = stravaRes?.ok ? await stravaRes.json() : null;
@@ -261,6 +250,37 @@ export default function CoachPage() {
         }
 
         setMetrics(m);
+
+        // POST live metrics to ensure today's daily_metrics row exists, then get trends
+        try {
+          const trendsRes = await fetch('/api/coaching/trends/today', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              metrics: {
+                hrv_rmssd: m.hrv ?? null,
+                resting_hr: m.resting_hr ?? null,
+                spo2_average: m.spo2 ?? null,
+                readiness_score: m.readiness ?? null,
+                sleep_duration_min: m.sleep_total ?? null,
+                deep_sleep_min: m.deep_sleep_min ?? null,
+                rem_sleep_min: m.rem_sleep_min ?? null,
+                sleep_efficiency_pct: m.sleep_efficiency ?? null,
+                cardiovascular_age: m.cv_age ?? null,
+              },
+            }),
+          });
+          if (trendsRes.ok) {
+            const trendsData = await trendsRes.json();
+            const trendMap: Record<string, TrendInfo> = {};
+            for (const t of trendsData.trends || []) {
+              trendMap[t.slug] = { direction: t.direction, healthImpact: t.healthImpact, significant: t.significant };
+            }
+            setTrends(trendMap);
+          }
+        } catch {
+          // Best effort — arrows just won't show
+        }
       } catch {
         // Best effort — metrics pane just won't show
       } finally {

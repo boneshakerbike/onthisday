@@ -274,6 +274,13 @@ export async function populate_daily_metrics(
     spo2_average = inject_metrics.spo2 ?? null;
   }
 
+  // Estimate CV age from HRV + RHR if Oura didn't provide it directly
+  if (cardiovascular_age == null && hrv_rmssd != null && resting_hr != null) {
+    const hrv_age = 107 - (12.5 * Math.log(hrv_rmssd));
+    const rhr_age = 1.4 * resting_hr - 40;
+    cardiovascular_age = Math.round(0.65 * hrv_age + 0.35 * rhr_age);
+  }
+
   // Extract COROS fields
   let vo2_max: number | null = null;
   let training_load_acute: number | null = null;
