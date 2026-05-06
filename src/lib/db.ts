@@ -202,6 +202,17 @@ async function init_schema(): Promise<void> {
     // Column already exists, ignore error
   }
 
+  // Migration: backfill cardiovascular_age from HRV + RHR where missing
+  // Uses Umetani regression: cv_age = 0.65 * (107 - 12.5 * ln(HRV)) + 0.35 * (1.4 * RHR - 40)
+  await db.execute(`
+    UPDATE daily_metrics
+    SET cardiovascular_age = ROUND(0.65 * (107 - 12.5 * LN(hrv_rmssd)) + 0.35 * (1.4 * resting_hr - 40)),
+        updated_at = unixepoch()
+    WHERE cardiovascular_age IS NULL
+      AND hrv_rmssd IS NOT NULL
+      AND resting_hr IS NOT NULL
+  `);
+
   // Migration: add image_url column if missing
   try {
     await db.execute(`ALTER TABLE stories ADD COLUMN image_url TEXT`);
