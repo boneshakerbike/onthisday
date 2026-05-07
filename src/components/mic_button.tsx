@@ -204,7 +204,7 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
     });
   }
 
-  function handle_click() {
+  async function handle_click() {
     mic_log('click', { supported, phase, has_recognition: !!recognition_ref.current });
     if (!supported) return;
     if (phase === 'starting' || phase === 'stopping') return;
@@ -216,40 +216,108 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
       return;
     }
 
-    if (phase === 'idle') {
-      wants_recording_ref.current = true;
-      set_phase('starting');
-      set_status_text('');
-      set_is_error(false);
-      try {
-        mic_log('calling recognition.start()');
-        recognition.start();
-        mic_log('recognition.start() returned');
-        // Watchdog: if neither onstart nor onerror fires within 2s, surface a
-        // visible error. Some browsers (or Permissions-Policy blocks) silently
-        // do nothing here.
-        clear_watchdog();
-        startup_watchdog_ref.current = window.setTimeout(() => {
-          mic_log('startup watchdog fired — no onstart/onerror within 2s');
-          wants_recording_ref.current = false;
-          set_phase('idle');
-          set_status_text('Mic did not start. Check browser permissions.');
-          set_is_error(true);
-        }, 2000);
-      } catch (err) {
-        mic_log('start() threw', err);
-        wants_recording_ref.current = false;
-        set_phase('idle');
-        set_status_text(`Voice input error: ${(err as Error).message ?? 'unknown'}`);
-        set_is_error(true);
-      }
-      return;
-    }
-
     if (phase === 'recording') {
       wants_recording_ref.current = false;
       set_phase('stopping');
       try { recognition.stop(); } catch { /* ignore */ }
+      return;
+    }
+
+    if (phase !== 'idle') return;
+
+    // Step 1: probe Permissions API. If browser-level state is "denied",
+    // calling getUserMedia or recognition.start() will instantly fail without
+    // showing a prompt — give actionable instructions instead.
+    set_phase('starting');
+    set_status_text('');
+    set_is_error(false);
+
+    const perm_state = await query_mic_permission();
+    mic_log('permission state', perm_state);
+
+    if (perm_state === 'denied') {
+      set_phase('idle');
+      set_status_text('Mic blocked — reset in browser site settings');
+      set_is_error(true);
+      return;
+    }
+
+    // Step 2: explicitly request the mic via getUserMedia. This is what
+    // actually surfaces the browser's permission prompt UI on most platforms.
+    // SpeechRecognition.start() alone is unreliable for prompting outside
+    // localhost in current Chrome.
+    if (!navigator.mediaDevices?.getUserMedia) {
+      mic_log('getUserMedia unavailable');
+      set_phase('idle');
+      set_status_text('Voice input unavailable in this browser.');
+      set_is_error(true);
+      return;
+    }
+
+    let stream: MediaStream;
+    try {
+      mic_log('calling getUserMedia');
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mic_log('getUserMedia granted');
+    } catch (err) {
+      const name = (err as DOMException).name;
+      mic_log('getUserMedia rejected', { name, message: (err as Error).message });
+      set_phase('idle');
+      set_is_error(true);
+      if (name === 'NotAllowedError' || name === 'SecurityError') {
+        set_status_text('Permission denied — allow mic in address bar');
+      } else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+        set_status_text('No microphone detected');
+      } else if (name === 'NotReadableError') {
+        set_status_text('Mic in use by another app');
+      } else {
+        set_status_text(`Mic error: ${name}`);
+      }
+      return;
+    }
+
+    // We don't need the stream — SpeechRecognition manages its own audio.
+    // Releasing tracks promptly avoids leaving the browser's mic indicator on
+    // longer than necessary.
+    stream.getTracks().forEach((t) => { try { t.stop(); } catch { /* ignore */ } });
+
+    // Step 3: now start recognition. Permission is granted at this point;
+    // start() should fire onstart shortly. The watchdog catches the rare case
+    // where neither onstart nor onerror fires.
+    wants_recording_ref.current = true;
+    try {
+      mic_log('calling recognition.start()');
+      recognition.start();
+      mic_log('recognition.start() returned');
+      clear_watchdog();
+      startup_watchdog_ref.current = window.setTimeout(() => {
+        mic_log('startup watchdog fired — no onstart/onerror within 3s');
+        wants_recording_ref.current = false;
+        set_phase('idle');
+        set_status_text('Mic did not start. Try again, or reload the page.');
+        set_is_error(true);
+      }, 3000);
+    } catch (err) {
+      mic_log('start() threw', err);
+      wants_recording_ref.current = false;
+      set_phase('idle');
+      set_status_text(`Voice input error: ${(err as Error).message ?? 'unknown'}`);
+      set_is_error(true);
+    }
+  }
+
+  async function query_mic_permission(): Promise<'granted' | 'denied' | 'prompt' | 'unknown'> {
+    type PermsLike = { query: (d: { name: string }) => Promise<{ state: string }> };
+    const perms = (navigator as Navigator & { permissions?: PermsLike }).permissions;
+    if (!perms?.query) return 'unknown';
+    try {
+      const result = await perms.query({ name: 'microphone' });
+      const state = result.state;
+      if (state === 'granted' || state === 'denied' || state === 'prompt') return state;
+      return 'unknown';
+    } catch (err) {
+      mic_log('permissions.query threw', err);
+      return 'unknown';
     }
   }
 
@@ -270,7 +338,7 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
   // so silent failures (permission denied, Permissions-Policy block, etc.) are
   // never invisible. "Listening" stays visual-only via the red-pulse mic.
   const visible_status = is_error ? status_text : '';
-  const visible_status_class = 'text-xs text-red-400 max-w-[14rem] truncate';
+  const visible_status_class = 'text-xs text-red-400 leading-tight';
 
   return (
     <span className="inline-flex items-center gap-2">
