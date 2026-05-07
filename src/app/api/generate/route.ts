@@ -21,15 +21,26 @@ function stripCodeFences(text: string): string {
   return cleaned.trim();
 }
 
-function extractTagContent(response: string, tag: string): string {
+function extractTagContent(response: string, tag: string): string | null {
   const pattern = new RegExp(`<${tag}>\\s*([\\s\\S]*?)\\s*<\\/${tag}>`, 'i');
   const match = response.match(pattern);
 
   if (!match || !match[1]) {
-    throw new Error(`Missing <${tag}> in model response`);
+    return null;
   }
 
   return match[1].trim();
+}
+
+function blurbFromStory(story_html: string): string {
+  const text = story_html
+    .replace(/<h2[^>]*>.*?<\/h2>/gi, '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  return sentences.slice(0, 2).join(' ').trim().substring(0, 300);
 }
 
 export async function POST(request: NextRequest) {
@@ -158,14 +169,16 @@ ${formatted_posts}`;
 
     const response_text = stripCodeFences(content.text);
     const story = extractTagContent(response_text, 'story');
-    const blurb = extractTagContent(response_text, 'blurb')
+
+    if (!story) {
+      throw new Error('Missing <story> in model response');
+    }
+
+    const raw_blurb = extractTagContent(response_text, 'blurb');
+    const blurb = (raw_blurb || blurbFromStory(story))
       .replace(/<[^>]*>/g, '')
       .replace(/\s+/g, ' ')
       .trim();
-
-    if (!story || !blurb) {
-      throw new Error('Incomplete model response');
-    }
 
     // Save story to database and get shareable ID
     const date_key = `${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
@@ -195,9 +208,9 @@ ${formatted_posts}`;
 
   } catch (error) {
     console.error('Generate error:', error);
-    const is_prod = process.env.NODE_ENV === 'production';
+    const msg = error instanceof Error ? error.message : 'Failed to generate story';
     return NextResponse.json(
-      { error: is_prod ? 'Failed to generate story' : (error instanceof Error ? error.message : 'Failed to generate story') },
+      { error: msg },
       { status: 500 }
     );
   }
