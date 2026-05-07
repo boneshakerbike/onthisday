@@ -158,8 +158,7 @@ ${formatted_posts}`;
         }
       ],
       messages: [
-        { role: 'user', content: user_message },
-        { role: 'assistant', content: '<response>\n<story>' }
+        { role: 'user', content: user_message }
       ]
     });
 
@@ -168,7 +167,7 @@ ${formatted_posts}`;
       throw new Error('Unexpected response type');
     }
 
-    const response_text = '<response>\n<story>' + stripCodeFences(content.text);
+    const response_text = stripCodeFences(content.text);
     const story = extractTagContent(response_text, 'story');
 
     if (!story) {
