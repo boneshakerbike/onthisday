@@ -195,9 +195,10 @@ ${formatted_posts}`;
 
   } catch (error) {
     console.error('Generate error:', error);
-    const is_prod = process.env.NODE_ENV === 'production';
+    const msg = error instanceof Error ? error.message : String(error);
+    const name = error instanceof Error ? error.constructor.name : 'Unknown';
     return NextResponse.json(
-      { error: is_prod ? 'Failed to generate story' : (error instanceof Error ? error.message : 'Failed to generate story') },
+      { error: `[${name}] ${msg}` },
       { status: 500 }
     );
   }
