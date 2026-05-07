@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type SpeechRecognitionAlternative = { transcript: string };
 type SpeechRecognitionResult = { isFinal: boolean; 0: SpeechRecognitionAlternative; length: number };
@@ -51,7 +51,7 @@ interface Props {
 }
 
 export default function MicButton({ textarea_ref, value, on_change, lang = 'en-US', className }: Props) {
-  const [supported, set_supported] = useState(false);
+  const [supported] = useState(() => !!get_recognition_ctor());
   const [phase, set_phase] = useState<Phase>('idle');
   const [status_text, set_status_text] = useState('');
   const [is_error, set_is_error] = useState(false);
@@ -66,13 +66,57 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
   useEffect(() => { value_ref.current = value; }, [value]);
   useEffect(() => { on_change_ref.current = on_change; }, [on_change]);
 
+  const clear_watchdog = useCallback(() => {
+    if (startup_watchdog_ref.current !== null) {
+      window.clearTimeout(startup_watchdog_ref.current);
+      startup_watchdog_ref.current = null;
+    }
+  }, []);
+
+  const insert_transcript = useCallback((transcript: string) => {
+    const current = value_ref.current;
+    const ta = textarea_ref.current;
+
+    let start = current.length;
+    let end = current.length;
+    if (ta) {
+      const s = ta.selectionStart;
+      const e = ta.selectionEnd;
+      if (typeof s === 'number' && typeof e === 'number' && s >= 0 && e >= s && e <= current.length) {
+        start = s;
+        end = e;
+      }
+    }
+
+    const before = current.slice(0, start);
+    const after = current.slice(end);
+
+    let inserted = transcript;
+    const prev_char = before.slice(-1);
+    if (prev_char && !/\s/.test(prev_char) && !/^\s/.test(inserted)) {
+      inserted = ' ' + inserted;
+    }
+    const next_char = after.slice(0, 1);
+    if (next_char && !/\s/.test(next_char) && !/\s$/.test(inserted)) {
+      inserted = inserted + ' ';
+    }
+
+    const next_value = before + inserted + after;
+    value_ref.current = next_value;
+    on_change_ref.current(next_value);
+
+    const caret = (before + inserted).length;
+    requestAnimationFrame(() => {
+      const ta_now = textarea_ref.current;
+      if (ta_now) {
+        try { ta_now.setSelectionRange(caret, caret); } catch { /* ignore */ }
+      }
+    });
+  }, [textarea_ref]);
+
   useEffect(() => {
     const ctor = get_recognition_ctor();
-    if (!ctor) {
-      set_supported(false);
-      return;
-    }
-    set_supported(true);
+    if (!ctor) return;
 
     const recognition = new ctor();
     recognition.continuous = false;
@@ -136,55 +180,7 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
       try { recognition.abort(); } catch { /* ignore */ }
       recognition_ref.current = null;
     };
-  }, [lang]);
-
-  function clear_watchdog() {
-    if (startup_watchdog_ref.current !== null) {
-      window.clearTimeout(startup_watchdog_ref.current);
-      startup_watchdog_ref.current = null;
-    }
-  }
-
-  function insert_transcript(transcript: string) {
-    const current = value_ref.current;
-    const ta = textarea_ref.current;
-
-    let start = current.length;
-    let end = current.length;
-    if (ta) {
-      const s = ta.selectionStart;
-      const e = ta.selectionEnd;
-      if (typeof s === 'number' && typeof e === 'number' && s >= 0 && e >= s && e <= current.length) {
-        start = s;
-        end = e;
-      }
-    }
-
-    const before = current.slice(0, start);
-    const after = current.slice(end);
-
-    let inserted = transcript;
-    const prev_char = before.slice(-1);
-    if (prev_char && !/\s/.test(prev_char) && !/^\s/.test(inserted)) {
-      inserted = ' ' + inserted;
-    }
-    const next_char = after.slice(0, 1);
-    if (next_char && !/\s/.test(next_char) && !/\s$/.test(inserted)) {
-      inserted = inserted + ' ';
-    }
-
-    const next_value = before + inserted + after;
-    value_ref.current = next_value;
-    on_change_ref.current(next_value);
-
-    const caret = (before + inserted).length;
-    requestAnimationFrame(() => {
-      const ta_now = textarea_ref.current;
-      if (ta_now) {
-        try { ta_now.setSelectionRange(caret, caret); } catch { /* ignore */ }
-      }
-    });
-  }
+  }, [lang, clear_watchdog, insert_transcript]);
 
   async function handle_click() {
     if (!supported) return;
