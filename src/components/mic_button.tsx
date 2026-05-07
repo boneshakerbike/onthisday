@@ -2,6 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+function mic_log(...args: unknown[]) {
+  // Lightweight breadcrumbs for debugging voice input in Preview / production.
+  // Prefix makes them easy to filter in devtools.
+  console.log('[mic]', ...args);
+}
+
 type SpeechRecognitionAlternative = { transcript: string };
 type SpeechRecognitionResult = { isFinal: boolean; 0: SpeechRecognitionAlternative; length: number };
 type SpeechRecognitionResultList = { length: number; [i: number]: SpeechRecognitionResult };
@@ -54,18 +60,27 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
   const [supported, set_supported] = useState(false);
   const [phase, set_phase] = useState<Phase>('idle');
   const [status_text, set_status_text] = useState('');
+  const [is_error, set_is_error] = useState(false);
 
   const recognition_ref = useRef<SpeechRecognitionInstance | null>(null);
   const value_ref = useRef(value);
   const on_change_ref = useRef(on_change);
   const wants_recording_ref = useRef(false);
   const cancelled_ref = useRef(false);
+  const startup_watchdog_ref = useRef<number | null>(null);
 
   useEffect(() => { value_ref.current = value; }, [value]);
   useEffect(() => { on_change_ref.current = on_change; }, [on_change]);
 
   useEffect(() => {
     const ctor = get_recognition_ctor();
+    mic_log('feature detection:', {
+      has_ctor: !!ctor,
+      has_SpeechRecognition: typeof window !== 'undefined' && 'SpeechRecognition' in window,
+      has_webkitSpeechRecognition: typeof window !== 'undefined' && 'webkitSpeechRecognition' in window,
+      is_secure_context: typeof window !== 'undefined' && window.isSecureContext,
+      user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+    });
     if (!ctor) {
       set_supported(false);
       return;
@@ -78,11 +93,15 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
     recognition.lang = lang;
 
     recognition.onstart = () => {
+      mic_log('onstart fired');
+      clear_watchdog();
       set_phase('recording');
+      set_is_error(false);
       set_status_text('Listening');
     };
 
     recognition.onresult = (event) => {
+      mic_log('onresult', { resultIndex: event.resultIndex, results_length: event.results.length });
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
         if (!result.isFinal) continue;
@@ -92,27 +111,33 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
     };
 
     recognition.onerror = (event) => {
+      mic_log('onerror', { error: event.error });
+      clear_watchdog();
       const friendly = error_messages[event.error] ?? `Voice input error: ${event.error}`;
       set_status_text(friendly);
+      set_is_error(true);
       wants_recording_ref.current = false;
       set_phase('idle');
     };
 
     recognition.onend = () => {
+      mic_log('onend', { wants_recording: wants_recording_ref.current, cancelled: cancelled_ref.current });
       if (cancelled_ref.current) return;
       if (wants_recording_ref.current) {
         try {
           recognition.start();
         } catch (err) {
+          mic_log('restart threw', err);
           if ((err as { name?: string }).name !== 'InvalidStateError') {
             wants_recording_ref.current = false;
             set_phase('idle');
             set_status_text('Voice input error');
+            set_is_error(true);
           }
         }
       } else {
         set_phase('idle');
-        set_status_text((prev) => (prev === 'Listening' ? 'Stopped' : prev));
+        set_status_text((prev) => (prev === 'Listening' ? '' : prev));
       }
     };
 
@@ -121,6 +146,7 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
     return () => {
       cancelled_ref.current = true;
       wants_recording_ref.current = false;
+      clear_watchdog();
       recognition.onresult = null;
       recognition.onerror = null;
       recognition.onend = null;
@@ -129,6 +155,13 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
       recognition_ref.current = null;
     };
   }, [lang]);
+
+  function clear_watchdog() {
+    if (startup_watchdog_ref.current !== null) {
+      window.clearTimeout(startup_watchdog_ref.current);
+      startup_watchdog_ref.current = null;
+    }
+  }
 
   function insert_transcript(transcript: string) {
     const current = value_ref.current;
@@ -172,22 +205,43 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
   }
 
   function handle_click() {
+    mic_log('click', { supported, phase, has_recognition: !!recognition_ref.current });
     if (!supported) return;
     if (phase === 'starting' || phase === 'stopping') return;
 
     const recognition = recognition_ref.current;
-    if (!recognition) return;
+    if (!recognition) {
+      set_status_text('Voice input not initialized');
+      set_is_error(true);
+      return;
+    }
 
     if (phase === 'idle') {
       wants_recording_ref.current = true;
       set_phase('starting');
       set_status_text('');
+      set_is_error(false);
       try {
+        mic_log('calling recognition.start()');
         recognition.start();
-      } catch {
+        mic_log('recognition.start() returned');
+        // Watchdog: if neither onstart nor onerror fires within 2s, surface a
+        // visible error. Some browsers (or Permissions-Policy blocks) silently
+        // do nothing here.
+        clear_watchdog();
+        startup_watchdog_ref.current = window.setTimeout(() => {
+          mic_log('startup watchdog fired — no onstart/onerror within 2s');
+          wants_recording_ref.current = false;
+          set_phase('idle');
+          set_status_text('Mic did not start. Check browser permissions.');
+          set_is_error(true);
+        }, 2000);
+      } catch (err) {
+        mic_log('start() threw', err);
         wants_recording_ref.current = false;
         set_phase('idle');
-        set_status_text('Voice input error');
+        set_status_text(`Voice input error: ${(err as Error).message ?? 'unknown'}`);
+        set_is_error(true);
       }
       return;
     }
@@ -212,8 +266,14 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
       ? 'Stop voice input'
       : 'Start voice input';
 
+  // Show status text visibly when it's an error or a non-listening message,
+  // so silent failures (permission denied, Permissions-Policy block, etc.) are
+  // never invisible. "Listening" stays visual-only via the red-pulse mic.
+  const visible_status = is_error ? status_text : '';
+  const visible_status_class = 'text-xs text-red-400 max-w-[14rem] truncate';
+
   return (
-    <>
+    <span className="inline-flex items-center gap-2">
       <button
         type="button"
         onClick={handle_click}
@@ -240,9 +300,14 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
           <line x1="8" y1="22" x2="16" y2="22" />
         </svg>
       </button>
+      {visible_status && (
+        <span className={visible_status_class} title={visible_status}>
+          {visible_status}
+        </span>
+      )}
       <span role="status" aria-live="polite" className="sr-only">
         {status_text}
       </span>
-    </>
+    </span>
   );
 }
