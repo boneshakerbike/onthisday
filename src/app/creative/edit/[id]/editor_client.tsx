@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { startTransition, useDeferredValue, useState } from 'react';
+import { startTransition, useDeferredValue, useRef, useState } from 'react';
 import NavTabs from '@/components/nav_tabs';
+import MicButton from '@/components/mic_button';
 import { StoryAudit } from '@/lib/story_audit';
 import { build_story_body_html, extract_story_title } from '@/lib/story_markup';
 
@@ -33,6 +34,8 @@ export default function StoryEditor({
   const [rerunning_audit, set_rerunning_audit] = useState(false);
   const [status, set_status] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [audit_open, set_audit_open] = useState(true);
+  const blurb_ref = useRef<HTMLTextAreaElement>(null);
+  const content_ref = useRef<HTMLTextAreaElement>(null);
   const deferred_content = useDeferredValue(content);
 
   const preview_title = extract_story_title(deferred_content, story.date_display);
@@ -160,21 +163,29 @@ export default function StoryEditor({
                 </h2>
                 <span className="text-xs text-slate-500">Story ID: {story.id}</span>
               </div>
-              <label className="mb-3 block text-sm text-slate-300" htmlFor="story-blurb">
-                Blurb
-              </label>
+              <div className="mb-3 flex items-center justify-between">
+                <label className="block text-sm text-slate-300" htmlFor="story-blurb">
+                  Blurb
+                </label>
+                <MicButton textarea_ref={blurb_ref} value={blurb} on_change={set_blurb} />
+              </div>
               <textarea
                 id="story-blurb"
+                ref={blurb_ref}
                 value={blurb}
                 onChange={(event) => set_blurb(event.target.value)}
                 className="mb-5 min-h-24 w-full rounded-2xl border border-white/10 bg-[#0b1220] px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-300/50"
                 spellCheck={false}
               />
-              <label className="mb-3 block text-sm text-slate-300" htmlFor="story-html">
-                Story HTML
-              </label>
+              <div className="mb-3 flex items-center justify-between">
+                <label className="block text-sm text-slate-300" htmlFor="story-html">
+                  Story HTML
+                </label>
+                <MicButton textarea_ref={content_ref} value={content} on_change={set_content} />
+              </div>
               <textarea
                 id="story-html"
+                ref={content_ref}
                 value={content}
                 onChange={(event) => set_content(event.target.value)}
                 className="min-h-[28rem] w-full rounded-2xl border border-white/10 bg-[#0b1220] px-4 py-3 font-mono text-sm leading-6 text-slate-100 outline-none transition focus:border-cyan-300/50"
