@@ -6,8 +6,9 @@
  * Two-step flow: analyze for losses, then generate appendix if needed
  */
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import NavTabs from '@/components/nav_tabs';
+import MicButton from '@/components/mic_button';
 
 interface UsageInfo {
   analysis_input: number;
@@ -32,6 +33,8 @@ export default function KnowledgeDiffPage() {
   const [result, set_result] = useState<DiffResult | null>(null);
   const [error, set_error] = useState('');
   const [copied, set_copied] = useState(false);
+  const old_doc_ref = useRef<HTMLTextAreaElement>(null);
+  const new_doc_ref = useRef<HTMLTextAreaElement>(null);
 
   async function api_call(body: Record<string, unknown>) {
     const response = await fetch('/api/knowledge-diff', {
@@ -176,15 +179,14 @@ export default function KnowledgeDiffPage() {
         }}>
           {/* Old Document */}
           <div>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontWeight: 500,
-              color: '#ccc'
-            }}>
-              OLD Document
-            </label>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <label style={{ fontWeight: 500, color: '#ccc' }}>
+                OLD Document
+              </label>
+              <MicButton textarea_ref={old_doc_ref} value={old_doc} on_change={set_old_doc} disabled={!!status} />
+            </div>
             <textarea
+              ref={old_doc_ref}
               value={old_doc}
               onChange={(e) => set_old_doc(e.target.value)}
               placeholder="Paste your original/old knowledge document here..."
@@ -208,15 +210,14 @@ export default function KnowledgeDiffPage() {
 
           {/* New Document */}
           <div>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontWeight: 500,
-              color: '#ccc'
-            }}>
-              NEW Document
-            </label>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <label style={{ fontWeight: 500, color: '#ccc' }}>
+                NEW Document
+              </label>
+              <MicButton textarea_ref={new_doc_ref} value={new_doc} on_change={set_new_doc} disabled={!!status} />
+            </div>
             <textarea
+              ref={new_doc_ref}
               value={new_doc}
               onChange={(e) => set_new_doc(e.target.value)}
               placeholder="Paste your updated/new knowledge document here..."

@@ -48,9 +48,10 @@ interface Props {
   on_change: (next: string) => void;
   lang?: string;
   className?: string;
+  disabled?: boolean;
 }
 
-export default function MicButton({ textarea_ref, value, on_change, lang = 'en-US', className }: Props) {
+export default function MicButton({ textarea_ref, value, on_change, lang = 'en-US', className, disabled = false }: Props) {
   const [supported] = useState(() => !!get_recognition_ctor());
   const [phase, set_phase] = useState<Phase>('idle');
   const [status_text, set_status_text] = useState('');
@@ -65,6 +66,18 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
 
   useEffect(() => { value_ref.current = value; }, [value]);
   useEffect(() => { on_change_ref.current = on_change; }, [on_change]);
+
+  // When the parent disables the mic mid-recording (e.g. a generation
+  // request kicks off), abort any active session so transcripts can't
+  // clobber the soon-to-be-replaced textarea value.
+  useEffect(() => {
+    if (!disabled) return;
+    wants_recording_ref.current = false;
+    const rec = recognition_ref.current;
+    if (rec) {
+      try { rec.abort(); } catch { /* ignore */ }
+    }
+  }, [disabled]);
 
   const clear_watchdog = useCallback(() => {
     if (startup_watchdog_ref.current !== null) {
@@ -183,7 +196,7 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
   }, [lang, clear_watchdog, insert_transcript]);
 
   async function handle_click() {
-    if (!supported) return;
+    if (!supported || disabled) return;
     if (phase === 'starting' || phase === 'stopping') return;
 
     const recognition = recognition_ref.current;
@@ -305,7 +318,7 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
       <button
         type="button"
         onClick={handle_click}
-        disabled={!supported}
+        disabled={!supported || disabled}
         title={title}
         aria-label={recording ? 'Stop voice input' : 'Start voice input'}
         aria-pressed={recording}
