@@ -74,11 +74,29 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
 
   useEffect(() => {
     const ctor = get_recognition_ctor();
+    const has_md = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
+    const has_perms = typeof navigator !== 'undefined' && !!(navigator as Navigator & { permissions?: unknown }).permissions;
+    let in_iframe: boolean | 'unknown' = 'unknown';
+    if (typeof window !== 'undefined') {
+      try { in_iframe = window.top !== window.self; } catch { in_iframe = true; }
+    }
+    let policy_allows: boolean | 'unknown' = 'unknown';
+    try {
+      const fp = (typeof document !== 'undefined'
+        ? (document as Document & { featurePolicy?: { allowsFeature?: (n: string) => boolean } }).featurePolicy
+        : undefined);
+      if (fp?.allowsFeature) policy_allows = fp.allowsFeature('microphone');
+    } catch { /* ignore */ }
     mic_log('feature detection:', {
-      has_ctor: !!ctor,
+      has_speech_recognition_ctor: !!ctor,
       has_SpeechRecognition: typeof window !== 'undefined' && 'SpeechRecognition' in window,
       has_webkitSpeechRecognition: typeof window !== 'undefined' && 'webkitSpeechRecognition' in window,
+      has_getUserMedia: has_md,
+      has_permissions_api: has_perms,
       is_secure_context: typeof window !== 'undefined' && window.isSecureContext,
+      in_iframe,
+      feature_policy_allows_microphone: policy_allows,
+      origin: typeof window !== 'undefined' ? window.location.origin : 'unknown',
       user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
     });
     if (!ctor) {
@@ -225,27 +243,17 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
 
     if (phase !== 'idle') return;
 
-    // Step 1: probe Permissions API. If browser-level state is "denied",
-    // calling getUserMedia or recognition.start() will instantly fail without
-    // showing a prompt — give actionable instructions instead.
     set_phase('starting');
     set_status_text('');
     set_is_error(false);
 
-    const perm_state = await query_mic_permission();
-    mic_log('permission state', perm_state);
+    // Diagnostic only: log the pre-flight permission state, but DO NOT gate
+    // on it. Some environments (Permissions-Policy, stale browser state)
+    // report 'denied' even when an actual call would succeed or surface the
+    // prompt. We let getUserMedia be the source of truth.
+    const pre_state = await query_mic_permission();
+    mic_log('pre-flight permission state', pre_state);
 
-    if (perm_state === 'denied') {
-      set_phase('idle');
-      set_status_text('Mic blocked — reset in browser site settings');
-      set_is_error(true);
-      return;
-    }
-
-    // Step 2: explicitly request the mic via getUserMedia. This is what
-    // actually surfaces the browser's permission prompt UI on most platforms.
-    // SpeechRecognition.start() alone is unreliable for prompting outside
-    // localhost in current Chrome.
     if (!navigator.mediaDevices?.getUserMedia) {
       mic_log('getUserMedia unavailable');
       set_phase('idle');
@@ -254,24 +262,41 @@ export default function MicButton({ textarea_ref, value, on_change, lang = 'en-U
       return;
     }
 
+    // Always call getUserMedia. On a fresh profile this triggers the actual
+    // browser permission prompt. On a previously-denied origin it rejects
+    // immediately with NotAllowedError and we use permissions.query AFTER
+    // the rejection to distinguish "user just dismissed/denied" from
+    // "browser-level block".
     let stream: MediaStream;
     try {
-      mic_log('calling getUserMedia');
+      mic_log('calling getUserMedia({ audio: true })');
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mic_log('getUserMedia granted');
     } catch (err) {
       const name = (err as DOMException).name;
-      mic_log('getUserMedia rejected', { name, message: (err as Error).message });
+      const message = (err as Error).message;
+      mic_log('getUserMedia rejected', { name, message });
       set_phase('idle');
       set_is_error(true);
+
       if (name === 'NotAllowedError' || name === 'SecurityError') {
-        set_status_text('Permission denied — allow mic in address bar');
+        // Disambiguate via permissions.query. If state is now 'denied', the
+        // origin is blocked at the browser level (sticky); the user must
+        // reset it manually. If still 'prompt', they dismissed without a
+        // permanent decision — clicking again may show the prompt again.
+        const post_state = await query_mic_permission();
+        mic_log('post-rejection permission state', post_state);
+        if (post_state === 'denied') {
+          set_status_text('Mic is blocked at the browser level. Click the address-bar lock icon → reset Microphone → reload.');
+        } else {
+          set_status_text('Permission not granted. Click the mic again to retry.');
+        }
       } else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
-        set_status_text('No microphone detected');
+        set_status_text('No microphone detected.');
       } else if (name === 'NotReadableError') {
-        set_status_text('Mic in use by another app');
+        set_status_text('Microphone is in use by another app.');
       } else {
-        set_status_text(`Mic error: ${name}`);
+        set_status_text(`Microphone error: ${name || message || 'unknown'}`);
       }
       return;
     }
