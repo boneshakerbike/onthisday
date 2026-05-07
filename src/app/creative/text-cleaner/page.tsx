@@ -5,8 +5,9 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import NavTabs from '@/components/nav_tabs';
+import MicButton from '@/components/mic_button';
 
 interface TextNote {
   id: string;
@@ -30,6 +31,7 @@ export default function TextCleanerPage() {
   const [notes, set_notes] = useState<TextNote[]>([]);
   const [confirm_delete_id, set_confirm_delete_id] = useState<string | null>(null);
   const [confirm_delete_context, set_confirm_delete_context] = useState<'copy' | 'story' | null>(null);
+  const input_ref = useRef<HTMLTextAreaElement>(null);
 
   const fetch_notes = useCallback(async () => {
     try {
@@ -356,9 +358,13 @@ export default function TextCleanerPage() {
           <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
             <div className="bg-white/5 px-4 py-2 border-b border-white/10 flex justify-between items-center">
               <h3 className="font-medium text-gray-300">Your Text</h3>
-              <span className="text-xs text-gray-400">{input.length.toLocaleString()} chars</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400">{input.length.toLocaleString()} chars</span>
+                <MicButton textarea_ref={input_ref} value={input} on_change={set_input} />
+              </div>
             </div>
             <textarea
+              ref={input_ref}
               value={input}
               onChange={e => set_input(e.target.value)}
               placeholder="Paste or type what you're trying to say. Don't worry about grammar, spelling, or structure — just get it down."
