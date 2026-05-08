@@ -86,7 +86,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ trends });
+    // Fetch last 7 days for sparklines
+    const sevenDaysAgo = today - 6;
+    const sparklineResult = await db.execute({
+      sql: `SELECT * FROM daily_metrics WHERE date >= ? AND date <= ? ORDER BY date ASC`,
+      args: [sevenDaysAgo, today],
+    });
+
+    // Build a map of date -> row for the 7-day window
+    const dateToRow: Record<number, typeof sparklineResult.rows[0]> = {};
+    for (const row of sparklineResult.rows) {
+      dateToRow[Number(row.date)] = row;
+    }
+
+    const sparklines: Record<string, (number | null)[]> = {};
+    for (const [, def] of Object.entries(METRIC_CONFIG)) {
+      const vals: (number | null)[] = [];
+      for (let d = sevenDaysAgo; d <= today; d++) {
+        const row = dateToRow[d];
+        vals.push(row?.[def.dbColumn] != null ? Number(row[def.dbColumn]) : null);
+      }
+      sparklines[def.slug] = vals;
+    }
+
+    return NextResponse.json({ trends, sparklines });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to compute trends' },

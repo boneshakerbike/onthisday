@@ -97,6 +97,16 @@ export const METRIC_CONFIG: Record<string, MetricDef> = {
     deadZone: 3,
     chartable: false,
   },
+  weight: {
+    slug: 'weight',
+    label: 'Weight',
+    shortLabel: 'Weight',
+    unit: 'lbs',
+    dbColumn: 'weight_lbs',
+    higherIsBetter: false,
+    deadZone: 2,
+    chartable: true,
+  },
 };
 
 /** Look up a MetricDef by its URL slug */
