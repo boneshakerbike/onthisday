@@ -240,11 +240,8 @@ ${content}`
     });
 
   } catch (error) {
-    console.error('Clean text error:', error);
-    const is_prod = process.env.NODE_ENV === 'production';
-    return NextResponse.json(
-      { error: is_prod ? 'Failed to clean text' : (error instanceof Error ? error.message : 'Failed to clean text') },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('Clean text error:', message);
+    return NextResponse.json({ error: message || 'Failed to clean text' }, { status: 500 });
   }
 }
