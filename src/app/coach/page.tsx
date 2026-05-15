@@ -311,6 +311,13 @@ export default function CoachPage() {
             if (trendsData.sparklines) {
               setSparklines(trendsData.sparklines);
             }
+            if (trendsData.lastWeight) {
+              setMetrics(prev => ({
+                ...prev,
+                weight: prev?.weight ?? trendsData.lastWeight.value,
+                weight_stale: prev?.weight ? prev.weight_stale : trendsData.lastWeight.stale,
+              }));
+            }
           }
         } catch {
           // Best effort — arrows just won't show

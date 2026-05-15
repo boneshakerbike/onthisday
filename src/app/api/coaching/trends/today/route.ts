@@ -110,7 +110,16 @@ export async function POST(request: NextRequest) {
       sparklines[def.slug] = vals;
     }
 
-    return NextResponse.json({ trends, sparklines });
+    // Include last known weight so the card renders before session start
+    const weightRow = await db.execute({
+      sql: `SELECT date, weight_lbs FROM daily_metrics WHERE weight_lbs IS NOT NULL ORDER BY date DESC LIMIT 1`,
+      args: [],
+    });
+    const lastWeight = weightRow.rows.length > 0
+      ? { value: Number(weightRow.rows[0].weight_lbs), stale: Number(weightRow.rows[0].date) < today }
+      : null;
+
+    return NextResponse.json({ trends, sparklines, lastWeight });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to compute trends' },
