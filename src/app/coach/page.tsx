@@ -60,7 +60,10 @@ interface TrendInfo {
 }
 
 function TrendArrow({ trend }: { trend?: TrendInfo }) {
-  if (!trend || !trend.significant || trend.direction === 'stable') return null;
+  if (!trend) return null;
+  if (!trend.significant || trend.direction === 'stable') {
+    return <span className="text-xs ml-1 text-zinc-500">―</span>;
+  }
   const arrow = trend.direction === 'up' ? '\u25B2' : '\u25BC';
   const color = trend.healthImpact === 'positive' ? 'text-green-400'
     : trend.healthImpact === 'negative' ? 'text-red-400'
@@ -68,7 +71,36 @@ function TrendArrow({ trend }: { trend?: TrendInfo }) {
   return <span className={`text-xs ml-1 ${color}`}>{arrow}</span>;
 }
 
-function MetricCard({ label, value, unit, warn, trend, href }: { label: string; value: unknown; unit?: string; warn?: boolean; trend?: TrendInfo; href?: string }) {
+function Sparkline({ data }: { data: (number | null)[] }) {
+  const points = data.map((v, i) => ({ v, i })).filter(p => p.v != null) as { v: number; i: number }[];
+  if (points.length < 2) return null;
+
+  const W = 48, H = 16;
+  const xs = points.map(p => p.i);
+  const ys = points.map(p => p.v);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const rangeX = maxX - minX || 1;
+  const rangeY = maxY - minY || 1;
+
+  const toSVG = (i: number, v: number) => ({
+    x: ((i - minX) / rangeX) * W,
+    y: H - ((v - minY) / rangeY) * H,
+  });
+
+  const pts = points.map(p => {
+    const { x, y } = toSVG(p.i, p.v);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+
+  return (
+    <svg width={W} height={H} className="block mt-1" aria-hidden="true">
+      <polyline points={pts} fill="none" stroke="#60a5fa" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function MetricCard({ label, value, unit, warn, trend, sparkline, href }: { label: string; value: unknown; unit?: string; warn?: boolean; trend?: TrendInfo; sparkline?: (number | null)[]; href?: string }) {
   if (value === null || value === undefined) return null;
   const content = (
     <div className={`bg-zinc-900 border ${warn ? 'border-yellow-600' : 'border-zinc-800'} rounded-lg px-3 py-2 ${href ? 'cursor-pointer hover:border-zinc-600 transition-colors' : ''}`}>
@@ -77,6 +109,7 @@ function MetricCard({ label, value, unit, warn, trend, href }: { label: string; 
         {String(value)}{unit && <span className="text-sm text-gray-400 ml-0.5">{unit}</span>}
         <TrendArrow trend={trend} />
       </div>
+      {sparkline && <Sparkline data={sparkline} />}
     </div>
   );
   if (href) {
@@ -120,6 +153,7 @@ export default function CoachPage() {
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [dataInjection, setDataInjection] = useState('');
   const [trends, setTrends] = useState<Record<string, TrendInfo>>({});
+  const [sparklines, setSparklines] = useState<Record<string, (number | null)[]>>({});
 
   // History
   const [history, setHistory] = useState<HistorySession[]>([]);
@@ -277,6 +311,16 @@ export default function CoachPage() {
               trendMap[t.slug] = { direction: t.direction, healthImpact: t.healthImpact, significant: t.significant };
             }
             setTrends(trendMap);
+            if (trendsData.sparklines) {
+              setSparklines(trendsData.sparklines);
+            }
+            if (trendsData.lastWeight) {
+              setMetrics(prev => ({
+                ...prev,
+                weight: prev?.weight ?? trendsData.lastWeight.value,
+                weight_stale: prev?.weight ? prev.weight_stale : trendsData.lastWeight.stale,
+              }));
+            }
           }
         } catch {
           // Best effort — arrows just won't show
@@ -598,6 +642,7 @@ export default function CoachPage() {
                         <TrendArrow trend={trends['sleep-total']} />
                       </div>
                       <div className="text-xs text-gray-500">total</div>
+                      {sparklines['sleep-total'] && <Sparkline data={sparklines['sleep-total']} />}
                     </Link>
                     <Link href="/coach/metric/deep-sleep" className="hover:opacity-80 transition-opacity">
                       <div className="text-lg font-semibold text-white">
@@ -605,6 +650,7 @@ export default function CoachPage() {
                         <TrendArrow trend={trends['deep-sleep']} />
                       </div>
                       <div className="text-xs text-gray-500">deep</div>
+                      {sparklines['deep-sleep'] && <Sparkline data={sparklines['deep-sleep']} />}
                     </Link>
                     <Link href="/coach/metric/rem-sleep" className="hover:opacity-80 transition-opacity">
                       <div className="text-lg font-semibold text-white">
@@ -612,16 +658,18 @@ export default function CoachPage() {
                         <TrendArrow trend={trends['rem-sleep']} />
                       </div>
                       <div className="text-xs text-gray-500">REM</div>
+                      {sparklines['rem-sleep'] && <Sparkline data={sparklines['rem-sleep']} />}
                     </Link>
                   </div>
                 </div>
 
                 {/* Physiology row */}
-                <div className="grid grid-cols-4 gap-2">
-                  <MetricCard label="HRV" value={metrics.hrv} unit="ms" trend={trends['hrv']} href="/coach/metric/hrv" />
-                  <MetricCard label="Resting HR" value={metrics.resting_hr} unit="bpm" trend={trends['resting-hr']} href="/coach/metric/resting-hr" />
-                  <MetricCard label="Blood Oxygen" value={metrics.spo2 ? Math.round(metrics.spo2) : null} unit="%" trend={trends['spo2']} href="/coach/metric/spo2" />
-                  <MetricCard label="CV Age" value={metrics.cv_age} unit="yr" trend={trends['cv-age']} href="/coach/metric/cv-age" />
+                <div className="grid grid-cols-5 gap-2">
+                  <MetricCard label="HRV" value={metrics.hrv} unit="ms" trend={trends['hrv']} sparkline={sparklines['hrv']} href="/coach/metric/hrv" />
+                  <MetricCard label="Resting HR" value={metrics.resting_hr} unit="bpm" trend={trends['resting-hr']} sparkline={sparklines['resting-hr']} href="/coach/metric/resting-hr" />
+                  <MetricCard label="Blood Oxygen" value={metrics.spo2 ? Math.round(metrics.spo2) : null} unit="%" trend={trends['spo2']} sparkline={sparklines['spo2']} href="/coach/metric/spo2" />
+                  <MetricCard label="CV Age" value={metrics.cv_age} unit="yr" trend={trends['cv-age']} sparkline={sparklines['cv-age']} href="/coach/metric/cv-age" />
+                  <MetricCard label="Weight" value={metrics.weight} unit="lbs" warn={metrics.weight_stale} trend={trends['weight']} sparkline={sparklines['weight']} href="/coach/metric/weight" />
                 </div>
 
                 {/* Resilience / Stress-Recovery */}

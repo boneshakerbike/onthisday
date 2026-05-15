@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
           sql: `INSERT OR IGNORE INTO daily_metrics (
             date, sleep_duration_min, sleep_efficiency_pct, deep_sleep_min, rem_sleep_min,
             hrv_rmssd, resting_hr, readiness_score, cardiovascular_age, spo2_average,
-            created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            weight_lbs, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           args: [
             today,
             liveMetrics.sleep_duration_min ?? null,
@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
             liveMetrics.readiness_score ?? null,
             cv_age,
             liveMetrics.spo2_average ?? null,
+            liveMetrics.weight_lbs ?? null,
             now, now,
           ],
         });
@@ -86,7 +87,39 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ trends });
+    // Fetch last 7 days for sparklines
+    const sevenDaysAgo = today - 6;
+    const sparklineResult = await db.execute({
+      sql: `SELECT * FROM daily_metrics WHERE date >= ? AND date <= ? ORDER BY date ASC`,
+      args: [sevenDaysAgo, today],
+    });
+
+    // Build a map of date -> row for the 7-day window
+    const dateToRow: Record<number, typeof sparklineResult.rows[0]> = {};
+    for (const row of sparklineResult.rows) {
+      dateToRow[Number(row.date)] = row;
+    }
+
+    const sparklines: Record<string, (number | null)[]> = {};
+    for (const [, def] of Object.entries(METRIC_CONFIG)) {
+      const vals: (number | null)[] = [];
+      for (let d = sevenDaysAgo; d <= today; d++) {
+        const row = dateToRow[d];
+        vals.push(row?.[def.dbColumn] != null ? Number(row[def.dbColumn]) : null);
+      }
+      sparklines[def.slug] = vals;
+    }
+
+    // Include last known weight so the card renders before session start
+    const weightRow = await db.execute({
+      sql: `SELECT date, weight_lbs FROM daily_metrics WHERE weight_lbs IS NOT NULL ORDER BY date DESC LIMIT 1`,
+      args: [],
+    });
+    const lastWeight = weightRow.rows.length > 0
+      ? { value: Number(weightRow.rows[0].weight_lbs), stale: Number(weightRow.rows[0].date) < today }
+      : null;
+
+    return NextResponse.json({ trends, sparklines, lastWeight });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Failed to compute trends' },
