@@ -60,7 +60,10 @@ interface TrendInfo {
 }
 
 function TrendArrow({ trend }: { trend?: TrendInfo }) {
-  if (!trend || !trend.significant || trend.direction === 'stable') return null;
+  if (!trend) return null;
+  if (!trend.significant || trend.direction === 'stable') {
+    return <span className="text-xs ml-1 text-zinc-500">―</span>;
+  }
   const arrow = trend.direction === 'up' ? '\u25B2' : '\u25BC';
   const color = trend.healthImpact === 'positive' ? 'text-green-400'
     : trend.healthImpact === 'negative' ? 'text-red-400'
