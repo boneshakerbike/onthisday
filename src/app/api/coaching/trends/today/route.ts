@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
           sql: `INSERT OR IGNORE INTO daily_metrics (
             date, sleep_duration_min, sleep_efficiency_pct, deep_sleep_min, rem_sleep_min,
             hrv_rmssd, resting_hr, readiness_score, cardiovascular_age, spo2_average,
-            created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            weight_lbs, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           args: [
             today,
             liveMetrics.sleep_duration_min ?? null,
@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
             liveMetrics.readiness_score ?? null,
             cv_age,
             liveMetrics.spo2_average ?? null,
+            liveMetrics.weight_lbs ?? null,
             now, now,
           ],
         });
