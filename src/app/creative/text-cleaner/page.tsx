@@ -5,9 +5,8 @@
 
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import NavTabs from '@/components/nav_tabs';
-import MicButton from '@/components/mic_button';
 
 interface TextNote {
   id: string;
@@ -31,10 +30,6 @@ export default function TextCleanerPage() {
   const [notes, set_notes] = useState<TextNote[]>([]);
   const [confirm_delete_id, set_confirm_delete_id] = useState<string | null>(null);
   const [confirm_delete_context, set_confirm_delete_context] = useState<'copy' | 'story' | null>(null);
-  const input_ref = useRef<HTMLTextAreaElement>(null);
-  const cleaned_ref = useRef<HTMLTextAreaElement>(null);
-  const story_ref = useRef<HTMLTextAreaElement>(null);
-
   const fetch_notes = useCallback(async () => {
     try {
       const res = await fetch('/api/text-notes');
@@ -362,11 +357,9 @@ export default function TextCleanerPage() {
               <h3 className="font-medium text-gray-300">Your Text</h3>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-400">{input.length.toLocaleString()} chars</span>
-                <MicButton textarea_ref={input_ref} value={input} on_change={set_input} disabled={!!loading_action} />
               </div>
             </div>
             <textarea
-              ref={input_ref}
               value={input}
               onChange={e => set_input(e.target.value)}
               placeholder="Paste or type what you're trying to say. Don't worry about grammar, spelling, or structure — just get it down."
@@ -442,11 +435,9 @@ export default function TextCleanerPage() {
                   >
                     Copy
                   </button>
-                  <MicButton textarea_ref={cleaned_ref} value={cleaned} on_change={set_cleaned} disabled={!!loading_action} />
                 </div>
               </div>
               <textarea
-                ref={cleaned_ref}
                 value={cleaned}
                 onChange={e => set_cleaned(e.target.value)}
                 className="w-full p-4 font-mono text-sm resize-none focus:outline-none bg-transparent text-gray-200"
@@ -479,11 +470,9 @@ export default function TextCleanerPage() {
                   >
                     Copy
                   </button>
-                  <MicButton textarea_ref={story_ref} value={story} on_change={set_story} disabled={!!loading_action} />
                 </div>
               </div>
               <textarea
-                ref={story_ref}
                 value={story}
                 onChange={e => set_story(e.target.value)}
                 className="w-full p-4 font-mono text-sm resize-none focus:outline-none bg-transparent text-gray-200"
