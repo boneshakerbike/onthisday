@@ -40,14 +40,10 @@ export async function POST(request: NextRequest) {
     const { content, mode } = body;
 
     if (mode === 'substack') {
-      const { opening_scene, current_situation, outcome, images } = body;
+      const { story_text, images } = body;
 
-      if (
-        !opening_scene || typeof opening_scene !== 'string' || !opening_scene.trim() ||
-        !current_situation || typeof current_situation !== 'string' || !current_situation.trim() ||
-        !outcome || typeof outcome !== 'string' || !outcome.trim()
-      ) {
-        return NextResponse.json({ error: 'opening_scene, current_situation, and outcome are required' }, { status: 400 });
+      if (!story_text || typeof story_text !== 'string' || !story_text.trim()) {
+        return NextResponse.json({ error: 'story_text is required' }, { status: 400 });
       }
 
       if (images !== undefined) {
@@ -62,21 +58,13 @@ export async function POST(request: NextRequest) {
 
       const client = new Anthropic({ apiKey: api_key });
 
-      const prompt_text = `You will be acting as a creative story generator that helps users transform their experiences into engaging narratives.
+      const prompt_text = `You will be acting as a creative story generator that helps users transform their experiences into engaging Substack narratives.
 
-## Direct Mode: Pre-Provided Inputs
+## Story Input
 
-<opening_scene>
-${opening_scene}
-</opening_scene>
-
-<current_situation>
-${current_situation}
-</current_situation>
-
-<outcome>
-${outcome}
-</outcome>
+<story>
+${story_text.trim()}
+</story>
 
 <images>
 ${images && images.length > 0 ? 'See the images attached above in this message.' : 'No images provided.'}
@@ -84,12 +72,11 @@ ${images && images.length > 0 ? 'See the images attached above in this message.'
 
 ## Story Generation Instructions
 
-Generate a story following these guidelines:
+Transform the story above into a polished Substack post following these guidelines:
 
 **Narrative Structure:**
-- Begin with vivid, high-energy storytelling of the opening scene from the past experience. Leave the outcome partly open-ended to create suspense.
-- Transition naturally to the current situation, showing contrast between past and present.
-- Connect the past and present by showing how the earlier outcome offers insight, hope, or a lesson for the current challenge.
+- Preserve the author's structure and flow — do not reorganize or impose a different paragraph count.
+- Enhance the storytelling with vivid detail, natural pacing, and emotional resonance.
 - Write as one continuous narrative with no section headers or breaks.
 
 **Style Calibration:**
