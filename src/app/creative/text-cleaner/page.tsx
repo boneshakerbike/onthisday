@@ -256,12 +256,6 @@ export default function TextCleanerPage() {
   const generate_substack = async () => {
     if (!story.trim()) return;
 
-    const paragraphs = story.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
-    if (paragraphs.length !== 3) {
-      set_error('Story must contain exactly 3 paragraphs separated by blank lines');
-      return;
-    }
-
     set_loading_action('substack');
     set_error(null);
     set_substack('');
@@ -275,9 +269,7 @@ export default function TextCleanerPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mode: 'substack',
-          opening_scene: paragraphs[0],
-          current_situation: paragraphs[1],
-          outcome: paragraphs[2],
+          story_text: story.trim(),
           images: resized,
         }),
       });
@@ -311,7 +303,7 @@ export default function TextCleanerPage() {
           What Am I Trying To Say
         </h1>
         <p className="text-center text-gray-400 mb-8">
-          Clean up your ramble, then turn it into a three-paragraph story
+          Clean up your ramble, then turn it into a story
         </p>
 
         {/* Copy toast */}
