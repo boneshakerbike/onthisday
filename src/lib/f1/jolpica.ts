@@ -101,7 +101,7 @@ export class JolpicaAdapter implements F1DataAdapter {
     const race = data.RaceTable?.Races?.[0];
 
     if (!race) {
-      throw new Error(`No results found for ${season} round ${round} ${session_type}`);
+      throw new Error(`Results not yet available for ${season} round ${round} ${session_type} — the F1 data API may still be processing. Try again in a couple of hours.`);
     }
 
     if (session_type === 'sprint_qualifying') {
