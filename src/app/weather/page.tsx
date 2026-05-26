@@ -127,7 +127,7 @@ export default function WeatherPage() {
   async function fetch_weather() {
     try {
       const res = await fetch(API_URL);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(`Open-Meteo API returned HTTP ${res.status}`);
       const json = await res.json();
       set_data(json as WeatherData);
       set_error(null);
@@ -136,7 +136,7 @@ export default function WeatherPage() {
         now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
       );
     } catch (e) {
-      set_error(e instanceof Error ? e.message : 'Failed to fetch weather');
+      set_error(e instanceof Error ? e.message : 'Open-Meteo API is unreachable');
     }
   }
 
@@ -372,8 +372,19 @@ export default function WeatherPage() {
       {error && !data && (
         <div style={styles.error_state}>
           <span>⚠️</span>
-          <span>Unable to load weather data</span>
-          <span style={{ fontSize: '1rem', color: '#555' }}>{error}</span>
+          <span>Weather data unavailable</span>
+          <span style={{ fontSize: '1rem', color: '#555' }}>
+            This is not an app error — the external weather service is down.
+          </span>
+          <span style={{ fontSize: '0.95rem', color: '#666' }}>{error}</span>
+          <a
+            href="https://open-meteo.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ fontSize: '0.95rem', color: '#6ab0f5', textDecoration: 'underline' }}
+          >
+            Check Open-Meteo status
+          </a>
         </div>
       )}
 
