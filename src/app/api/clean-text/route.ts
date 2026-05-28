@@ -148,9 +148,12 @@ captions
         messages: [{ role: 'user', content: content_blocks }],
       });
 
-      const substack_text = substack_result.content[0].type === 'text'
+      const substack_raw = substack_result.content[0].type === 'text'
         ? substack_result.content[0].text.trim()
         : '';
+      const substack_text = substack_raw
+        .replace(/\s*—\s*/g, ', ')
+        .replace(/\s*–\s*/g, ', ');
 
       return NextResponse.json({
         success: true,
@@ -186,13 +189,13 @@ captions
 2) Conflict or confusion
 3) How it ended (resolution)
 
-Preserve the original meaning, facts, voice, and grammatical person — if the text uses "I", keep it first person. Do not add major new details. Improve flow and clarity.
+Preserve the original meaning, facts, voice, and grammatical person — if the text uses "I", keep it first person. Do not add major new details. Improve flow and clarity. Do not use em dashes — use commas, ellipses, or semicolons instead.
 
 Return only the story text as exactly three paragraphs. No commentary, no quotes, no headings.
 
 Text:
 ${content}`
-            : `Rewrite the following text so it reads naturally and is easy to understand. Fix all spelling, grammar, and punctuation errors. Keep the author's voice and tone — don't make it sound corporate or robotic. If a sentence is confusing, rewrite it simply instead of just rearranging words. Keep it concise but don't cut anything important.
+            : `Rewrite the following text so it reads naturally and is easy to understand. Fix all spelling, grammar, and punctuation errors. Keep the author's voice and tone — don't make it sound corporate or robotic. If a sentence is confusing, rewrite it simply instead of just rearranging words. Keep it concise but don't cut anything important. Do not use em dashes — use commas, ellipses, or semicolons instead.
 
 Return only the cleaned text. No commentary, no quotes, no preamble.
 
@@ -202,9 +205,12 @@ ${content}`
       ]
     });
 
-    const cleaned = result.content[0].type === 'text'
+    const cleaned_raw = result.content[0].type === 'text'
       ? result.content[0].text.trim()
       : '';
+    const cleaned = cleaned_raw
+      .replace(/\s*—\s*/g, ', ')
+      .replace(/\s*–\s*/g, ', ');
 
     if (operation === 'story') {
       return NextResponse.json({
