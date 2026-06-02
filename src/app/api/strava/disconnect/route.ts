@@ -1,6 +1,6 @@
 /**
  * API route: DELETE /api/strava/disconnect
- * Deauthorizes the Strava token and removes all stored tokens/cache
+ * Revokes the Strava token (oauth/revoke) and removes all stored tokens/cache
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -20,16 +20,21 @@ export async function DELETE(request: NextRequest) {
   try {
     const tokens = await get_strava_tokens();
 
-    // Deauthorize on Strava's side so the token is fully revoked
+    // Revoke on Strava's side so the token is fully invalidated.
+    // Uses oauth/revoke (oauth/deauthorize is retired June 1, 2027).
     if (tokens) {
       try {
-        await fetch(
-          `https://www.strava.com/oauth/deauthorize?access_token=${tokens.access_token}`,
-          { method: 'POST' }
-        );
+        const revoke_res = await fetch('https://www.strava.com/oauth/revoke', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ access_token: tokens.access_token }),
+        });
+        if (!revoke_res.ok) {
+          console.warn('Strava revoke returned non-OK:', revoke_res.status, await revoke_res.text());
+        }
       } catch (err) {
         // Log but don't block local cleanup
-        console.warn('Strava deauthorize call failed:', err);
+        console.warn('Strava revoke call failed:', err);
       }
     }
 
