@@ -244,13 +244,16 @@ export async function build_data_injection(
     if (cv_age?.vascular_age) {
       lines.push(`Cardiovascular age: ${cv_age.vascular_age}`);
       metrics.cv_age = cv_age.vascular_age;
-    } else if (hrv_val && rhr_val) {
+    } else if (hrv_val && hrv_val > 0 && rhr_val) {
       // Estimate CV age from HRV + RHR (Umetani regression)
+      // hrv_val must be > 0 — Math.log(0) = -Infinity
       const hrv_age = 107 - (12.5 * Math.log(hrv_val));
       const rhr_age = 1.4 * rhr_val - 40;
       const estimated_cv_age = Math.round(0.65 * hrv_age + 0.35 * rhr_age);
-      lines.push(`Cardiovascular age: ~${estimated_cv_age} (estimated from HRV + RHR)`);
-      metrics.cv_age = estimated_cv_age;
+      if (isFinite(estimated_cv_age)) {
+        lines.push(`Cardiovascular age: ~${estimated_cv_age} (estimated from HRV + RHR)`);
+        metrics.cv_age = estimated_cv_age;
+      }
     }
 
     if (stress) {
