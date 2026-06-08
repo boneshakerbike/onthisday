@@ -275,10 +275,12 @@ export async function populate_daily_metrics(
   }
 
   // Estimate CV age from HRV + RHR if Oura didn't provide it directly
-  if (cardiovascular_age == null && hrv_rmssd != null && resting_hr != null) {
+  // hrv_rmssd must be > 0 — Math.log(0) = -Infinity which poisons the INSERT
+  if (cardiovascular_age == null && hrv_rmssd != null && hrv_rmssd > 0 && resting_hr != null) {
     const hrv_age = 107 - (12.5 * Math.log(hrv_rmssd));
     const rhr_age = 1.4 * resting_hr - 40;
-    cardiovascular_age = Math.round(0.65 * hrv_age + 0.35 * rhr_age);
+    const estimated = Math.round(0.65 * hrv_age + 0.35 * rhr_age);
+    if (isFinite(estimated)) cardiovascular_age = estimated;
   }
 
   // Extract COROS fields

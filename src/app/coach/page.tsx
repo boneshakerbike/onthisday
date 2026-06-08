@@ -267,10 +267,12 @@ export default function CoachPage() {
         }
 
         // Estimate cardiovascular age from HRV + RHR (Umetani regression)
-        if (m.hrv && m.resting_hr) {
+        // hrv must be > 0 — Math.log(0) = -Infinity
+        if (m.hrv && m.hrv > 0 && m.resting_hr) {
           const hrv_age = 107 - (12.5 * Math.log(m.hrv));
           const rhr_age = 1.4 * m.resting_hr - 40;
-          m.cv_age = Math.round(0.65 * hrv_age + 0.35 * rhr_age);
+          const estimated = Math.round(0.65 * hrv_age + 0.35 * rhr_age);
+          if (isFinite(estimated)) m.cv_age = estimated;
         }
 
         if (stravaActivities.length > 0) {
