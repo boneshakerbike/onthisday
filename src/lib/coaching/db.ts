@@ -212,6 +212,10 @@ export interface InjectMetrics {
   restored_min?: number | null;
 }
 
+// Coerce NaN/Infinity to null so libSQL never receives a non-finite number
+const fin = (v: number | null | undefined): number | null =>
+  v != null && isFinite(v) ? v : null;
+
 export async function populate_daily_metrics(
   date_str: string,
   epoch_day: number,
@@ -320,11 +324,11 @@ export async function populate_daily_metrics(
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
       epoch_day,
-      sleep_duration_min, sleep_efficiency_pct, deep_sleep_min, rem_sleep_min,
-      hrv_rmssd, resting_hr, readiness_score, cardiovascular_age, spo2_average,
-      vo2_max, training_load_acute, training_load_chronic, recovery_pct,
+      fin(sleep_duration_min), fin(sleep_efficiency_pct), fin(deep_sleep_min), fin(rem_sleep_min),
+      fin(hrv_rmssd), fin(resting_hr), fin(readiness_score), fin(cardiovascular_age), fin(spo2_average),
+      fin(vo2_max), fin(training_load_acute), fin(training_load_chronic), fin(recovery_pct),
       null, null, // zone2_min_weekly, vo2max_intervals_weekly — computed separately
-      manual?.weight_lbs ?? null, manual?.back_pain_scale ?? null,
+      fin(manual?.weight_lbs ?? null), fin(manual?.back_pain_scale ?? null),
       manual?.back_mobility_notes ?? null, manual?.bowel_status ?? null, manual?.injury_notes ?? null,
       now, now,
     ],

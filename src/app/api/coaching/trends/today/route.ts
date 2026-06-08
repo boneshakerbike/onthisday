@@ -34,12 +34,18 @@ export async function POST(request: NextRequest) {
       });
 
       if (existing.rows.length === 0) {
+        const fin = (v: number | null | undefined): number | null =>
+          v != null && isFinite(v) ? v : null;
+
         // Estimate CV age from HRV + RHR if not provided directly
-        let cv_age = liveMetrics.cardiovascular_age ?? null;
-        if (cv_age == null && liveMetrics.hrv_rmssd != null && liveMetrics.resting_hr != null) {
-          const hrv_age = 107 - (12.5 * Math.log(liveMetrics.hrv_rmssd));
-          const rhr_age = 1.4 * liveMetrics.resting_hr - 40;
-          cv_age = Math.round(0.65 * hrv_age + 0.35 * rhr_age);
+        let cv_age = fin(liveMetrics.cardiovascular_age);
+        const hrv = fin(liveMetrics.hrv_rmssd);
+        const rhr = fin(liveMetrics.resting_hr);
+        if (cv_age == null && hrv != null && hrv > 0 && rhr != null) {
+          const hrv_age = 107 - (12.5 * Math.log(hrv));
+          const rhr_age = 1.4 * rhr - 40;
+          const est = Math.round(0.65 * hrv_age + 0.35 * rhr_age);
+          if (isFinite(est)) cv_age = est;
         }
 
         await db.execute({
@@ -50,16 +56,10 @@ export async function POST(request: NextRequest) {
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           args: [
             today,
-            liveMetrics.sleep_duration_min ?? null,
-            liveMetrics.sleep_efficiency_pct ?? null,
-            liveMetrics.deep_sleep_min ?? null,
-            liveMetrics.rem_sleep_min ?? null,
-            liveMetrics.hrv_rmssd ?? null,
-            liveMetrics.resting_hr ?? null,
-            liveMetrics.readiness_score ?? null,
-            cv_age,
-            liveMetrics.spo2_average ?? null,
-            liveMetrics.weight_lbs ?? null,
+            fin(liveMetrics.sleep_duration_min), fin(liveMetrics.sleep_efficiency_pct),
+            fin(liveMetrics.deep_sleep_min), fin(liveMetrics.rem_sleep_min),
+            hrv, rhr, fin(liveMetrics.readiness_score), cv_age, fin(liveMetrics.spo2_average),
+            fin(liveMetrics.weight_lbs),
             now, now,
           ],
         });
