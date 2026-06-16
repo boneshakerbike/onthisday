@@ -21,6 +21,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const body = await request.json();
     const content = typeof body.content === 'string' ? body.content.trim() : '';
     const blurb = typeof body.blurb === 'string' ? body.blurb.trim() : body.blurb === null ? null : undefined;
+    const image_url = typeof body.image_url === 'string' ? body.image_url.trim() || null : body.image_url === null ? null : undefined;
 
     if (!content) {
       return NextResponse.json(
@@ -29,7 +30,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       );
     }
 
-    const story = await update_story(id, content, blurb);
+    const story = await update_story(id, content, blurb, image_url);
 
     if (!story) {
       return NextResponse.json(

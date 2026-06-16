@@ -682,7 +682,8 @@ export async function get_story(id: string): Promise<Story | null> {
 export async function update_story(
   id: string,
   content: string,
-  blurb?: string | null
+  blurb?: string | null,
+  image_url?: string | null
 ): Promise<Story | null> {
   await ensure_schema();
   const db = get_client();
@@ -695,10 +696,15 @@ export async function update_story(
   await db.execute({
     sql: `
       UPDATE stories
-      SET content = ?, blurb = ?, edited_at = CURRENT_TIMESTAMP
+      SET content = ?, blurb = ?, image_url = ?, edited_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `,
-    args: [content, blurb === undefined ? existing.blurb : blurb, id]
+    args: [
+      content,
+      blurb === undefined ? existing.blurb : blurb,
+      image_url === undefined ? existing.image_url : image_url,
+      id,
+    ]
   });
 
   return get_story(id);

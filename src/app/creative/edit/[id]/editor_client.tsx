@@ -12,6 +12,7 @@ interface EditorStory {
   date_display: string;
   content: string;
   blurb: string | null;
+  image_url: string | null;
   edited_at: string | null;
 }
 
@@ -28,6 +29,8 @@ export default function StoryEditor({
 }: StoryEditorProps) {
   const [content, set_content] = useState(story.content);
   const [blurb, set_blurb] = useState(story.blurb || '');
+  const [image_url, set_image_url] = useState(story.image_url || '');
+  const [image_failed, set_image_failed] = useState(false);
   const [audit, set_audit] = useState(initial_audit);
   const [audit_updated_at, set_audit_updated_at] = useState(initial_audit_updated_at);
   const [saving, set_saving] = useState(false);
@@ -52,6 +55,7 @@ export default function StoryEditor({
         body: JSON.stringify({
           content,
           blurb: blurb.trim() || null,
+          image_url: image_url.trim() || null,
         }),
       });
 
@@ -177,6 +181,48 @@ export default function StoryEditor({
                 className="mb-5 min-h-24 w-full rounded-2xl border border-white/10 bg-[#0b1220] px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-300/50"
                 spellCheck={false}
               />
+              <label className="mb-2 block text-sm text-slate-300" htmlFor="story-image-url">
+                Image URL
+              </label>
+              <div className="mb-5 flex gap-2">
+                <input
+                  id="story-image-url"
+                  type="url"
+                  value={image_url}
+                  onChange={(event) => {
+                    set_image_url(event.target.value);
+                    set_image_failed(false);
+                  }}
+                  placeholder="https://…"
+                  className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-[#0b1220] px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-300/50"
+                  spellCheck={false}
+                />
+                {image_url && (
+                  <button
+                    type="button"
+                    onClick={() => { set_image_url(''); set_image_failed(false); }}
+                    className="shrink-0 rounded-2xl border border-white/10 px-3 py-2 text-xs text-slate-400 transition hover:border-red-400/40 hover:text-red-300"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              {image_url && !image_failed && (
+                <div className="mb-5 overflow-hidden rounded-2xl border border-white/10">
+                  <img
+                    src={image_url}
+                    alt="Story image preview"
+                    referrerPolicy="no-referrer"
+                    className="w-full object-cover"
+                    onError={() => set_image_failed(true)}
+                  />
+                </div>
+              )}
+              {image_url && image_failed && (
+                <p className="mb-5 rounded-2xl border border-amber-400/20 bg-amber-400/5 px-4 py-3 text-xs text-amber-300">
+                  Image failed to load — the URL may be invalid or hotlink-protected.
+                </p>
+              )}
               <div className="mb-3 flex items-center justify-between">
                 <label className="block text-sm text-slate-300" htmlFor="story-html">
                   Story HTML

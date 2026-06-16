@@ -31,6 +31,7 @@ export default async function CreativeEditPage({ params }: PageProps) {
         date_display: story.date_display,
         content: story.content,
         blurb: story.blurb,
+        image_url: story.image_url,
         edited_at: story.edited_at,
       }}
       initial_audit={audit_record?.audit || null}
