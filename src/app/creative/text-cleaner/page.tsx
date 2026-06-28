@@ -47,36 +47,39 @@ export default function TextCleanerPage() {
     fetch_notes();
   }, [fetch_notes]);
 
-  useEffect(() => {
-    if (!error) return;
-    const t = setTimeout(() => set_error(null), 6000);
-    return () => clearTimeout(t);
-  }, [error]);
-
   // Save to localStorage after hydration (hydrated guard prevents overwriting saved data on first render)
   useEffect(() => {
     if (!hydrated.current) return;
-    const has_content = input || cleaned || story;
-    if (has_content) {
-      localStorage.setItem('waits_v', '1');
-      if (input) localStorage.setItem('waits_input', input); else localStorage.removeItem('waits_input');
-      if (cleaned) localStorage.setItem('waits_cleaned', cleaned); else localStorage.removeItem('waits_cleaned');
-      if (story) localStorage.setItem('waits_story', story); else localStorage.removeItem('waits_story');
-    } else {
-      ['waits_v', 'waits_input', 'waits_cleaned', 'waits_story'].forEach(k => localStorage.removeItem(k));
+    try {
+      const has_content = input || cleaned || story;
+      if (has_content) {
+        localStorage.setItem('waits_v', '1');
+        if (input) localStorage.setItem('waits_input', input); else localStorage.removeItem('waits_input');
+        if (cleaned) localStorage.setItem('waits_cleaned', cleaned); else localStorage.removeItem('waits_cleaned');
+        if (story) localStorage.setItem('waits_story', story); else localStorage.removeItem('waits_story');
+      } else {
+        ['waits_v', 'waits_input', 'waits_cleaned', 'waits_story'].forEach(k => localStorage.removeItem(k));
+      }
+    } catch {
+      // localStorage unavailable (sandboxed iframe, private mode, quota) — persistence is best-effort
     }
   }, [input, cleaned, story]);
 
   // Restore from localStorage on mount; version key guards against stale schema
   useEffect(() => {
-    if (localStorage.getItem('waits_v') !== '1') { hydrated.current = true; return; }
-    const saved_input   = localStorage.getItem('waits_input');
-    const saved_cleaned = localStorage.getItem('waits_cleaned');
-    const saved_story   = localStorage.getItem('waits_story');
-    if (saved_input)   set_input(saved_input);
-    if (saved_cleaned) set_cleaned(saved_cleaned);
-    if (saved_story)   set_story(saved_story);
-    hydrated.current = true;
+    try {
+      if (localStorage.getItem('waits_v') !== '1') { hydrated.current = true; return; }
+      const saved_input   = localStorage.getItem('waits_input');
+      const saved_cleaned = localStorage.getItem('waits_cleaned');
+      const saved_story   = localStorage.getItem('waits_story');
+      if (saved_input)   set_input(saved_input);
+      if (saved_cleaned) set_cleaned(saved_cleaned);
+      if (saved_story)   set_story(saved_story);
+    } catch {
+      // localStorage unavailable — skip restore
+    } finally {
+      hydrated.current = true;
+    }
   }, []);
 
   const clean = async () => {
