@@ -46,6 +46,12 @@ export default function TextCleanerPage() {
     fetch_notes();
   }, [fetch_notes]);
 
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(() => set_error(null), 6000);
+    return () => clearTimeout(t);
+  }, [error]);
+
   const clean = async () => {
     if (!input.trim()) return;
 
@@ -73,7 +79,7 @@ export default function TextCleanerPage() {
       set_cleaned(data.cleaned);
       set_clean_usage(data.usage);
     } catch {
-      set_error('Network error — try again');
+      set_error('Couldn\'t clean text — try again');
     } finally {
       set_loading_action(null);
     }
@@ -105,7 +111,7 @@ export default function TextCleanerPage() {
       set_story(data.story);
       set_story_usage(data.usage);
     } catch {
-      set_error('Network error — try again');
+      set_error('Couldn\'t build story — try again');
     } finally {
       set_loading_action(null);
     }
@@ -158,7 +164,7 @@ export default function TextCleanerPage() {
       set_copy_status('Note saved!');
       setTimeout(() => set_copy_status(null), 2000);
     } catch {
-      set_error('Network error — try again');
+      set_error('Couldn\'t save note — try again');
     } finally {
       set_loading_action(null);
     }
@@ -181,7 +187,7 @@ export default function TextCleanerPage() {
 
       await fetch_notes();
     } catch {
-      set_error('Network error — try again');
+      set_error('Couldn\'t delete note — try again');
     } finally {
       set_loading_action(null);
       set_confirm_delete_id(null);
@@ -279,7 +285,7 @@ export default function TextCleanerPage() {
       set_substack(data.substack);
       set_substack_usage(data.usage);
     } catch {
-      set_error('Network error — try again');
+      set_error('Couldn\'t generate Substack post — try again');
     } finally {
       set_loading_action(null);
     }
@@ -391,8 +397,9 @@ export default function TextCleanerPage() {
 
           {/* Error */}
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
-              {error}
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm flex items-center justify-between gap-3">
+              <span>{error}</span>
+              <button onClick={() => set_error(null)} className="text-red-400/60 hover:text-red-400 transition-colors shrink-0">✕</button>
             </div>
           )}
 
