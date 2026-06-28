@@ -209,6 +209,7 @@ export default function StoryEditor({
               </div>
               {image_url && !image_failed && (
                 <div className="mb-5 overflow-hidden rounded-2xl border border-white/10">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary external story image URL, next/image needs domain allowlist */}
                   <img
                     src={image_url}
                     alt="Story image preview"

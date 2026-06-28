@@ -8,7 +8,8 @@ import { getToken } from 'next-auth/jwt';
 import Anthropic from '@anthropic-ai/sdk';
 import { MODELS } from '@/lib/models';
 
-export const maxDuration = 60;
+// Substack generation with vision can run long; Vercel Pro allows up to 300s.
+export const maxDuration = 300;
 
 async function require_auth(request: NextRequest): Promise<NextResponse | null> {
   const token = await getToken({ req: request });
