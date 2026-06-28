@@ -1,8 +1,9 @@
 /**
  * NavTabs - Main navigation header
- * Tabs: Home | Creative | Tools | Health | Games
- * Tools dropdown sourced from src/lib/tools.ts
- * Dropdowns use Radix UI for collision-safe positioning and accessibility.
+ * Desktop (md+): Radix UI horizontal dropdown bar — Home | Creative | Tools | Health | Games | Weather.
+ * Mobile (< md): hamburger -> single-open accordion drawer (same link sets).
+ * Wordmark "8i11" shown in the header at all breakpoints.
+ * Tools dropdown/group sourced from src/lib/tools.ts; section accents from src/lib/sections.ts.
  */
 
 'use client';
@@ -13,65 +14,82 @@ import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { TOOLS } from '@/lib/tools';
+import { SECTION_ACCENTS } from '@/lib/sections';
 
 interface NavTabsProps {
   theme?: 'dark' | 'light';
 }
 
+interface NavItem {
+  label: string;
+  href: string;
+}
+
 export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const nav_ref = useRef<HTMLElement>(null);
-  const has_peeked = useRef(false);
-  const [can_scroll_left, set_can_scroll_left] = useState(false);
-  const [can_scroll_right, set_can_scroll_right] = useState(false);
+  const mobile_ref = useRef<HTMLElement>(null);
+  const hamburger_ref = useRef<HTMLButtonElement>(null);
   const [is_local, set_is_local] = useState(false);
+  const [menu_open, set_menu_open] = useState(false);
+  const [open_nav, set_open_nav] = useState<string | null>(null);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- SSR-safe: window only accessible client-side
   useEffect(() => { set_is_local(window.location.hostname === 'localhost'); }, []);
 
   const is_light = theme === 'light';
+  const is_guest = (session?.user as { id?: string })?.id === 'guest';
+  const show_coach = !!session && !is_guest;
 
-  // Track nav scroll position for fade indicators
+  // Escape to close (return focus to hamburger) + click outside to close
   useEffect(() => {
-    const nav = nav_ref.current;
-    if (!nav) return;
-    const check_scroll = () => {
-      set_can_scroll_left(nav.scrollLeft > 0);
-      set_can_scroll_right(nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 1);
+    if (!menu_open) return;
+    const on_key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { set_menu_open(false); hamburger_ref.current?.focus(); }
     };
-    check_scroll();
-    nav.addEventListener('scroll', check_scroll);
-    const observer = new ResizeObserver(check_scroll);
-    observer.observe(nav);
+    const on_pointer = (e: PointerEvent) => {
+      if (mobile_ref.current && !mobile_ref.current.contains(e.target as Node)) set_menu_open(false);
+    };
+    document.addEventListener('keydown', on_key);
+    document.addEventListener('pointerdown', on_pointer);
     return () => {
-      nav.removeEventListener('scroll', check_scroll);
-      observer.disconnect();
+      document.removeEventListener('keydown', on_key);
+      document.removeEventListener('pointerdown', on_pointer);
     };
-  }, []);
-
-  // Scroll-peek animation on mount
-  useEffect(() => {
-    const nav = nav_ref.current;
-    if (!nav || has_peeked.current) return;
-    let t2: ReturnType<typeof setTimeout>;
-    const t1 = setTimeout(() => {
-      if (nav.scrollWidth <= nav.clientWidth) return;
-      has_peeked.current = true;
-      nav.scrollTo({ left: 48 });
-      t2 = setTimeout(() => {
-        nav.scrollTo({ left: 0, behavior: 'smooth' });
-      }, 600);
-    }, 300);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, []);
-
+  }, [menu_open]);
 
   const is_active = (path: string) => {
     if (path === '/') return pathname === '/';
     return pathname.startsWith(path);
   };
 
+  // --- Shared link sets (Tools is data-driven; Coach is auth-gated) ---
+  const creative_items: NavItem[] = [
+    { label: 'On This Day', href: '/creative' },
+    { label: 'Archive', href: '/creative/archive' },
+    { label: 'What Am I Trying To Say', href: '/creative/text-cleaner' },
+  ];
+  const tools_items: NavItem[] = TOOLS.map((t) => ({ label: t.label, href: t.path }));
+  const health_items: NavItem[] = [
+    ...(show_coach ? [{ label: 'Coach', href: '/coach' }] : []),
+    { label: 'Oura', href: '/health/oura' },
+    { label: 'Strava', href: '/health/strava' },
+    { label: 'COROS', href: '/health/coros' },
+  ];
+  const games_items: NavItem[] = [
+    { label: 'Frogger', href: '/games/frogger' },
+    { label: 'Breakout', href: '/games/breakout' },
+    { label: 'F1 Predictions', href: '/games/f1' },
+  ];
+
+  const nav_groups: { label: string; base: string; items: NavItem[] }[] = [
+    { label: 'Creative', base: '/creative', items: creative_items },
+    { label: 'Tools', base: '/tools', items: tools_items },
+    { label: 'Health', base: '/health', items: health_items },
+    { label: 'Games', base: '/games', items: games_items },
+  ];
+
+  // ---------- Desktop (md+) styles ----------
   const tab_class = (path: string) => {
     const base = 'px-4 sm:px-3 py-3 sm:py-2 text-base sm:text-sm min-h-[44px] sm:min-h-0 font-medium transition-all border-b-2 whitespace-nowrap';
     if (is_active(path)) {
@@ -99,159 +117,74 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
   const trigger_class = (path: string) =>
     `group bg-transparent outline-none focus:outline-none focus-visible:outline-none ${tab_class(path)} flex items-center gap-1`;
 
+  const desktop_dropdown = (label: string, base: string, items: NavItem[], extra_content_class = '') => (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button className={trigger_class(base)}>
+          {label} {chevron_svg}
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content className={`${content_class} ${extra_content_class}`} sideOffset={4} align="start" avoidCollisions>
+          {items.map((it) => (
+            <DropdownMenu.Item key={it.href} asChild>
+              <Link href={it.href} className={item_class}>{it.label}</Link>
+            </DropdownMenu.Item>
+          ))}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+
+  // ---------- Mobile (< md) drawer styles ----------
+  const wordmark_color = is_light ? 'text-[#c4704b]' : 'text-cyan-400';
+  // Per-section accent: dark = section hue; light = single terracotta.
+  const group_accent = (label: string) => (is_light ? '#c4704b' : SECTION_ACCENTS[label]);
+
+  const drawer_link_class = (path: string) => {
+    const base = 'flex items-center w-full text-left px-4 py-3 rounded-lg text-base font-semibold min-h-[44px] transition-colors';
+    if (is_active(path)) return `${base} ${is_light ? 'text-[#c4704b]' : 'text-cyan-400'}`;
+    return `${base} ${is_light ? 'text-gray-700 hover:text-[#c4704b]' : 'text-gray-200 hover:text-white'}`;
+  };
+
   return (
-    <header className={`mb-6 border-b ${is_light ? 'border-[#e5e0d8]' : 'border-white/10'}`}>
-      <div className="flex items-center justify-between">
-        {/* Left: Navigation tabs - scrollable on mobile */}
-        <div className="relative flex-1 min-w-0">
-          {can_scroll_left && (
-            <button
-              onClick={() => nav_ref.current?.scrollBy({ left: -120, behavior: 'smooth' })}
-              className={`absolute left-0 top-0 bottom-0 w-8 z-20 flex items-center justify-center font-bold text-lg ${is_light ? 'text-[#c4704b]' : 'text-cyan-400'}`}
-              aria-label="Scroll navigation left"
-            >
-              ‹
-            </button>
-          )}
-          {can_scroll_left && (
-            <div className={`absolute left-8 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-r ${is_light ? 'from-[#faf8f5]' : 'from-[#1a1a2e]'} to-transparent`} />
-          )}
-          {can_scroll_right && (
-            <div className={`absolute right-8 top-0 bottom-0 w-8 z-10 pointer-events-none bg-gradient-to-l ${is_light ? 'from-[#faf8f5]' : 'from-[#1a1a2e]'} to-transparent`} />
-          )}
-          {can_scroll_right && (
-            <button
-              onClick={() => nav_ref.current?.scrollBy({ left: 120, behavior: 'smooth' })}
-              className={`absolute right-0 top-0 bottom-0 w-8 z-20 flex items-center justify-center font-bold text-lg animate-pulse ${is_light ? 'text-[#c4704b]' : 'text-cyan-400'}`}
-              aria-label="Scroll navigation right"
-            >
-              ›
-            </button>
-          )}
-          <nav ref={nav_ref} className="flex items-center overflow-x-auto scrollbar-hide pr-8">
-            {/* Home */}
-            <Link href="/" className={tab_class('/')}>
-              Home
-            </Link>
+    <header ref={mobile_ref} className={`relative mb-6 border-b ${is_light ? 'border-[#e5e0d8]' : 'border-white/10'}`}>
+      <div className="flex items-center justify-between gap-3">
+        {/* Left cluster: hamburger (mobile) + wordmark + desktop nav */}
+        <div className="flex items-center min-w-0 flex-1 gap-2">
+          {/* Hamburger — mobile only */}
+          <button
+            ref={hamburger_ref}
+            type="button"
+            onClick={() => set_menu_open((o) => !o)}
+            aria-label={menu_open ? 'Close menu' : 'Open menu'}
+            aria-expanded={menu_open}
+            aria-controls="mobile-nav-drawer"
+            className={`md:hidden flex flex-col items-center justify-center gap-[4px] w-10 h-10 rounded-lg border ${is_light ? 'border-[#e5e0d8] bg-black/[0.02]' : 'border-white/15 bg-white/[0.04]'}`}
+          >
+            <span className={`w-[18px] h-[2px] rounded-full ${is_light ? 'bg-gray-600' : 'bg-gray-200'}`} />
+            <span className={`w-[18px] h-[2px] rounded-full ${is_light ? 'bg-gray-600' : 'bg-gray-200'}`} />
+            <span className={`w-[18px] h-[2px] rounded-full ${is_light ? 'bg-gray-600' : 'bg-gray-200'}`} />
+          </button>
 
-            {/* Creative dropdown */}
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger asChild>
-                <button className={trigger_class('/creative')}>
-                  Creative {chevron_svg}
-                </button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content
-                  className={content_class}
-                  sideOffset={4}
-                  align="start"
-                  avoidCollisions
-                >
-                  <DropdownMenu.Item asChild>
-                    <Link href="/creative" className={item_class}>On This Day</Link>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item asChild>
-                    <Link href="/creative/archive" className={item_class}>Archive</Link>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item asChild>
-                    <Link href="/creative/text-cleaner" className={item_class}>What Am I Trying To Say</Link>
-                  </DropdownMenu.Item>
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>
+          {/* Wordmark — all breakpoints */}
+          <Link href="/" className={`text-xl font-extrabold tracking-tight ${wordmark_color} mr-1`}>
+            8i11
+          </Link>
 
-            {/* Tools dropdown */}
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger asChild>
-                <button className={trigger_class('/tools')}>
-                  Tools {chevron_svg}
-                </button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content
-                  className={content_class}
-                  sideOffset={4}
-                  align="start"
-                  avoidCollisions
-                >
-                  {TOOLS.map((tool) => (
-                    <DropdownMenu.Item key={tool.path} asChild>
-                      <Link href={tool.path} className={item_class}>{tool.label}</Link>
-                    </DropdownMenu.Item>
-                  ))}
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>
-
-            {/* Health dropdown */}
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger asChild>
-                <button className={trigger_class('/health')}>
-                  Health {chevron_svg}
-                </button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content
-                  className={content_class}
-                  sideOffset={4}
-                  align="start"
-                  avoidCollisions
-                >
-                  {session && (session.user as { id?: string })?.id !== 'guest' && (
-                    <DropdownMenu.Item asChild>
-                      <Link href="/coach" className={item_class}>Coach</Link>
-                    </DropdownMenu.Item>
-                  )}
-                  <DropdownMenu.Item asChild>
-                    <Link href="/health/oura" className={item_class}>Oura</Link>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item asChild>
-                    <Link href="/health/strava" className={item_class}>Strava</Link>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item asChild>
-                    <Link href="/health/coros" className={item_class}>COROS</Link>
-                  </DropdownMenu.Item>
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>
-
-            {/* Games dropdown */}
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger asChild>
-                <button className={trigger_class('/games')}>
-                  Games {chevron_svg}
-                </button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Portal>
-                <DropdownMenu.Content
-                  className={`${content_class} min-w-[150px]`}
-                  sideOffset={4}
-                  align="start"
-                  avoidCollisions
-                >
-                  <DropdownMenu.Item asChild>
-                    <Link href="/games/frogger" className={item_class}>Frogger</Link>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item asChild>
-                    <Link href="/games/breakout" className={item_class}>Breakout</Link>
-                  </DropdownMenu.Item>
-                  <DropdownMenu.Item asChild>
-                    <Link href="/games/f1" className={item_class}>F1 Predictions</Link>
-                  </DropdownMenu.Item>
-                </DropdownMenu.Content>
-              </DropdownMenu.Portal>
-            </DropdownMenu.Root>
-
-            {/* Weather (standalone link) */}
-            <Link href="/weather" className={tab_class('/weather')}>
-              Weather
-            </Link>
+          {/* Desktop nav — md+ only */}
+          <nav className="hidden md:flex items-center overflow-x-auto scrollbar-hide">
+            <Link href="/" className={tab_class('/')}>Home</Link>
+            {desktop_dropdown('Creative', '/creative', creative_items)}
+            {desktop_dropdown('Tools', '/tools', tools_items)}
+            {desktop_dropdown('Health', '/health', health_items)}
+            {desktop_dropdown('Games', '/games', games_items, 'min-w-[150px]')}
+            <Link href="/weather" className={tab_class('/weather')}>Weather</Link>
           </nav>
         </div>
 
-        {/* Right: User info */}
-        <div className="flex items-center whitespace-nowrap ml-4">
+        {/* Right: user cluster — desktop only (mobile shows it in the drawer) */}
+        <div className="hidden md:flex items-center whitespace-nowrap ml-4">
           {is_local && (
             <a
               href="http://localhost:8080"
@@ -273,6 +206,75 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
           )}
         </div>
       </div>
+
+      {/* Mobile drawer — < md only */}
+      {menu_open && (
+        <div
+          id="mobile-nav-drawer"
+          className={`md:hidden absolute top-full left-0 right-0 z-[9999] mt-px max-h-[70vh] overflow-y-auto p-2 rounded-b-xl shadow-[0_16px_40px_rgba(0,0,0,0.5)] border-b ${is_light ? 'bg-white/95 backdrop-blur-md border-[#e5e0d8]' : 'bg-[#0d1326]/98 backdrop-blur-md border-white/10'}`}
+        >
+          {/* Home (direct link) */}
+          <Link href="/" onClick={() => set_menu_open(false)} className={drawer_link_class('/')}>Home</Link>
+
+          {/* Groups */}
+          {nav_groups.map((g) => {
+            const open = open_nav === g.label;
+            const active = is_active(g.base);
+            return (
+              <div key={g.label}>
+                <button
+                  type="button"
+                  onClick={() => set_open_nav((cur) => (cur === g.label ? null : g.label))}
+                  aria-expanded={open}
+                  className="flex items-center w-full text-left px-4 py-3 rounded-lg text-base font-semibold min-h-[44px]"
+                  style={{ color: active || open ? group_accent(g.label) : undefined }}
+                >
+                  <span className="flex-1" style={{ color: group_accent(g.label) }}>{g.label}</span>
+                  <span className={`text-xs transition-transform ${is_light ? 'text-gray-400' : 'text-gray-500'} ${open ? 'rotate-90' : ''}`}>▸</span>
+                </button>
+                {open && (
+                  <div className="pb-2">
+                    {g.items.map((it) => (
+                      <Link
+                        key={it.href}
+                        href={it.href}
+                        onClick={() => set_menu_open(false)}
+                        className={`block w-full text-left pl-7 pr-4 py-2.5 text-[15px] min-h-[44px] transition-colors ${is_active(it.href) ? (is_light ? 'text-[#c4704b]' : 'text-cyan-400') : (is_light ? 'text-gray-600 hover:text-[#c4704b]' : 'text-gray-300 hover:text-white')}`}
+                      >
+                        {it.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Weather (direct link) */}
+          <Link href="/weather" onClick={() => set_menu_open(false)} className={drawer_link_class('/weather')}>Weather</Link>
+
+          {/* Account cluster */}
+          <div className={`mt-2 mx-2 border-t ${is_light ? 'border-[#e5e0d8]' : 'border-white/10'}`} />
+          <div className="flex items-center justify-between px-4 py-3">
+            <div className={`text-xs ${is_light ? 'text-gray-500' : 'text-gray-400'}`}>
+              {is_local && (
+                <a href="http://localhost:8080" className={`mr-3 ${is_light ? 'hover:text-[#c4704b]' : 'hover:text-cyan-400'}`}>Dev Hub</a>
+              )}
+              {session && (
+                <span>{session.user?.name || session.user?.email || 'Guest'}</span>
+              )}
+            </div>
+            {session && (
+              <button
+                onClick={() => signOut()}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${is_light ? 'border-red-400/40 text-red-500' : 'border-red-400/40 text-red-400'}`}
+              >
+                Sign out
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 }
