@@ -343,6 +343,14 @@ export default function TextCleanerPage() {
           </div>
         )}
 
+        {/* Error toast — fixed so it's visible regardless of scroll position */}
+        {error && (
+          <div role="alert" className="fixed top-4 left-4 right-4 sm:right-auto sm:max-w-sm bg-red-900/90 border border-red-500/50 rounded-lg px-4 py-3 text-red-200 text-sm shadow-xl z-50 flex items-center gap-3">
+            <span className="flex-1">{error}</span>
+            <button onClick={() => set_error(null)} aria-label="Dismiss error" className="text-red-300/60 hover:text-red-200 transition-colors shrink-0">✕</button>
+          </div>
+        )}
+
         {/* Confirm delete modal */}
         {confirm_delete_id && (
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
@@ -416,14 +424,6 @@ export default function TextCleanerPage() {
               >
                 View saved notes ({notes.length})
               </button>
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <div role="alert" className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm flex items-center justify-between gap-3">
-              <span>{error}</span>
-              <button onClick={() => set_error(null)} aria-label="Dismiss error" className="text-red-400/60 hover:text-red-400 transition-colors shrink-0">✕</button>
             </div>
           )}
 
