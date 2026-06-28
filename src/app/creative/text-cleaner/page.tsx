@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import NavTabs from '@/components/nav_tabs';
 
 interface TextNote {
@@ -30,6 +30,7 @@ export default function TextCleanerPage() {
   const [notes, set_notes] = useState<TextNote[]>([]);
   const [confirm_delete_id, set_confirm_delete_id] = useState<string | null>(null);
   const [confirm_delete_context, set_confirm_delete_context] = useState<'copy' | 'story' | null>(null);
+  const hydrated = useRef(false);
   const fetch_notes = useCallback(async () => {
     try {
       const res = await fetch('/api/text-notes');
@@ -52,15 +53,37 @@ export default function TextCleanerPage() {
     return () => clearTimeout(t);
   }, [error]);
 
+  // Save to localStorage after hydration (hydrated guard prevents overwriting saved data on first render)
+  useEffect(() => {
+    if (!hydrated.current) return;
+    const has_content = input || cleaned || story;
+    if (has_content) {
+      localStorage.setItem('waits_v', '1');
+      if (input) localStorage.setItem('waits_input', input); else localStorage.removeItem('waits_input');
+      if (cleaned) localStorage.setItem('waits_cleaned', cleaned); else localStorage.removeItem('waits_cleaned');
+      if (story) localStorage.setItem('waits_story', story); else localStorage.removeItem('waits_story');
+    } else {
+      ['waits_v', 'waits_input', 'waits_cleaned', 'waits_story'].forEach(k => localStorage.removeItem(k));
+    }
+  }, [input, cleaned, story]);
+
+  // Restore from localStorage on mount; version key guards against stale schema
+  useEffect(() => {
+    if (localStorage.getItem('waits_v') !== '1') { hydrated.current = true; return; }
+    const saved_input   = localStorage.getItem('waits_input');
+    const saved_cleaned = localStorage.getItem('waits_cleaned');
+    const saved_story   = localStorage.getItem('waits_story');
+    if (saved_input)   set_input(saved_input);
+    if (saved_cleaned) set_cleaned(saved_cleaned);
+    if (saved_story)   set_story(saved_story);
+    hydrated.current = true;
+  }, []);
+
   const clean = async () => {
     if (!input.trim()) return;
 
     set_loading_action('clean');
     set_error(null);
-    set_cleaned('');
-    set_story('');
-    set_clean_usage(null);
-    set_story_usage(null);
 
     try {
       const res = await fetch('/api/clean-text', {
@@ -78,6 +101,10 @@ export default function TextCleanerPage() {
 
       set_cleaned(data.cleaned);
       set_clean_usage(data.usage);
+      set_story('');
+      set_story_usage(null);
+      set_substack('');
+      set_substack_usage(null);
     } catch {
       set_error('Couldn\'t clean text — try again');
     } finally {
@@ -91,8 +118,6 @@ export default function TextCleanerPage() {
 
     set_loading_action('story');
     set_error(null);
-    set_story('');
-    set_story_usage(null);
 
     try {
       const res = await fetch('/api/clean-text', {
@@ -110,6 +135,8 @@ export default function TextCleanerPage() {
 
       set_story(data.story);
       set_story_usage(data.usage);
+      set_substack('');
+      set_substack_usage(null);
     } catch {
       set_error('Couldn\'t build story — try again');
     } finally {
@@ -203,10 +230,6 @@ export default function TextCleanerPage() {
 
   const handle_note_story = (note: TextNote) => {
     set_cleaned(note.content);
-    set_story('');
-    set_story_usage(null);
-    set_substack('');
-    set_substack_usage(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     // Use setTimeout so the cleaned state is set before triggering story generation
     setTimeout(() => {
@@ -264,8 +287,6 @@ export default function TextCleanerPage() {
 
     set_loading_action('substack');
     set_error(null);
-    set_substack('');
-    set_substack_usage(null);
 
     try {
       const resized = await Promise.all(images.map(resize_image));
