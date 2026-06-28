@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import NavTabs from '@/components/nav_tabs';
 
 interface TextNote {
@@ -30,6 +30,7 @@ export default function TextCleanerPage() {
   const [notes, set_notes] = useState<TextNote[]>([]);
   const [confirm_delete_id, set_confirm_delete_id] = useState<string | null>(null);
   const [confirm_delete_context, set_confirm_delete_context] = useState<'copy' | 'story' | null>(null);
+  const hydrated = useRef(false);
   const fetch_notes = useCallback(async () => {
     try {
       const res = await fetch('/api/text-notes');
@@ -46,15 +47,46 @@ export default function TextCleanerPage() {
     fetch_notes();
   }, [fetch_notes]);
 
+  // Save to localStorage after hydration (hydrated guard prevents overwriting saved data on first render)
+  useEffect(() => {
+    if (!hydrated.current) return;
+    try {
+      const has_content = input || cleaned || story;
+      if (has_content) {
+        localStorage.setItem('waits_v', '1');
+        if (input) localStorage.setItem('waits_input', input); else localStorage.removeItem('waits_input');
+        if (cleaned) localStorage.setItem('waits_cleaned', cleaned); else localStorage.removeItem('waits_cleaned');
+        if (story) localStorage.setItem('waits_story', story); else localStorage.removeItem('waits_story');
+      } else {
+        ['waits_v', 'waits_input', 'waits_cleaned', 'waits_story'].forEach(k => localStorage.removeItem(k));
+      }
+    } catch {
+      // localStorage unavailable (sandboxed iframe, private mode, quota) — persistence is best-effort
+    }
+  }, [input, cleaned, story]);
+
+  // Restore from localStorage on mount; version key guards against stale schema
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('waits_v') !== '1') { hydrated.current = true; return; }
+      const saved_input   = localStorage.getItem('waits_input');
+      const saved_cleaned = localStorage.getItem('waits_cleaned');
+      const saved_story   = localStorage.getItem('waits_story');
+      if (saved_input)   set_input(saved_input);
+      if (saved_cleaned) set_cleaned(saved_cleaned);
+      if (saved_story)   set_story(saved_story);
+    } catch {
+      // localStorage unavailable — skip restore
+    } finally {
+      hydrated.current = true;
+    }
+  }, []);
+
   const clean = async () => {
     if (!input.trim()) return;
 
     set_loading_action('clean');
     set_error(null);
-    set_cleaned('');
-    set_story('');
-    set_clean_usage(null);
-    set_story_usage(null);
 
     try {
       const res = await fetch('/api/clean-text', {
@@ -72,8 +104,12 @@ export default function TextCleanerPage() {
 
       set_cleaned(data.cleaned);
       set_clean_usage(data.usage);
+      set_story('');
+      set_story_usage(null);
+      set_substack('');
+      set_substack_usage(null);
     } catch {
-      set_error('Network error — try again');
+      set_error('Couldn\'t clean text — try again');
     } finally {
       set_loading_action(null);
     }
@@ -85,8 +121,6 @@ export default function TextCleanerPage() {
 
     set_loading_action('story');
     set_error(null);
-    set_story('');
-    set_story_usage(null);
 
     try {
       const res = await fetch('/api/clean-text', {
@@ -104,8 +138,10 @@ export default function TextCleanerPage() {
 
       set_story(data.story);
       set_story_usage(data.usage);
+      set_substack('');
+      set_substack_usage(null);
     } catch {
-      set_error('Network error — try again');
+      set_error('Couldn\'t build story — try again');
     } finally {
       set_loading_action(null);
     }
@@ -158,7 +194,7 @@ export default function TextCleanerPage() {
       set_copy_status('Note saved!');
       setTimeout(() => set_copy_status(null), 2000);
     } catch {
-      set_error('Network error — try again');
+      set_error('Couldn\'t save note — try again');
     } finally {
       set_loading_action(null);
     }
@@ -181,7 +217,7 @@ export default function TextCleanerPage() {
 
       await fetch_notes();
     } catch {
-      set_error('Network error — try again');
+      set_error('Couldn\'t delete note — try again');
     } finally {
       set_loading_action(null);
       set_confirm_delete_id(null);
@@ -197,10 +233,6 @@ export default function TextCleanerPage() {
 
   const handle_note_story = (note: TextNote) => {
     set_cleaned(note.content);
-    set_story('');
-    set_story_usage(null);
-    set_substack('');
-    set_substack_usage(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
     // Use setTimeout so the cleaned state is set before triggering story generation
     setTimeout(() => {
@@ -258,8 +290,6 @@ export default function TextCleanerPage() {
 
     set_loading_action('substack');
     set_error(null);
-    set_substack('');
-    set_substack_usage(null);
 
     try {
       const resized = await Promise.all(images.map(resize_image));
@@ -279,7 +309,7 @@ export default function TextCleanerPage() {
       set_substack(data.substack);
       set_substack_usage(data.usage);
     } catch {
-      set_error('Network error — try again');
+      set_error('Couldn\'t generate Substack post — try again');
     } finally {
       set_loading_action(null);
     }
@@ -310,6 +340,14 @@ export default function TextCleanerPage() {
         {copy_status && (
           <div className="fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
             {copy_status}
+          </div>
+        )}
+
+        {/* Error toast — fixed so it's visible regardless of scroll position */}
+        {error && (
+          <div role="alert" className="fixed top-4 left-4 right-4 sm:right-auto sm:max-w-sm bg-red-900/90 border border-red-500/50 rounded-lg px-4 py-3 text-red-200 text-sm shadow-xl z-50 flex items-center gap-3">
+            <span className="flex-1">{error}</span>
+            <button onClick={() => set_error(null)} aria-label="Dismiss error" className="text-red-300/60 hover:text-red-200 transition-colors shrink-0">✕</button>
           </div>
         )}
 
@@ -386,13 +424,6 @@ export default function TextCleanerPage() {
               >
                 View saved notes ({notes.length})
               </button>
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
-              {error}
             </div>
           )}
 
