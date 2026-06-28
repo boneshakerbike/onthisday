@@ -82,6 +82,48 @@ export default function TextCleanerPage() {
     }
   }, []);
 
+  // POST to /api/clean-text with one retry on transient (network/timeout) failure.
+  // Returns { res, data } for any JSON response (ok or not) so callers handle server
+  // errors; throws Error('TIMEOUT') for non-JSON bodies (504 gateway pages) and the
+  // underlying TypeError for dropped connections. Real server errors are not retried.
+  const post_clean_text = async (body: object): Promise<{ res: Response; data: { error?: string; cleaned?: string; story?: string; substack?: string; usage?: { input_tokens: number; output_tokens: number } } }> => {
+    let last_err: unknown;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch('/api/clean-text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        try {
+          const data = await res.json();
+          return { res, data };
+        } catch {
+          // Non-JSON body = gateway timeout (504) or proxy error page, not a server response
+          throw new Error('TIMEOUT');
+        }
+      } catch (e) {
+        last_err = e;
+        if (attempt === 0) {
+          await new Promise(r => setTimeout(r, 800));
+          continue;
+        }
+      }
+    }
+    throw last_err;
+  };
+
+  // Map a thrown request error to an actionable, human message.
+  const describe_request_error = (e: unknown, action: string): string => {
+    const msg = e instanceof Error ? e.message : '';
+    if (msg === 'UNSUPPORTED_IMAGE') return 'One of your photos couldn\'t be read (HEIC isn\'t supported) — remove it or use a JPEG or PNG.';
+    if (msg === 'TIMEOUT') return 'Generation timed out — your work is still here, try again.';
+    if ((typeof navigator !== 'undefined' && navigator.onLine === false) || e instanceof TypeError) {
+      return 'Lost connection — check your signal and try again.';
+    }
+    return `Couldn't ${action} — try again.`;
+  };
+
   const clean = async () => {
     if (!input.trim()) return;
 
@@ -89,27 +131,21 @@ export default function TextCleanerPage() {
     set_error(null);
 
     try {
-      const res = await fetch('/api/clean-text', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: input }),
-      });
-
-      const data = await res.json();
+      const { res, data } = await post_clean_text({ content: input });
 
       if (!res.ok) {
         set_error(data.error || 'Something went wrong');
         return;
       }
 
-      set_cleaned(data.cleaned);
-      set_clean_usage(data.usage);
+      set_cleaned(data.cleaned ?? '');
+      set_clean_usage(data.usage ?? null);
       set_story('');
       set_story_usage(null);
       set_substack('');
       set_substack_usage(null);
-    } catch {
-      set_error('Couldn\'t clean text — try again');
+    } catch (e) {
+      set_error(describe_request_error(e, 'clean text'));
     } finally {
       set_loading_action(null);
     }
@@ -123,25 +159,19 @@ export default function TextCleanerPage() {
     set_error(null);
 
     try {
-      const res = await fetch('/api/clean-text', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: text, mode: 'story' }),
-      });
-
-      const data = await res.json();
+      const { res, data } = await post_clean_text({ content: text, mode: 'story' });
 
       if (!res.ok) {
         set_error(data.error || 'Something went wrong');
         return;
       }
 
-      set_story(data.story);
-      set_story_usage(data.usage);
+      set_story(data.story ?? '');
+      set_story_usage(data.usage ?? null);
       set_substack('');
       set_substack_usage(null);
-    } catch {
-      set_error('Couldn\'t build story — try again');
+    } catch (e) {
+      set_error(describe_request_error(e, 'build story'));
     } finally {
       set_loading_action(null);
     }
@@ -268,7 +298,11 @@ export default function TextCleanerPage() {
         const data_url = canvas.toDataURL('image/jpeg', 0.7);
         resolve({ data: data_url.split(',')[1], media_type: 'image/jpeg' });
       };
-      img.onerror = reject;
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        // Browser can't decode this file (commonly iPhone HEIC); surface a clear message
+        reject(new Error('UNSUPPORTED_IMAGE'));
+      };
       img.src = url;
     });
   };
@@ -294,22 +328,17 @@ export default function TextCleanerPage() {
     try {
       const resized = await Promise.all(images.map(resize_image));
 
-      const res = await fetch('/api/clean-text', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mode: 'substack',
-          story_text: story.trim(),
-          images: resized,
-        }),
+      const { res, data } = await post_clean_text({
+        mode: 'substack',
+        story_text: story.trim(),
+        images: resized,
       });
 
-      const data = await res.json();
       if (!res.ok) { set_error(data.error || 'Something went wrong'); return; }
-      set_substack(data.substack);
-      set_substack_usage(data.usage);
-    } catch {
-      set_error('Couldn\'t generate Substack post — try again');
+      set_substack(data.substack ?? '');
+      set_substack_usage(data.usage ?? null);
+    } catch (e) {
+      set_error(describe_request_error(e, 'generate Substack post'));
     } finally {
       set_loading_action(null);
     }
