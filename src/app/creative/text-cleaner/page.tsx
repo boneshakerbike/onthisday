@@ -292,7 +292,13 @@ export default function TextCleanerPage() {
     set_error(null);
 
     try {
-      const resized = await Promise.all(images.map(resize_image));
+      let resized: { data: string; media_type: string }[];
+      try {
+        resized = await Promise.all(images.map(resize_image));
+      } catch {
+        set_error('Failed to process photos — try removing them and retrying');
+        return;
+      }
 
       const res = await fetch('/api/clean-text', {
         method: 'POST',
@@ -304,12 +310,18 @@ export default function TextCleanerPage() {
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok) { set_error(data.error || 'Something went wrong'); return; }
-      set_substack(data.substack);
-      set_substack_usage(data.usage);
+      // res.json() throws if the server returns non-JSON (e.g. a gateway timeout page)
+      let data: { substack?: string; usage?: { input_tokens: number; output_tokens: number }; error?: string } = {};
+      try { data = await res.json(); } catch { /* non-JSON response */ }
+
+      if (!res.ok) {
+        set_error(data.error || `Server error (${res.status}) — try again`);
+        return;
+      }
+      set_substack(data.substack ?? '');
+      set_substack_usage(data.usage ?? null);
     } catch {
-      set_error('Couldn\'t generate Substack post — try again');
+      set_error('Network error — couldn\'t reach the server');
     } finally {
       set_loading_action(null);
     }
