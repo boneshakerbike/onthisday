@@ -418,9 +418,9 @@ export default function TextCleanerPage() {
 
           {/* Error */}
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm flex items-center justify-between gap-3">
+            <div role="alert" className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm flex items-center justify-between gap-3">
               <span>{error}</span>
-              <button onClick={() => set_error(null)} className="text-red-400/60 hover:text-red-400 transition-colors shrink-0">✕</button>
+              <button onClick={() => set_error(null)} aria-label="Dismiss error" className="text-red-400/60 hover:text-red-400 transition-colors shrink-0">✕</button>
             </div>
           )}
 
