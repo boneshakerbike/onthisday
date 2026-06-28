@@ -28,7 +28,7 @@ interface NavItem {
 export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const mobile_ref = useRef<HTMLDivElement>(null);
+  const mobile_ref = useRef<HTMLElement>(null);
   const hamburger_ref = useRef<HTMLButtonElement>(null);
   const [is_local, set_is_local] = useState(false);
   const [menu_open, set_menu_open] = useState(false);
@@ -148,10 +148,10 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
   };
 
   return (
-    <header className={`relative mb-6 border-b ${is_light ? 'border-[#e5e0d8]' : 'border-white/10'}`}>
+    <header ref={mobile_ref} className={`relative mb-6 border-b ${is_light ? 'border-[#e5e0d8]' : 'border-white/10'}`}>
       <div className="flex items-center justify-between gap-3">
         {/* Left cluster: hamburger (mobile) + wordmark + desktop nav */}
-        <div ref={mobile_ref} className="flex items-center min-w-0 flex-1 gap-2">
+        <div className="flex items-center min-w-0 flex-1 gap-2">
           {/* Hamburger — mobile only */}
           <button
             ref={hamburger_ref}
