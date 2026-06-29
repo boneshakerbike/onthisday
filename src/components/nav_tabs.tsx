@@ -67,7 +67,7 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
   const creative_items: NavItem[] = [
     { label: 'On This Day', href: '/creative' },
     { label: 'Archive', href: '/creative/archive' },
-    { label: 'What Am I Trying To Say', href: '/creative/text-cleaner' },
+    { label: 'Say What?', href: '/creative/text-cleaner' },
   ];
   const tools_items: NavItem[] = TOOLS.map((t) => ({ label: t.label, href: t.path }));
   const health_items: NavItem[] = [
@@ -160,7 +160,7 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
             aria-label={menu_open ? 'Close menu' : 'Open menu'}
             aria-expanded={menu_open}
             aria-controls="mobile-nav-drawer"
-            className={`md:hidden flex flex-col items-center justify-center gap-[4px] w-10 h-10 rounded-lg border ${is_light ? 'border-[#e5e0d8] bg-black/[0.02]' : 'border-white/15 bg-white/[0.04]'}`}
+            className={`md:hidden flex flex-col items-center justify-center gap-[4px] w-10 h-10 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${is_light ? 'focus-visible:outline-[#c4704b]' : 'focus-visible:outline-cyan-400'}`}
           >
             <span className={`w-[18px] h-[2px] rounded-full ${is_light ? 'bg-gray-600' : 'bg-gray-200'}`} />
             <span className={`w-[18px] h-[2px] rounded-full ${is_light ? 'bg-gray-600' : 'bg-gray-200'}`} />
@@ -168,7 +168,7 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
           </button>
 
           {/* Wordmark — all breakpoints */}
-          <Link href="/" className={`text-xl font-extrabold tracking-tight ${wordmark_color} mr-1`}>
+          <Link href="/" className={`text-2xl md:text-xl font-extrabold tracking-tight ${wordmark_color} mr-1`}>
             8i11
           </Link>
 

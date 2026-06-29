@@ -1,6 +1,6 @@
 /**
  * API route: /api/text-notes
- * CRUD for saved "What Am I Trying To Say" notes
+ * CRUD for saved "Say What?" notes
  */
 
 import { NextRequest, NextResponse } from 'next/server';
