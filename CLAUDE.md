@@ -32,7 +32,7 @@ src/
       page.tsx                    # On This Day: browse posts, generate stories
       archive/page.tsx            # Story archive (public)
       edit/[id]/page.tsx          # Story editor
-      text-cleaner/               # What Am I Trying To Say: text cleaning + story builder
+      text-cleaner/               # Say What?: text cleaning + story builder
     story/[id]/page.tsx           # Shareable story page (public)
     tools/
       markdown/                   # Rich text → Markdown converter

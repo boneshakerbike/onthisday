@@ -94,7 +94,7 @@ export default function HomePage() {
       links: [
         { label: 'On This Day', href: '/creative' },
         { label: 'Archive', href: '/creative/archive' },
-        { label: 'What Am I Trying To Say', href: '/creative/text-cleaner' },
+        { label: 'Say What?', href: '/creative/text-cleaner' },
       ],
     },
     {
@@ -148,7 +148,7 @@ export default function HomePage() {
       <div className="max-w-3xl mx-auto">
         <NavTabs />
 
-        <div className="text-center mb-12 mt-4">
+        <div className="text-center mb-6 mt-2 sm:mb-12 sm:mt-4">
           <p className="text-gray-400 text-sm">Creative tools and games by William Martin</p>
         </div>
 
@@ -161,15 +161,15 @@ export default function HomePage() {
                 className={`p-6 rounded-xl border ${colors.border} bg-white/5`}
               >
                 <h2 className="text-lg font-medium mb-1" style={{ color: SECTION_ACCENTS[cat.title] }}>{cat.title}</h2>
-                <p className="text-gray-400 text-sm leading-relaxed mb-3">{cat.description}</p>
+                <p className="hidden sm:block text-gray-400 text-sm leading-relaxed mb-3">{cat.description}</p>
 
                 {/* Action links */}
-                <div className="flex flex-wrap gap-2 mb-1">
+                <div className="grid grid-cols-2 gap-2 mb-1 sm:grid-cols-none sm:flex sm:flex-wrap">
                   {cat.links.map((link) => (
                     <Link
                       key={link.label}
                       href={link.href}
-                      className="flex-1 basis-[140px] min-w-[130px] px-3 py-3 rounded-lg text-sm text-left text-[#bca6f7] bg-[rgba(167,139,250,0.06)] border border-[rgba(167,139,250,0.26)] hover:bg-[rgba(167,139,250,0.16)] hover:border-[rgba(167,139,250,0.5)] transition-colors"
+                      className="max-sm:last:odd:col-span-2 flex-1 basis-[140px] min-w-[130px] px-3 py-3 rounded-lg text-sm text-left text-[#bca6f7] bg-[rgba(167,139,250,0.06)] border border-[rgba(167,139,250,0.26)] hover:bg-[rgba(167,139,250,0.16)] hover:border-[rgba(167,139,250,0.5)] transition-colors"
                     >
                       {link.label}
                     </Link>
@@ -197,7 +197,7 @@ export default function HomePage() {
                 </a>
               ))}
             </div>
-            <div className="space-y-1.5">
+            <div className="hidden sm:block space-y-1.5">
               <AdminSection
                 title="Permissions &amp; Access Control"
                 is_open={open_doc === 'Permissions & Access Control'}

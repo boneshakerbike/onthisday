@@ -2001,7 +2001,7 @@ export async function save_strava_activities_cache(cache: StravaActivitiesCache)
 }
 
 // ============================================================================
-// Text Notes (What Am I Trying To Say saved notes)
+// Text Notes (Say What? saved notes)
 // ============================================================================
 
 export interface TextNote {

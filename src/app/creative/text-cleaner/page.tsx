@@ -1,5 +1,5 @@
 /**
- * What Am I Trying To Say
+ * Say What?
  * Paste rough text, get it cleaned up for clarity, edit, then copy
  */
 
@@ -359,7 +359,7 @@ export default function TextCleanerPage() {
         <NavTabs />
 
         <h1 className="text-center text-3xl font-light text-cyan-400 mb-2">
-          What Am I Trying To Say
+          Say What?
         </h1>
         <p className="text-center text-gray-400 mb-8">
           Clean up your ramble, then turn it into a story
