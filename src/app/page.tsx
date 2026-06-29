@@ -197,7 +197,7 @@ export default function HomePage() {
                 </a>
               ))}
             </div>
-            <div className="hidden sm:block space-y-1.5">
+            <div className="space-y-1.5">
               <AdminSection
                 title="Permissions &amp; Access Control"
                 is_open={open_doc === 'Permissions & Access Control'}
