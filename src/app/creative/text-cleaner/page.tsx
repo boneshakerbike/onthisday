@@ -18,7 +18,8 @@ export default function TextCleanerPage() {
   const [input, set_input] = useState('');
   const [cleaned, set_cleaned] = useState('');
   const [story, set_story] = useState('');
-  const [loading_action, set_loading_action] = useState<'clean' | 'story' | 'substack' | 'save' | 'delete' | null>(null);
+  const [loading_action, set_loading_action] = useState<'clean' | 'clarify' | 'story' | 'substack' | 'save' | 'delete' | null>(null);
+  const [output_mode, set_output_mode] = useState<'clean' | 'clarify' | null>(null);
   const [error, set_error] = useState<string | null>(null);
   const [copy_status, set_copy_status] = useState<string | null>(null);
   const [clean_usage, set_clean_usage] = useState<{ input_tokens: number; output_tokens: number } | null>(null);
@@ -57,24 +58,32 @@ export default function TextCleanerPage() {
         if (input) localStorage.setItem('waits_input', input); else localStorage.removeItem('waits_input');
         if (cleaned) localStorage.setItem('waits_cleaned', cleaned); else localStorage.removeItem('waits_cleaned');
         if (story) localStorage.setItem('waits_story', story); else localStorage.removeItem('waits_story');
+        if (cleaned && output_mode) localStorage.setItem('waits_output_mode', output_mode);
+        else localStorage.removeItem('waits_output_mode');
       } else {
-        ['waits_v', 'waits_input', 'waits_cleaned', 'waits_story'].forEach(k => localStorage.removeItem(k));
+        ['waits_v', 'waits_input', 'waits_cleaned', 'waits_story', 'waits_output_mode'].forEach(k => localStorage.removeItem(k));
       }
     } catch {
       // localStorage unavailable (sandboxed iframe, private mode, quota) — persistence is best-effort
     }
-  }, [input, cleaned, story]);
+  }, [input, cleaned, story, output_mode]);
 
-  // Restore from localStorage on mount; version key guards against stale schema
+  // Restore from localStorage on mount; version key guards against stale schema.
+  // waits_output_mode is read additively (no version bump): if missing but cleaned
+  // text exists, default to 'clean' so older client drafts survive deploy.
   useEffect(() => {
     try {
       if (localStorage.getItem('waits_v') !== '1') { hydrated.current = true; return; }
-      const saved_input   = localStorage.getItem('waits_input');
-      const saved_cleaned = localStorage.getItem('waits_cleaned');
-      const saved_story   = localStorage.getItem('waits_story');
+      const saved_input       = localStorage.getItem('waits_input');
+      const saved_cleaned     = localStorage.getItem('waits_cleaned');
+      const saved_story       = localStorage.getItem('waits_story');
+      const saved_output_mode = localStorage.getItem('waits_output_mode');
       if (saved_input)   set_input(saved_input);
       if (saved_cleaned) set_cleaned(saved_cleaned);
       if (saved_story)   set_story(saved_story);
+      if (saved_cleaned) {
+        set_output_mode(saved_output_mode === 'clarify' ? 'clarify' : 'clean');
+      }
     } catch {
       // localStorage unavailable — skip restore
     } finally {
@@ -124,14 +133,16 @@ export default function TextCleanerPage() {
     return `Couldn't ${action} — try again.`;
   };
 
-  const clean = async () => {
+  const run_rewrite = async (op: 'clean' | 'clarify') => {
     if (!input.trim()) return;
 
-    set_loading_action('clean');
+    set_loading_action(op);
     set_error(null);
 
     try {
-      const { res, data } = await post_clean_text({ content: input });
+      const { res, data } = await post_clean_text(
+        op === 'clarify' ? { content: input, mode: 'clarify' } : { content: input }
+      );
 
       if (!res.ok) {
         set_error(data.error || 'Something went wrong');
@@ -140,16 +151,20 @@ export default function TextCleanerPage() {
 
       set_cleaned(data.cleaned ?? '');
       set_clean_usage(data.usage ?? null);
+      set_output_mode(op);
       set_story('');
       set_story_usage(null);
       set_substack('');
       set_substack_usage(null);
     } catch (e) {
-      set_error(describe_request_error(e, 'clean text'));
+      set_error(describe_request_error(e, op === 'clarify' ? 'clarify text' : 'clean text'));
     } finally {
       set_loading_action(null);
     }
   };
+
+  const clean = () => run_rewrite('clean');
+  const clarify = () => run_rewrite('clarify');
 
   const turn_into_story = async (content?: string) => {
     const text = content || cleaned;
@@ -201,6 +216,7 @@ export default function TextCleanerPage() {
     set_image_previews([]);
     set_substack('');
     set_substack_usage(null);
+    set_output_mode(null);
   };
 
   const save_note = async () => {
@@ -427,15 +443,24 @@ export default function TextCleanerPage() {
             />
           </div>
 
-          {/* Clean button */}
-          <div className="flex flex-col sm:flex-row justify-center gap-3">
-            <button
-              onClick={clean}
-              disabled={!!loading_action || !input.trim()}
-              className="w-full sm:w-auto px-8 py-[14px] sm:py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-white/10 disabled:text-gray-500 text-black font-semibold rounded-lg transition-all text-sm"
-            >
-              {loading_action === 'clean' ? 'Cleaning...' : 'Clean Up'}
-            </button>
+          {/* Action buttons */}
+          <div className="flex flex-col sm:flex-row sm:justify-center gap-3">
+            <div className="flex gap-3 sm:contents">
+              <button
+                onClick={clean}
+                disabled={!!loading_action || !input.trim()}
+                className="flex-1 sm:flex-none sm:w-auto px-8 py-[14px] sm:py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-white/10 disabled:text-gray-500 text-black font-semibold rounded-lg transition-all text-sm"
+              >
+                {loading_action === 'clean' ? 'Cleaning...' : 'Clean'}
+              </button>
+              <button
+                onClick={clarify}
+                disabled={!!loading_action || !input.trim()}
+                className="flex-1 sm:flex-none sm:w-auto px-8 py-[14px] sm:py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-white/10 disabled:text-gray-500 text-black font-semibold rounded-lg transition-all text-sm"
+              >
+                {loading_action === 'clarify' ? 'Clarifying...' : 'Clarify'}
+              </button>
+            </div>
             <button
               onClick={clear_all}
               className="w-full sm:w-auto px-4 py-2.5 sm:py-3 bg-[#333] sm:bg-white/10 hover:bg-red-400/20 rounded-lg border border-[#555] sm:border-white/20 text-gray-300 text-sm transition-all"
@@ -459,20 +484,22 @@ export default function TextCleanerPage() {
           {/* Output — editable */}
           {cleaned && (
             <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
-              <div className="bg-white/5 px-4 py-2 border-b border-white/10 flex justify-between items-center">
-                <h3 className="font-medium text-gray-300">Cleaned Up</h3>
+              <div className="bg-white/5 px-4 py-2 border-b border-white/10 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                 <div className="flex items-center gap-3">
+                  <h3 className="font-medium text-gray-300">{output_mode === 'clarify' ? 'Clarified' : 'Cleaned'}</h3>
                   {clean_usage && (
                     <span className="text-xs text-gray-400">
                       {clean_usage.input_tokens + clean_usage.output_tokens} tokens
                     </span>
                   )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => turn_into_story()}
                     disabled={!!loading_action}
                     className="px-3 py-2 sm:py-1 bg-[#333] sm:bg-white/10 hover:bg-emerald-400/20 disabled:bg-white/10 disabled:text-gray-500 rounded border border-[#555] sm:border-white/20 text-sm text-gray-300 transition-all"
                   >
-                    {loading_action === 'story' ? 'Building Story...' : 'Turn Into Story'}
+                    {loading_action === 'story' ? 'Building...' : 'Story'}
                   </button>
                   <button
                     onClick={save_note}
@@ -501,14 +528,16 @@ export default function TextCleanerPage() {
           {/* Story output */}
           {story && (
             <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
-              <div className="bg-white/5 px-4 py-2 border-b border-white/10 flex justify-between items-center">
-                <h3 className="font-medium text-gray-300">Story Version</h3>
+              <div className="bg-white/5 px-4 py-2 border-b border-white/10 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                 <div className="flex items-center gap-3">
+                  <h3 className="font-medium text-gray-300">Story Version</h3>
                   {story_usage && (
                     <span className="text-xs text-gray-400">
                       {story_usage.input_tokens + story_usage.output_tokens} tokens
                     </span>
                   )}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={generate_substack}
                     disabled={!!loading_action}
@@ -601,9 +630,9 @@ export default function TextCleanerPage() {
                     <div className="p-4">
                       <p className="text-sm text-gray-300 whitespace-pre-wrap line-clamp-4">{note.content}</p>
                     </div>
-                    <div className="px-4 py-2 border-t border-white/10 flex items-center justify-between">
+                    <div className="px-4 py-2 border-t border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <span className="text-xs text-gray-500">{format_date(note.created_at)}</span>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <button
                           onClick={() => handle_note_copy(note)}
                           disabled={!!loading_action}
@@ -616,7 +645,7 @@ export default function TextCleanerPage() {
                           disabled={!!loading_action}
                           className="px-3 py-1 bg-[#333] sm:bg-white/10 hover:bg-emerald-400/20 disabled:bg-white/10 disabled:text-gray-500 rounded border border-[#555] sm:border-white/20 text-xs text-gray-300 transition-all"
                         >
-                          Turn Into Story
+                          Story
                         </button>
                         <button
                           onClick={() => delete_note(note.id)}

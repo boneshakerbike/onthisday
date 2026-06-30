@@ -166,7 +166,8 @@ captions
       });
     }
 
-    const operation = mode === 'story' ? 'story' : 'clean';
+    const operation: 'story' | 'clarify' | 'clean' =
+      mode === 'story' ? 'story' : mode === 'clarify' ? 'clarify' : 'clean';
 
     if (!content || typeof content !== 'string' || !content.trim()) {
       return NextResponse.json({ error: 'Content is required' }, { status: 400 });
@@ -178,14 +179,10 @@ captions
 
     const client = new Anthropic({ apiKey: api_key });
 
-    const result = await client.messages.create({
-      model: MODELS.CLEAN_TEXT,
-      max_tokens: 4096,
-      messages: [
-        {
-          role: 'user',
-          content: operation === 'story'
-            ? `Turn the following text into a short narrative in exactly three distinct paragraphs:
+    let prompt_text: string;
+    switch (operation) {
+      case 'story':
+        prompt_text = `Turn the following text into a short narrative in exactly three distinct paragraphs:
 1) Intro/setup
 2) Conflict or confusion
 3) How it ended (resolution)
@@ -195,15 +192,29 @@ Preserve the original meaning, facts, voice, and grammatical person — if the t
 Return only the story text as exactly three paragraphs. No commentary, no quotes, no headings.
 
 Text:
-${content}`
-            : `Rewrite the following text so it reads naturally and is easy to understand. Fix all spelling, grammar, and punctuation errors. Keep the author's voice and tone — don't make it sound corporate or robotic. If a sentence is confusing, rewrite it simply instead of just rearranging words. Keep it concise but don't cut anything important. Do not use em dashes — use commas, ellipses, or semicolons instead.
+${content}`;
+        break;
+      case 'clarify':
+        prompt_text = `Rewrite the following text so the meaning is unmistakable. Fix all spelling, grammar, and punctuation errors. You may go further than a simple cleanup: split or merge sentences, surface implicit logic, and reorder ideas so the point lands clearly. Keep the author's voice and tone — don't make it sound corporate or robotic. Do not invent new facts, names, or details. Do not use em dashes — use commas, ellipses, or semicolons instead.
+
+Return only the clarified text. No commentary, no quotes, no preamble.
+
+Text:
+${content}`;
+        break;
+      default:
+        prompt_text = `Rewrite the following text so it reads naturally and is easy to understand. Fix all spelling, grammar, and punctuation errors. Keep the author's voice and tone — don't make it sound corporate or robotic. If a sentence is confusing, rewrite it simply instead of just rearranging words. Keep it concise but don't cut anything important. Do not use em dashes — use commas, ellipses, or semicolons instead.
 
 Return only the cleaned text. No commentary, no quotes, no preamble.
 
 Text:
-${content}`
-        }
-      ]
+${content}`;
+    }
+
+    const result = await client.messages.create({
+      model: MODELS.CLEAN_TEXT,
+      max_tokens: 4096,
+      messages: [{ role: 'user', content: prompt_text }],
     });
 
     const cleaned_raw = result.content[0].type === 'text'
