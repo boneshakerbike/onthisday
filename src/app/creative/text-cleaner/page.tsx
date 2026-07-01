@@ -48,14 +48,16 @@ export default function TextCleanerPage() {
     fetch_notes();
   }, [fetch_notes]);
 
-  // Save to localStorage after hydration (hydrated guard prevents overwriting saved data on first render)
+  // Save to localStorage after hydration (hydrated guard prevents overwriting saved data on first render).
+  // The raw input is intentionally NOT persisted — recovery only protects the paid/slow output
+  // (cleaned/story) so you always land on an empty input box ready to type or paste.
   useEffect(() => {
     if (!hydrated.current) return;
     try {
-      const has_content = input || cleaned || story;
+      const has_content = cleaned || story;
       if (has_content) {
         localStorage.setItem('waits_v', '1');
-        if (input) localStorage.setItem('waits_input', input); else localStorage.removeItem('waits_input');
+        localStorage.removeItem('waits_input');
         if (cleaned) localStorage.setItem('waits_cleaned', cleaned); else localStorage.removeItem('waits_cleaned');
         if (story) localStorage.setItem('waits_story', story); else localStorage.removeItem('waits_story');
         if (cleaned && output_mode) localStorage.setItem('waits_output_mode', output_mode);
@@ -66,7 +68,7 @@ export default function TextCleanerPage() {
     } catch {
       // localStorage unavailable (sandboxed iframe, private mode, quota) — persistence is best-effort
     }
-  }, [input, cleaned, story, output_mode]);
+  }, [cleaned, story, output_mode]);
 
   // Restore from localStorage on mount; version key guards against stale schema.
   // waits_output_mode is read additively (no version bump): if missing but cleaned
@@ -74,11 +76,9 @@ export default function TextCleanerPage() {
   useEffect(() => {
     try {
       if (localStorage.getItem('waits_v') !== '1') { hydrated.current = true; return; }
-      const saved_input       = localStorage.getItem('waits_input');
       const saved_cleaned     = localStorage.getItem('waits_cleaned');
       const saved_story       = localStorage.getItem('waits_story');
       const saved_output_mode = localStorage.getItem('waits_output_mode');
-      if (saved_input)   set_input(saved_input);
       if (saved_cleaned) set_cleaned(saved_cleaned);
       if (saved_story)   set_story(saved_story);
       if (saved_cleaned) {
