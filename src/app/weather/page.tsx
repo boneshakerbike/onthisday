@@ -179,8 +179,9 @@ export default function WeatherPage() {
       fontFamily: 'system-ui, -apple-system, sans-serif',
       display: 'flex',
       flexDirection: 'column',
-      padding: '1.5rem 2rem',
+      padding: 'clamp(1rem, 4vw, 1.5rem) clamp(1rem, 5vw, 2rem)',
       boxSizing: 'border-box',
+      overflowX: 'hidden' as const,
     },
     header: {
       display: 'flex',
@@ -203,7 +204,7 @@ export default function WeatherPage() {
     current_section: {
       display: 'flex',
       alignItems: 'center',
-      gap: '2.5rem',
+      gap: 'clamp(1rem, 4vw, 2.5rem)',
       marginBottom: '2rem',
       flexWrap: 'wrap',
     },
@@ -213,7 +214,7 @@ export default function WeatherPage() {
       alignItems: 'flex-start',
     },
     current_temp: {
-      fontSize: '9rem',
+      fontSize: 'clamp(3.5rem, 16vw, 9rem)',
       fontWeight: '800',
       lineHeight: '1',
       color: '#fff',
@@ -230,11 +231,11 @@ export default function WeatherPage() {
       gap: '0.5rem',
     },
     condition_emoji: {
-      fontSize: '5rem',
+      fontSize: 'clamp(2.5rem, 9vw, 5rem)',
       lineHeight: '1',
     },
     condition_text: {
-      fontSize: '1.75rem',
+      fontSize: 'clamp(1.1rem, 4vw, 1.75rem)',
       fontWeight: '600',
       color: '#e0e0e0',
     },
@@ -300,11 +301,14 @@ export default function WeatherPage() {
       marginTop: '0.2rem',
     },
     daily_row: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(7, 1fr)',
+      display: 'flex',
       gap: '0.75rem',
+      overflowX: 'auto' as const,
+      paddingBottom: '0.5rem',
     },
     daily_card: {
+      flex: '1 1 5.5rem',
+      minWidth: '5.5rem',
       backgroundColor: '#1e1e1e',
       borderRadius: '0.75rem',
       padding: '1rem 0.75rem',
