@@ -45,7 +45,8 @@ export async function POST(request: NextRequest) {
     // Prompt Library: "Prompt Review" — update library if this changes
     const review = await client.messages.create({
       model: MODELS.PROMPT_REVIEW,
-      max_tokens: 2048,
+      max_tokens: 3072,
+      thinking: { type: 'disabled' },
       messages: [
         {
           role: 'user',

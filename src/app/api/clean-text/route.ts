@@ -1,6 +1,6 @@
 /**
  * API route: POST /api/clean-text
- * Uses Sonnet 4.5 to clean up rough text for clarity and readability
+ * Uses Sonnet (see MODELS.CLEAN_TEXT) to clean up rough text for clarity and readability
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -145,7 +145,8 @@ captions
 
       const substack_result = await client.messages.create({
         model: MODELS.SUBSTACK,
-        max_tokens: 8000,
+        max_tokens: 10000,
+        thinking: { type: 'disabled' },
         messages: [{ role: 'user', content: content_blocks }],
       });
 
@@ -213,7 +214,8 @@ ${content}`;
 
     const result = await client.messages.create({
       model: MODELS.CLEAN_TEXT,
-      max_tokens: 4096,
+      max_tokens: 6144,
+      thinking: { type: 'disabled' },
       messages: [{ role: 'user', content: prompt_text }],
     });
 

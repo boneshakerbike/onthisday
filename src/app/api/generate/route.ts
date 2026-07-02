@@ -149,7 +149,8 @@ ${formatted_posts}`;
 
     const message = await client.messages.create({
       model: MODELS.STORY_GENERATION,
-      max_tokens: 8192,
+      max_tokens: 11000,
+      thinking: { type: 'disabled' },
       system: [
         {
           type: 'text',

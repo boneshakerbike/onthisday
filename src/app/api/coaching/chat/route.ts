@@ -100,7 +100,8 @@ export async function POST(request: NextRequest) {
 
     const response = await client.messages.create({
       model: MODELS.COACHING_DAILY,
-      max_tokens: 800,
+      max_tokens: 1024,
+      thinking: { type: 'disabled' },
       system: system_blocks,
       messages,
     });

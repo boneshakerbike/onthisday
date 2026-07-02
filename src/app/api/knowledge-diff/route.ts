@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { step = 'analyze', old_doc, new_doc, analysis, use_opus } = body;
+    const { step = 'analyze', old_doc, new_doc, analysis } = body;
 
     // Size limit: 200KB per document
     const MAX_DOC_LENGTH = 200000;
@@ -82,7 +82,8 @@ ${new_doc}`;
 
       const result = await client.messages.create({
         model: MODELS.KNOWLEDGE_DIFF,
-        max_tokens: 8192,
+        max_tokens: 11000,
+        thinking: { type: 'disabled' },
         messages: [{ role: 'user', content: prompt }]
       });
 
@@ -127,8 +128,6 @@ ${new_doc}`;
         );
       }
 
-      const model = use_opus ? MODELS.KNOWLEDGE_DIFF : MODELS.KNOWLEDGE_DIFF;
-
       // Prompt Library: "Knowledge Diff - Appendix" — update library if this changes
       const prompt = `Write an appendix ONLY for facts that are VERIFIED missing from NEW.
 
@@ -158,8 +157,9 @@ OLD DOCUMENT (source for exact quotes):
 ${old_doc}`;
 
       const result = await client.messages.create({
-        model,
-        max_tokens: 8192,
+        model: MODELS.KNOWLEDGE_DIFF,
+        max_tokens: 11000,
+        thinking: { type: 'disabled' },
         messages: [{ role: 'user', content: prompt }]
       });
 
