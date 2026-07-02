@@ -28,7 +28,6 @@ interface DiffResult {
 export default function KnowledgeDiffPage() {
   const [old_doc, set_old_doc] = useState('');
   const [new_doc, set_new_doc] = useState('');
-  const [use_opus, set_use_opus] = useState(false);
   const [status, set_status] = useState('');  // '' | 'Analyzing...' | 'Generating appendix...'
   const [result, set_result] = useState<DiffResult | null>(null);
   const [error, set_error] = useState('');
@@ -114,8 +113,7 @@ export default function KnowledgeDiffPage() {
       const appendix_result = await api_call({
         step: 'appendix',
         old_doc,
-        analysis: analysis_result.analysis,
-        use_opus
+        analysis: analysis_result.analysis
       });
 
       combined_usage.appendix_input = appendix_result.usage.input;
@@ -143,16 +141,9 @@ export default function KnowledgeDiffPage() {
   }
 
   function calculate_cost(usage: UsageInfo): string {
-    // Sonnet: $3/M in, $15/M out; Opus: $15/M in, $75/M out
+    // Sonnet: $3/M in, $15/M out
     const analysis_cost = (usage.analysis_input * 3 + usage.analysis_output * 15) / 1_000_000;
-    let appendix_cost = 0;
-    if (usage.appendix_input > 0) {
-      if (use_opus) {
-        appendix_cost = (usage.appendix_input * 15 + usage.appendix_output * 75) / 1_000_000;
-      } else {
-        appendix_cost = (usage.appendix_input * 3 + usage.appendix_output * 15) / 1_000_000;
-      }
-    }
+    const appendix_cost = (usage.appendix_input * 3 + usage.appendix_output * 15) / 1_000_000;
     return (analysis_cost + appendix_cost).toFixed(4);
   }
 
@@ -288,23 +279,6 @@ export default function KnowledgeDiffPage() {
             Clear
           </button>
 
-          <label
-            className="knowledge-diff-option"
-            style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            color: '#bbb',
-            cursor: 'pointer'
-          }}>
-            <input
-              type="checkbox"
-              checked={use_opus}
-              onChange={(e) => set_use_opus(e.target.checked)}
-              style={{ width: '16px', height: '16px' }}
-            />
-            Use Opus 4.5 for appendix (highest quality, ~5x cost)
-          </label>
         </div>
 
         {/* Error */}

@@ -1,6 +1,6 @@
 /**
  * API route: POST /api/intro
- * Generates a short intro paragraph for the copy feature using Haiku (fast & cheap)
+ * Generates a short intro paragraph for the copy feature using Sonnet (see MODELS.INTRO)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -65,7 +65,8 @@ Output ONLY the intro, nothing else.`;
 
     const message = await client.messages.create({
       model: MODELS.INTRO,
-      max_tokens: 150,
+      max_tokens: 256,
+      thinking: { type: 'disabled' },
       messages: [
         { role: 'user', content: prompt }
       ]
