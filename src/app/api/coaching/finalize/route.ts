@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       advice_full: string;
       conversation_turns: number;
       token_count: number;
-      manual?: { weight_lbs?: number; back_pain_scale?: number; back_mobility_notes?: string; bowel_status?: string; injury_notes?: string };
+      manual?: { weight_lbs?: number; back_pain_scale?: number; back_mobility_notes?: string; bowel_status?: string; bowel_scale?: number; injury_notes?: string };
       data_snapshot?: string;
       inject_metrics?: InjectMetrics;
     };

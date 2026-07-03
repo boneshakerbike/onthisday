@@ -12,6 +12,7 @@ export interface ManualInputs {
   back_pain_scale?: number;
   back_mobility_notes?: string;
   bowel_status?: string;
+  bowel_scale?: number;
   injury_notes?: string;
 }
 
@@ -340,9 +341,11 @@ export async function build_data_injection(
   }
 
   if (manual.back_pain_scale !== undefined) {
+    const back = manual.back_pain_scale;
+    const label = back === 0 ? 'None' : back <= 3 ? 'Mild' : back <= 6 ? 'Moderate' : 'Severe';
     const mobility = manual.back_mobility_notes ? `, ${manual.back_mobility_notes}` : '';
-    lines.push(`Back: ${manual.back_pain_scale}/10${mobility}`);
-    metrics.back_pain = manual.back_pain_scale;
+    lines.push(`Back: ${label} (${back}/10)${mobility}`);
+    metrics.back_pain = back;
   }
 
   if (manual.bowel_status) lines.push(`Bowel: ${manual.bowel_status}`);

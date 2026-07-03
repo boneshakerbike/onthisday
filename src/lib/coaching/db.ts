@@ -23,6 +23,7 @@ const TREND_METRICS = [
   'vo2max_intervals_weekly',
   'weight_lbs',
   'back_pain_scale',
+  'bowel_scale',
 ] as const;
 
 function compute_direction(values: number[]): string {
@@ -219,7 +220,7 @@ const fin = (v: number | null | undefined): number | null =>
 export async function populate_daily_metrics(
   date_str: string,
   epoch_day: number,
-  manual?: { weight_lbs?: number; back_pain_scale?: number; back_mobility_notes?: string; bowel_status?: string; injury_notes?: string },
+  manual?: { weight_lbs?: number; back_pain_scale?: number; back_mobility_notes?: string; bowel_status?: string; bowel_scale?: number; injury_notes?: string },
   inject_metrics?: InjectMetrics,
 ): Promise<boolean> {
   await ensure_schema();
@@ -319,9 +320,9 @@ export async function populate_daily_metrics(
       hrv_rmssd, resting_hr, readiness_score, cardiovascular_age, spo2_average,
       vo2_max, training_load_acute, training_load_chronic, recovery_pct,
       zone2_min_weekly, vo2max_intervals_weekly,
-      weight_lbs, back_pain_scale, back_mobility_notes, bowel_status, injury_notes,
+      weight_lbs, back_pain_scale, back_mobility_notes, bowel_status, bowel_scale, injury_notes,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
       epoch_day,
       fin(sleep_duration_min), fin(sleep_efficiency_pct), fin(deep_sleep_min), fin(rem_sleep_min),
@@ -329,7 +330,7 @@ export async function populate_daily_metrics(
       fin(vo2_max), fin(training_load_acute), fin(training_load_chronic), fin(recovery_pct),
       null, null, // zone2_min_weekly, vo2max_intervals_weekly — computed separately
       fin(manual?.weight_lbs ?? null), fin(manual?.back_pain_scale ?? null),
-      manual?.back_mobility_notes ?? null, manual?.bowel_status ?? null, manual?.injury_notes ?? null,
+      manual?.back_mobility_notes ?? null, manual?.bowel_status ?? null, fin(manual?.bowel_scale ?? null), manual?.injury_notes ?? null,
       now, now,
     ],
   });
