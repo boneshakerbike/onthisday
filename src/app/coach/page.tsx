@@ -103,17 +103,17 @@ function Sparkline({ data }: { data: (number | null)[] }) {
 function MetricCard({ label, value, unit, warn, trend, sparkline, href }: { label: string; value: unknown; unit?: string; warn?: boolean; trend?: TrendInfo; sparkline?: (number | null)[]; href?: string }) {
   if (value === null || value === undefined) return null;
   const content = (
-    <div className={`bg-zinc-900 border ${warn ? 'border-yellow-600' : 'border-zinc-800'} rounded-lg px-3 py-2 ${href ? 'cursor-pointer hover:border-zinc-600 transition-colors' : ''}`}>
-      <div className="text-xs text-gray-500">{label}</div>
-      <div className="text-lg font-semibold text-white">
+    <div className={`h-full flex flex-col bg-zinc-900 border ${warn ? 'border-yellow-600' : 'border-zinc-800'} rounded-lg px-3 py-2 ${href ? 'cursor-pointer hover:border-zinc-600 transition-colors' : ''}`}>
+      <div className="text-xs text-gray-500 truncate">{label}</div>
+      <div className="text-lg font-semibold text-white whitespace-nowrap">
         {String(value)}{unit && <span className="text-sm text-gray-400 ml-0.5">{unit}</span>}
         <TrendArrow trend={trend} />
       </div>
-      {sparkline && <Sparkline data={sparkline} />}
+      {sparkline && <div className="mt-auto"><Sparkline data={sparkline} /></div>}
     </div>
   );
   if (href) {
-    return <Link href={href}>{content}</Link>;
+    return <Link href={href} className="h-full">{content}</Link>;
   }
   return content;
 }
@@ -168,6 +168,7 @@ export default function CoachPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [sessionStarted, setSessionStarted] = useState(false);
+  const [metricsCollapsed, setMetricsCollapsed] = useState(false);
   const [finalized, setFinalized] = useState(false);
   const [savedSummary, setSavedSummary] = useState('');
   const [totalTokens, setTotalTokens] = useState(0);
@@ -184,6 +185,19 @@ export default function CoachPage() {
 
   // Load metrics on mount (Oura + Strava, then trends)
   useEffect(() => {
+    // Repaint instantly from today's cache, then refresh in the background
+    const cache_key = `coach_metrics_${dateStr}`;
+    try {
+      const cached = sessionStorage.getItem(cache_key);
+      if (cached) {
+        const c = JSON.parse(cached);
+        if (c.metrics) setMetrics(c.metrics);
+        if (c.trends) setTrends(c.trends);
+        if (c.sparklines) setSparklines(c.sparklines);
+        setMetricsLoading(false);
+      }
+    } catch { /* corrupt cache — ignore */ }
+
     async function loadMetrics() {
       try {
         // Fetch Oura and Strava in parallel
@@ -316,13 +330,15 @@ export default function CoachPage() {
             if (trendsData.sparklines) {
               setSparklines(trendsData.sparklines);
             }
+            const merged = { ...m };
             if (trendsData.lastWeight) {
-              setMetrics(prev => ({
-                ...prev,
-                weight: prev?.weight ?? trendsData.lastWeight.value,
-                weight_stale: prev?.weight ? prev.weight_stale : trendsData.lastWeight.stale,
-              }));
+              merged.weight = m.weight ?? trendsData.lastWeight.value;
+              merged.weight_stale = m.weight ? m.weight_stale : trendsData.lastWeight.stale;
+              setMetrics(merged);
             }
+            try {
+              sessionStorage.setItem(cache_key, JSON.stringify({ metrics: merged, trends: trendMap, sparklines: trendsData.sparklines ?? {} }));
+            } catch { /* storage full or unavailable — skip */ }
           }
         } catch {
           // Best effort — arrows just won't show
@@ -403,6 +419,7 @@ export default function CoachPage() {
         { role: 'assistant', content: data.response },
       ]);
       setSessionStarted(true);
+      setMetricsCollapsed(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to start session');
     } finally {
@@ -613,10 +630,20 @@ export default function CoachPage() {
         )}
 
         {/* Pre-Chat: Metrics Pane */}
-        {!sessionStarted && (
-          <div className="space-y-5">
+        <div className="space-y-5 mb-5">
+            {/* Once a session starts, metrics collapse behind this header */}
+            {sessionStarted && (
+              <button
+                onClick={() => setMetricsCollapsed(c => !c)}
+                className="w-full flex justify-between items-center bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2 text-sm text-gray-300 hover:text-white transition-colors"
+              >
+                <span>Today&apos;s data{metrics?.recovery_status ? ` · ${metrics.recovery_status}` : ''}</span>
+                <span className={`text-xs transition-transform ${metricsCollapsed ? '' : 'rotate-180'}`}>▼</span>
+              </button>
+            )}
+
             {/* Metrics Grid */}
-            {metricsLoading ? (
+            {(!sessionStarted || !metricsCollapsed) && (metricsLoading ? (
               <div className="text-gray-500 text-sm">Loading health data...</div>
             ) : metrics ? (
               <div className="space-y-3">
@@ -666,7 +693,7 @@ export default function CoachPage() {
                 </div>
 
                 {/* Physiology row */}
-                <div className="grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
                   <MetricCard label="HRV" value={metrics.hrv} unit="ms" trend={trends['hrv']} sparkline={sparklines['hrv']} href="/coach/metric/hrv" />
                   <MetricCard label="Resting HR" value={metrics.resting_hr} unit="bpm" trend={trends['resting-hr']} sparkline={sparklines['resting-hr']} href="/coach/metric/resting-hr" />
                   <MetricCard label="Blood Oxygen" value={metrics.spo2 ? Math.round(metrics.spo2) : null} unit="%" trend={trends['spo2']} sparkline={sparklines['spo2']} href="/coach/metric/spo2" />
@@ -709,8 +736,9 @@ export default function CoachPage() {
               </div>
             ) : (
               <div className="text-gray-500 text-sm">No health data available. Oura may need to sync.</div>
-            )}
+            ))}
 
+            {!sessionStarted && (<>
             {/* Manual Inputs */}
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
@@ -774,8 +802,8 @@ export default function CoachPage() {
             >
               {loading ? 'Starting...' : 'Start Session'}
             </button>
-          </div>
-        )}
+            </>)}
+        </div>
 
         {/* Chat */}
         {sessionStarted && (

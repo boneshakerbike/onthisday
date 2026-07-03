@@ -47,3 +47,4 @@ next-env.d.ts
 __pycache__/
 *.pyc
 .env*.local
+coaching_sessions_dump.txt
