@@ -727,37 +727,27 @@ export default function CoachPage() {
                   </div>
                 </div>
 
-                {/* Physiology row: 3 + 2 full-width rows on phones, single row of 5 on desktop */}
-                <div className="grid grid-cols-6 md:grid-cols-10 gap-2">
-                  <MetricCard label="HRV" value={metrics.hrv} unit="ms" trend={trends['hrv']} sparkline={sparklines['hrv']} href="/coach/metric/hrv" className="col-span-2" />
-                  <MetricCard label="Resting HR" value={metrics.resting_hr} unit="bpm" trend={trends['resting-hr']} sparkline={sparklines['resting-hr']} href="/coach/metric/resting-hr" className="col-span-2" />
-                  <MetricCard label="Blood Oxygen" value={metrics.spo2 ? Math.round(metrics.spo2) : null} unit="%" trend={trends['spo2']} sparkline={sparklines['spo2']} href="/coach/metric/spo2" className="col-span-2" />
-                  <MetricCard label="CV Age" value={metrics.cv_age} unit="yr" trend={trends['cv-age']} sparkline={sparklines['cv-age']} href="/coach/metric/cv-age" className="col-span-3 md:col-span-2" />
-                  <MetricCard label="Weight" value={metrics.weight} unit="lbs" warn={metrics.weight_stale} trend={trends['weight']} sparkline={sparklines['weight']} href="/coach/metric/weight" className="col-span-3 md:col-span-2" />
-                </div>
-
-                {/* Resilience / Stress-Recovery */}
-                {(metrics.stress_min != null && metrics.restored_min != null) && (
-                  <div className={`bg-zinc-900 border rounded-lg px-3 py-2 ${
-                    metrics.resilience?.includes('High recovery') ? 'border-green-800' :
-                    metrics.resilience?.includes('Balanced') ? 'border-zinc-700' :
-                    metrics.resilience?.includes('Elevated') ? 'border-yellow-700' :
-                    metrics.resilience?.includes('High stress') ? 'border-red-800' :
-                    'border-zinc-800'
-                  }`}>
-                    <div className="flex justify-between items-baseline">
-                      <div>
-                        <div className="text-xs text-gray-500">Resilience</div>
-                        <div className="text-sm font-medium text-white">{metrics.resilience || 'No stress data yet'}</div>
-                      </div>
-                      <div className="text-right text-xs text-gray-500">
-                        <span>{metrics.stress_min}m stressed</span>
-                        <span> · </span>
-                        <span>{metrics.restored_min}m restored</span>
-                      </div>
+                {/* Physiology: six equal tiles, two rows of three on phones */}
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                  <MetricCard label="HRV" value={metrics.hrv} unit="ms" trend={trends['hrv']} sparkline={sparklines['hrv']} href="/coach/metric/hrv" />
+                  <MetricCard label="Resting HR" value={metrics.resting_hr} unit="bpm" trend={trends['resting-hr']} sparkline={sparklines['resting-hr']} href="/coach/metric/resting-hr" />
+                  <MetricCard label="Blood Oxygen" value={metrics.spo2 ? Math.round(metrics.spo2) : null} unit="%" trend={trends['spo2']} sparkline={sparklines['spo2']} href="/coach/metric/spo2" />
+                  <MetricCard label="CV Age" value={metrics.cv_age} unit="yr" trend={trends['cv-age']} sparkline={sparklines['cv-age']} href="/coach/metric/cv-age" />
+                  <MetricCard label="Weight" value={metrics.weight} unit="lbs" warn={metrics.weight_stale} trend={trends['weight']} sparkline={sparklines['weight']} href="/coach/metric/weight" />
+                  {(metrics.stress_min != null && metrics.restored_min != null) && (
+                    <div className={`h-full flex flex-col bg-zinc-900 border rounded-lg px-3 py-2 ${
+                      metrics.resilience?.includes('High recovery') ? 'border-green-800' :
+                      metrics.resilience?.includes('Balanced') ? 'border-zinc-700' :
+                      metrics.resilience?.includes('Elevated') ? 'border-yellow-700' :
+                      metrics.resilience?.includes('High stress') ? 'border-red-800' :
+                      'border-zinc-800'
+                    }`}>
+                      <div className="text-xs text-gray-500 truncate">Resilience</div>
+                      <div className="text-sm font-medium text-white">{metrics.resilience || 'No stress data yet'}</div>
+                      <div className="mt-auto text-xs text-gray-500">{metrics.stress_min}m / {metrics.restored_min}m</div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {/* Yesterday's Activities */}
                 {metrics.yesterday_activities && metrics.yesterday_activities.length > 0 && (
