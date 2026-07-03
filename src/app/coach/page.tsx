@@ -100,7 +100,7 @@ function Sparkline({ data }: { data: (number | null)[] }) {
   );
 }
 
-function MetricCard({ label, value, unit, warn, trend, sparkline, href }: { label: string; value: unknown; unit?: string; warn?: boolean; trend?: TrendInfo; sparkline?: (number | null)[]; href?: string }) {
+function MetricCard({ label, value, unit, warn, trend, sparkline, href, className }: { label: string; value: unknown; unit?: string; warn?: boolean; trend?: TrendInfo; sparkline?: (number | null)[]; href?: string; className?: string }) {
   if (value === null || value === undefined) return null;
   const content = (
     <div className={`h-full flex flex-col bg-zinc-900 border ${warn ? 'border-yellow-600' : 'border-zinc-800'} rounded-lg px-3 py-2 ${href ? 'cursor-pointer hover:border-zinc-600 transition-colors' : ''}`}>
@@ -113,9 +113,9 @@ function MetricCard({ label, value, unit, warn, trend, sparkline, href }: { labe
     </div>
   );
   if (href) {
-    return <Link href={href} className="h-full">{content}</Link>;
+    return <Link href={href} className={`h-full ${className ?? ''}`}>{content}</Link>;
   }
-  return content;
+  return <div className={`h-full ${className ?? ''}`}>{content}</div>;
 }
 
 function ActivityRow({ activity }: { activity: Metrics['yesterday_activities'] extends (infer T)[] | undefined ? T : never }) {
@@ -138,14 +138,49 @@ function ActivityRow({ activity }: { activity: Metrics['yesterday_activities'] e
   );
 }
 
+// Tap-selector levels (roadmap: numeric behind the scenes, unset saves null)
+const BACK_LEVELS = [
+  { label: 'None', value: 0 },
+  { label: 'Mild', value: 3 },
+  { label: 'Moderate', value: 6 },
+  { label: 'Severe', value: 9 },
+];
+
+const BOWEL_LEVELS = [
+  { label: 'Loose', value: 1 },
+  { label: 'Normal', value: 2 },
+  { label: 'Hard', value: 3 },
+  { label: 'None', value: 0 },
+];
+
+function LevelSelector({ options, value, onChange }: { options: { label: string; value: number }[]; value: number | null; onChange: (v: number | null) => void }) {
+  return (
+    <div className="grid grid-cols-4 gap-1">
+      {options.map(o => (
+        <button
+          key={o.label}
+          type="button"
+          onClick={() => onChange(value === o.value ? null : o.value)}
+          className={`py-2 rounded text-sm transition-colors ${
+            value === o.value
+              ? 'bg-blue-600 text-white'
+              : 'bg-zinc-900 border border-zinc-700 text-gray-400 hover:text-white'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function CoachPage() {
   useEffect(() => { document.title = '8i11 | Coach'; }, []);
 
-  // Manual inputs
+  // Manual inputs — selectors start unset so an untouched input saves null
   const [weight, setWeight] = useState('');
-  const [backPain, setBackPain] = useState(0);
-  const [backNotes, setBackNotes] = useState('');
-  const [bowel, setBowel] = useState('');
+  const [backPain, setBackPain] = useState<number | null>(null);
+  const [bowel, setBowel] = useState<number | null>(null);
   const [injuries, setInjuries] = useState('');
 
   // Data state
@@ -376,9 +411,9 @@ export default function CoachPage() {
           epoch_day: epochDay,
           manual: {
             weight_lbs: weight ? parseFloat(weight) : undefined,
-            back_pain_scale: backPain,
-            back_mobility_notes: backNotes || undefined,
-            bowel_status: bowel || undefined,
+            back_pain_scale: backPain ?? undefined,
+            bowel_status: bowel != null ? BOWEL_LEVELS.find(o => o.value === bowel)?.label : undefined,
+            bowel_scale: bowel ?? undefined,
             injury_notes: injuries || undefined,
           },
           oura_live: ouraData?.success ? ouraData : undefined,
@@ -485,9 +520,9 @@ export default function CoachPage() {
           data_snapshot: dataInjection,
           manual: {
             weight_lbs: weight ? parseFloat(weight) : undefined,
-            back_pain_scale: backPain,
-            back_mobility_notes: backNotes || undefined,
-            bowel_status: bowel || undefined,
+            back_pain_scale: backPain ?? undefined,
+            bowel_status: bowel != null ? BOWEL_LEVELS.find(o => o.value === bowel)?.label : undefined,
+            bowel_scale: bowel ?? undefined,
             injury_notes: injuries || undefined,
           },
           inject_metrics: metrics ? {
@@ -630,7 +665,7 @@ export default function CoachPage() {
         )}
 
         {/* Pre-Chat: Metrics Pane */}
-        <div className="space-y-5 mb-5">
+        <div className="space-y-4 mb-5">
             {/* Once a session starts, metrics collapse behind this header */}
             {sessionStarted && (
               <button
@@ -692,13 +727,13 @@ export default function CoachPage() {
                   </div>
                 </div>
 
-                {/* Physiology row */}
-                <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
-                  <MetricCard label="HRV" value={metrics.hrv} unit="ms" trend={trends['hrv']} sparkline={sparklines['hrv']} href="/coach/metric/hrv" />
-                  <MetricCard label="Resting HR" value={metrics.resting_hr} unit="bpm" trend={trends['resting-hr']} sparkline={sparklines['resting-hr']} href="/coach/metric/resting-hr" />
-                  <MetricCard label="Blood Oxygen" value={metrics.spo2 ? Math.round(metrics.spo2) : null} unit="%" trend={trends['spo2']} sparkline={sparklines['spo2']} href="/coach/metric/spo2" />
-                  <MetricCard label="CV Age" value={metrics.cv_age} unit="yr" trend={trends['cv-age']} sparkline={sparklines['cv-age']} href="/coach/metric/cv-age" />
-                  <MetricCard label="Weight" value={metrics.weight} unit="lbs" warn={metrics.weight_stale} trend={trends['weight']} sparkline={sparklines['weight']} href="/coach/metric/weight" />
+                {/* Physiology row: 3 + 2 full-width rows on phones, single row of 5 on desktop */}
+                <div className="grid grid-cols-6 md:grid-cols-10 gap-2">
+                  <MetricCard label="HRV" value={metrics.hrv} unit="ms" trend={trends['hrv']} sparkline={sparklines['hrv']} href="/coach/metric/hrv" className="col-span-2" />
+                  <MetricCard label="Resting HR" value={metrics.resting_hr} unit="bpm" trend={trends['resting-hr']} sparkline={sparklines['resting-hr']} href="/coach/metric/resting-hr" className="col-span-2" />
+                  <MetricCard label="Blood Oxygen" value={metrics.spo2 ? Math.round(metrics.spo2) : null} unit="%" trend={trends['spo2']} sparkline={sparklines['spo2']} href="/coach/metric/spo2" className="col-span-2" />
+                  <MetricCard label="CV Age" value={metrics.cv_age} unit="yr" trend={trends['cv-age']} sparkline={sparklines['cv-age']} href="/coach/metric/cv-age" className="col-span-3 md:col-span-2" />
+                  <MetricCard label="Weight" value={metrics.weight} unit="lbs" warn={metrics.weight_stale} trend={trends['weight']} sparkline={sparklines['weight']} href="/coach/metric/weight" className="col-span-3 md:col-span-2" />
                 </div>
 
                 {/* Resilience / Stress-Recovery */}
@@ -741,56 +776,34 @@ export default function CoachPage() {
             {!sessionStarted && (<>
             {/* Manual Inputs */}
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Weight (lbs)</label>
-                  <input
-                    type="number"
-                    value={weight}
-                    onChange={e => setWeight(e.target.value)}
-                    placeholder="e.g. 192"
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">Back Pain: {backPain}/10</label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="10"
-                    value={backPain}
-                    onChange={e => setBackPain(parseInt(e.target.value))}
-                    className="w-full mt-2"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Weight (lbs)</label>
+                <input
+                  type="number"
+                  value={weight}
+                  onChange={e => setWeight(e.target.value)}
+                  placeholder="e.g. 192"
+                  className="w-1/2 bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
+                />
               </div>
-
-              <details className="text-sm">
-                <summary className="text-gray-500 cursor-pointer text-xs">More inputs</summary>
-                <div className="space-y-3 mt-2">
-                  <input
-                    type="text"
-                    value={backNotes}
-                    onChange={e => setBackNotes(e.target.value)}
-                    placeholder="Back mobility notes"
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
-                  />
-                  <input
-                    type="text"
-                    value={bowel}
-                    onChange={e => setBowel(e.target.value)}
-                    placeholder="Bowel status"
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
-                  />
-                  <textarea
-                    value={injuries}
-                    onChange={e => setInjuries(e.target.value)}
-                    placeholder="Injuries or notes for today"
-                    rows={2}
-                    className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
-                  />
-                </div>
-              </details>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Back</label>
+                <LevelSelector options={BACK_LEVELS} value={backPain} onChange={setBackPain} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Bowel</label>
+                <LevelSelector options={BOWEL_LEVELS} value={bowel} onChange={setBowel} />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Notes</label>
+                <textarea
+                  value={injuries}
+                  onChange={e => setInjuries(e.target.value)}
+                  placeholder="Injuries or notes for today"
+                  rows={2}
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded px-3 py-2 text-white text-sm"
+                />
+              </div>
             </div>
 
             {error && <p className="text-red-400 text-sm">{error}</p>}

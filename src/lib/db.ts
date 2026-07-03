@@ -202,6 +202,13 @@ async function init_schema(): Promise<void> {
     // Column already exists, ignore error
   }
 
+  // Migration: add bowel_scale column to daily_metrics (Loose=1 Normal=2 Hard=3 None=0)
+  try {
+    await db.execute(`ALTER TABLE daily_metrics ADD COLUMN bowel_scale INTEGER`);
+  } catch {
+    // Column already exists, ignore error
+  }
+
   // Migration: backfill cardiovascular_age from HRV + RHR where missing
   // Uses Umetani regression: cv_age = 0.65 * (107 - 12.5 * ln(HRV)) + 0.35 * (1.4 * RHR - 40)
   await db.execute(`
