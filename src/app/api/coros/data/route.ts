@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   const token = await getToken({ req: request })
   if (!token) {
     const pin = request.headers.get('X-Guest-Pin')
-    const valid_pins = (process.env.GUEST_PINS || '').split(',').map(p => p.trim()).filter(Boolean)
+    const valid_pins = (process.env.GUEST_PINS || process.env.GUEST_PIN || '').split(',').map(p => p.trim()).filter(Boolean)
     if (!pin || !valid_pins.includes(pin)) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401, headers: cors_headers(request.headers.get('origin')) })
     }
