@@ -14,8 +14,6 @@ export default function MarkdownConverterPage() {
   const [is_updating_from_rich, set_is_updating_from_rich] = useState(false);
   const [is_updating_from_markdown, set_is_updating_from_markdown] = useState(false);
   const [copy_status, set_copy_status] = useState<string | null>(null);
-  const [docx_status, set_docx_status] = useState<string | null>(null);
-  const [docx_importing, set_docx_importing] = useState(false);
   const rich_editor_ref = useRef<HTMLDivElement>(null);
   const markdown_textarea_ref = useRef<HTMLTextAreaElement>(null);
   const markdown_timeout_ref = useRef<NodeJS.Timeout | null>(null);
@@ -300,39 +298,6 @@ export default function MarkdownConverterPage() {
     if (url) apply_format('createLink', url);
   };
 
-  const handle_docx_upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    set_docx_status('Importing...');
-    set_docx_importing(true);
-
-    try {
-      const array_buffer = await file.arrayBuffer();
-      const mammoth = await import('mammoth');
-      const result = await mammoth.convertToHtml({ arrayBuffer: array_buffer });
-      const html = result.value || '';
-
-      if (rich_editor_ref.current) {
-        set_is_updating_from_markdown(true);
-        rich_editor_ref.current.innerHTML = html;
-        const markdown = html_to_markdown(html);
-        set_markdown_content(markdown);
-        set_is_updating_from_markdown(false);
-      }
-
-      set_docx_status('Imported');
-      setTimeout(() => set_docx_status(null), 2000);
-    } catch (error) {
-      console.error('Docx import failed:', error);
-      set_docx_status('Import failed');
-      setTimeout(() => set_docx_status(null), 3000);
-    } finally {
-      set_docx_importing(false);
-      e.target.value = '';
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#1a1a2e] to-[#16213e] text-gray-200 p-5">
       <div className="max-w-6xl mx-auto">
@@ -351,26 +316,6 @@ export default function MarkdownConverterPage() {
             {copy_status}
           </div>
         )}
-        {docx_status && (
-          <div className="fixed top-14 right-4 bg-cyan-500 text-white px-4 py-2 rounded-lg shadow-lg z-50">
-            {docx_status}
-          </div>
-        )}
-
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 mb-6">
-          <label className="w-full sm:w-auto text-center px-4 py-2.5 sm:py-2 bg-[#333] sm:bg-white/10 hover:bg-cyan-400/20 rounded border border-[#555] sm:border-white/20 text-sm text-gray-300 transition-all cursor-pointer">
-            Import .docx
-            <input
-              type="file"
-              accept=".docx"
-              onChange={handle_docx_upload}
-              disabled={docx_importing}
-              className="hidden"
-            />
-          </label>
-          <span className="text-xs text-gray-400">Converts .docx → HTML → Markdown</span>
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Rich Text Editor */}
           <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden min-w-0">
