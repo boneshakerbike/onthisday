@@ -174,6 +174,20 @@ function LevelSelector({ options, value, onChange }: { options: { label: string;
   );
 }
 
+// Split stored advice_full into its data snapshot and conversation sections
+function parseAdviceFull(adviceFull: string): { dataSnapshot: string | null; conversation: string } {
+  const hasSnapshot = adviceFull.startsWith('[Data for this session]');
+  const convoMarker = '[Conversation]';
+  const convoIdx = hasSnapshot ? adviceFull.indexOf(convoMarker) : -1;
+  const dataSnapshot = hasSnapshot && convoIdx > 0
+    ? adviceFull.slice('[Data for this session]\n'.length, convoIdx).trim()
+    : null;
+  const conversation = convoIdx > 0
+    ? adviceFull.slice(convoIdx + convoMarker.length).trim()
+    : adviceFull;
+  return { dataSnapshot, conversation };
+}
+
 export default function CoachPage() {
   useEffect(() => { document.title = '8i11 | Coach'; }, []);
 
@@ -206,6 +220,9 @@ export default function CoachPage() {
   const [metricsCollapsed, setMetricsCollapsed] = useState(false);
   const [finalized, setFinalized] = useState(false);
   const [savedSummary, setSavedSummary] = useState('');
+  const [todaySession, setTodaySession] = useState<HistorySession | null>(null);
+  const [todayChecked, setTodayChecked] = useState(false);
+  const [startNewAnyway, setStartNewAnyway] = useState(false);
   const [totalTokens, setTotalTokens] = useState(0);
   const [turnCount, setTurnCount] = useState(0);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -385,6 +402,19 @@ export default function CoachPage() {
       }
     }
     loadMetrics();
+
+    // Check whether today's session is already saved (hides the start form)
+    async function loadTodaySession() {
+      try {
+        const res = await fetch(`/api/coaching/today?date=${epochDay}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.session) setTodaySession(data.session);
+        }
+      } catch { /* best effort — form shows as usual */ }
+      setTodayChecked(true);
+    }
+    loadTodaySession();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -548,6 +578,15 @@ export default function CoachPage() {
       const data = await res.json();
       setFinalized(true);
       setSavedSummary(data.summary || '');
+      // Mirror what finalize stored so a re-render shows the completed view
+      setTodaySession({
+        date: epochDay,
+        advice_full: dataInjection
+          ? `[Data for this session]\n${dataInjection}\n\n[Conversation]\n${adviceFull}`
+          : adviceFull,
+        advice_summary: data.summary || null,
+        conversation_turns: turnCount,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save');
     } finally {
@@ -617,16 +656,7 @@ export default function CoachPage() {
           <div className="mb-6 space-y-2">
             {history.length === 0 && <p className="text-gray-500 text-sm">No past sessions.</p>}
             {history.map(s => {
-              // Parse data snapshot from stored advice_full
-              const hasSnapshot = s.advice_full.startsWith('[Data for this session]');
-              const convoMarker = '[Conversation]';
-              const convoIdx = hasSnapshot ? s.advice_full.indexOf(convoMarker) : -1;
-              const dataSnapshot = hasSnapshot && convoIdx > 0
-                ? s.advice_full.slice('[Data for this session]\n'.length, convoIdx).trim()
-                : null;
-              const conversation = convoIdx > 0
-                ? s.advice_full.slice(convoIdx + convoMarker.length).trim()
-                : s.advice_full;
+              const { dataSnapshot, conversation } = parseAdviceFull(s.advice_full);
 
               return (
                 <details key={s.date} className="bg-zinc-900 border border-zinc-800 rounded">
@@ -763,7 +793,38 @@ export default function CoachPage() {
               <div className="text-gray-500 text-sm">No health data available. Oura may need to sync.</div>
             ))}
 
-            {!sessionStarted && (<>
+            {/* Completed session: synopsis + transcript instead of the form */}
+            {!sessionStarted && todaySession && !startNewAnyway && (
+              <div className="space-y-3">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-white">Today&apos;s session</span>
+                    <span className="text-xs text-green-400">✓ Complete</span>
+                  </div>
+                  {todaySession.advice_summary ? (
+                    <p className="text-sm text-gray-300">{todaySession.advice_summary}</p>
+                  ) : (
+                    <p className="text-sm text-gray-500">Session saved — no summary was generated.</p>
+                  )}
+                  <details className="text-xs">
+                    <summary className="text-gray-500 cursor-pointer">Full conversation</summary>
+                    <div className="mt-1 text-gray-400 whitespace-pre-wrap">{parseAdviceFull(todaySession.advice_full).conversation}</div>
+                  </details>
+                </div>
+                <button
+                  onClick={() => setStartNewAnyway(true)}
+                  className="text-xs text-gray-500 hover:text-gray-300 underline decoration-zinc-700 transition-colors"
+                >
+                  Start a new session
+                </button>
+              </div>
+            )}
+
+            {!sessionStarted && todayChecked && (!todaySession || startNewAnyway) && (<>
+            {startNewAnyway && (
+              <p className="text-xs text-yellow-500">Saving a new session will replace today&apos;s saved session.</p>
+            )}
+
             {/* Manual Inputs */}
             <div className="space-y-3">
               <div>
