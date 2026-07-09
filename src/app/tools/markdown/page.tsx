@@ -292,6 +292,18 @@ export default function MarkdownConverterPage() {
     }
   };
 
+  // Copy the raw HTML behind the rich text editor (e.g. what a Confluence paste really contains)
+  const copy_html = async () => {
+    try {
+      await navigator.clipboard.writeText(rich_editor_ref.current?.innerHTML || '');
+      set_copy_status('HTML copied!');
+      setTimeout(() => set_copy_status(null), 2000);
+    } catch {
+      set_copy_status('Copy failed');
+      setTimeout(() => set_copy_status(null), 2000);
+    }
+  };
+
   // Insert link
   const insert_link = () => {
     const url = prompt('Enter URL:');
@@ -366,6 +378,13 @@ export default function MarkdownConverterPage() {
                 title="Insert Link"
               >
                 Link
+              </button>
+              <button
+                onClick={copy_html}
+                className="px-3 py-1 bg-white/10 hover:bg-cyan-400/20 rounded border border-white/20 text-sm transition-all"
+                title="Copy the raw HTML of the pasted content"
+              >
+                Copy HTML
               </button>
               <button
                 onClick={clear_rich_text}
