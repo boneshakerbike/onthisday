@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { get_client, ensure_schema } from '@/lib/db';
 import { METRIC_CONFIG, computeTrend, type MetricTrend } from '@/lib/coaching/metric-config';
+import { mt_epoch_day } from '@/lib/coaching/day';
 
 export async function POST(request: NextRequest) {
   const token = await getToken({ req: request });
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
   try {
     await ensure_schema();
     const db = get_client();
-    const today = Math.floor(Date.now() / 86400000);
+    const today = mt_epoch_day();
     const yesterday = today - 1;
     const now = Math.floor(Date.now() / 1000);
 

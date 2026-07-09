@@ -198,7 +198,7 @@ export async function save_coaching_session(session: {
 
 /**
  * Populate daily_metrics from wellness_cache (Oura) + coros_data (COROS) + optional manual inputs.
- * date_str: YYYY-MM-DD, epoch_day: Math.floor(Date.now() / 86400000)
+ * date_str: YYYY-MM-DD, epoch_day: mt_epoch_day() (Mountain Time day boundary)
  */
 export interface InjectMetrics {
   readiness?: number | null;

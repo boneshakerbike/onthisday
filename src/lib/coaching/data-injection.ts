@@ -121,7 +121,7 @@ function compute_recovery_status(
 /**
  * Build the data injection string for a coaching session.
  * date_str: YYYY-MM-DD format
- * epoch_day: Math.floor(Date.now() / 86400000) for trend_cache lookup
+ * epoch_day: mt_epoch_day() (Mountain Time day boundary) for trend_cache lookup
  */
 export async function build_data_injection(
   date_str: string,

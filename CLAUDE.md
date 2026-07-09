@@ -2,6 +2,8 @@
 
 **Live:** https://8i11.vercel.app | **Repo:** https://github.com/boneshakerbike/onthisday
 
+> **Vercel access:** Use the `vercel` CLI (already installed, logged in as `boneshakerbike`, team `boneshakerbikes-projects`). Do NOT use the Vercel MCP plugin — its OAuth redirect is broken on Vercel's side and will error. The `/doctor` MCP auth warning at login is cosmetic; ignore it. Examples: `vercel projects ls`, `vercel ls`, `vercel logs <url>`, `vercel env ls`.
+
 ## Tech Stack
 
 | Category | Technology |

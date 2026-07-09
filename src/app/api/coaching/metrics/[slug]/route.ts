@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { get_client, ensure_schema } from '@/lib/db';
 import { getMetricBySlug } from '@/lib/coaching/metric-config';
+import { mt_epoch_day, epoch_day_to_date_str } from '@/lib/coaching/day';
 
 export async function GET(
   request: NextRequest,
@@ -31,7 +32,7 @@ export async function GET(
   try {
     await ensure_schema();
     const db = get_client();
-    const today = Math.floor(Date.now() / 86400000);
+    const today = mt_epoch_day();
     const startDate = today - days;
 
     const result = await db.execute({
@@ -43,7 +44,7 @@ export async function GET(
       .filter(r => r.value != null)
       .map(r => ({
         date: Number(r.date),
-        dateStr: new Date(Number(r.date) * 86400000).toISOString().split('T')[0],
+        dateStr: epoch_day_to_date_str(Number(r.date)),
         value: Number(r.value),
       }));
 
