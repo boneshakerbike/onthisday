@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { get_session_by_date } from '@/lib/coaching/db';
+import { mt_epoch_day } from '@/lib/coaching/day';
 
 export async function GET(request: NextRequest) {
   const token = await getToken({ req: request });
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const param = Number(request.nextUrl.searchParams.get('date'));
-    const date = Number.isFinite(param) && param > 0 ? param : Math.floor(Date.now() / 86400000);
+    const date = Number.isFinite(param) && param > 0 ? param : mt_epoch_day();
     const session = await get_session_by_date(date);
     return NextResponse.json({ session });
   } catch (error) {

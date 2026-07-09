@@ -10,6 +10,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import NavTabs from '@/components/nav_tabs';
+import { mt_date_str, mt_epoch_day, epoch_day_to_date_str } from '@/lib/coaching/day';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -227,9 +228,9 @@ export default function CoachPage() {
   const [turnCount, setTurnCount] = useState(0);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const today = new Date();
-  const dateStr = today.toLocaleDateString('en-CA');
-  const epochDay = Math.floor(Date.now() / 86400000);
+  // Day boundary is Mountain Time regardless of where the client runs
+  const dateStr = mt_date_str();
+  const epochDay = mt_epoch_day();
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -262,9 +263,7 @@ export default function CoachPage() {
         const stravaData = stravaRes?.ok ? await stravaRes.json() : null;
 
         // Build a preview injection to get metrics
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toLocaleDateString('en-CA');
+        const yesterdayStr = epoch_day_to_date_str(epochDay - 1);
 
         // Extract yesterday's activities from Strava
         const stravaActivities = stravaData?.activities?.filter(
@@ -623,10 +622,6 @@ export default function CoachPage() {
     setHistoryLoadingMore(false);
   }
 
-  function epochDayToDate(epoch: number): string {
-    return new Date(epoch * 86400000).toISOString().split('T')[0];
-  }
-
   function formatMinutes(min: number | null | undefined): string {
     if (!min) return '—';
     const h = Math.floor(min / 60);
@@ -661,7 +656,7 @@ export default function CoachPage() {
               return (
                 <details key={s.date} className="bg-zinc-900 border border-zinc-800 rounded">
                   <summary className="px-4 py-2 cursor-pointer text-sm text-gray-300 hover:text-white flex justify-between">
-                    <span>{epochDayToDate(s.date)}</span>
+                    <span>{epoch_day_to_date_str(s.date)}</span>
                     <span className="text-gray-500">{s.conversation_turns} turn{s.conversation_turns !== 1 ? 's' : ''}</span>
                   </summary>
                   <div className="px-4 pb-3 space-y-2">
