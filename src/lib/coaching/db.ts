@@ -390,3 +390,25 @@ export async function get_recent_sessions(limit: number = 3, offset: number = 0)
     created_at: Number(row.created_at),
   }));
 }
+
+/**
+ * Get the coaching session saved for a specific epoch-day, if any.
+ */
+export async function get_session_by_date(date: number): Promise<CoachingSession | null> {
+  await ensure_schema();
+  const db = get_client();
+  const result = await db.execute({
+    sql: `SELECT date, advice_full, advice_summary, conversation_turns, created_at
+          FROM coaching_history WHERE date = ?`,
+    args: [date],
+  });
+  if (result.rows.length === 0) return null;
+  const row = result.rows[0];
+  return {
+    date: Number(row.date),
+    advice_full: row.advice_full as string,
+    advice_summary: (row.advice_summary as string) ?? null,
+    conversation_turns: Number(row.conversation_turns),
+    created_at: Number(row.created_at),
+  };
+}
