@@ -41,6 +41,15 @@ export default function MarkdownConverterPage() {
     const temp_div = document.createElement('div');
     temp_div.innerHTML = html;
 
+    // Move leading/trailing whitespace outside inline markers so pastes like
+    // "<strong>Supported </strong>child" become "**Supported** child"
+    const wrap_inline = (marker: string, content: string): string => {
+      const match = content.match(/^(\s*)([\s\S]*?)(\s*)$/);
+      const body = match ? match[2] : content;
+      if (!body) return '';
+      return `${match ? match[1] : ''}${marker}${body}${marker}${match ? match[3] : ''}`;
+    };
+
     const process_node = (node: Node, depth: number = 0): string => {
       if (node.nodeType === Node.TEXT_NODE) {
         return node.textContent || '';
@@ -52,22 +61,55 @@ export default function MarkdownConverterPage() {
         const indent = '  '.repeat(depth);
         const children = Array.from(node.childNodes).map(child => process_node(child, depth)).join('');
 
+        // Confluence paste handling: icons, macros, smart links, panels, tasks
+        if (element.getAttribute('aria-hidden') === 'true') return '';
+        if (element.hasAttribute('data-fabric-macro') || element.hasAttribute('data-macro-name')) {
+          const macro_name = `${element.getAttribute('data-macro-name') || ''} ${element.getAttribute('data-vc') || ''}`;
+          if (macro_name.includes('toc')) return '\n\n> *Auto-generated table of contents (Confluence TOC macro)*\n\n';
+          if (macro_name.includes('children')) return '\n\n> *Auto-generated list of child pages (Confluence Children Display macro)*\n\n';
+        }
+        if (element.getAttribute('data-inline-card') === 'true') {
+          const card_url = element.getAttribute('data-card-url');
+          if (card_url) return `[${card_url}](${card_url})`;
+        }
+        if (element.hasAttribute('data-task-local-id')) {
+          const checked = element.querySelector('input[type="checkbox"]')?.hasAttribute('checked');
+          const task_text = children.trim().replace(/\n+/g, ' ');
+          return task_text ? `- [${checked ? 'x' : ' '}] ${task_text}\n\n` : '';
+        }
+        if (element.getAttribute('data-node-type') === 'status') {
+          return children.trim() ? `**${children.trim()}**` : '';
+        }
+        if (element.classList.contains('ak-editor-panel')) {
+          const panel_type = element.getAttribute('data-panel-type') || '';
+          const label = panel_type ? `**${panel_type.charAt(0).toUpperCase()}${panel_type.slice(1)}:** ` : '';
+          const quoted = children.trim().replace(/\n{2,}/g, '\n').replace(/\n/g, '\n> ');
+          return quoted ? `\n\n> ${label}${quoted}\n\n` : '';
+        }
+
         switch (tag_name) {
-          case 'h1': return `# ${children.trim()}\n\n`;
-          case 'h2': return `## ${children.trim()}\n\n`;
-          case 'h3': return `### ${children.trim()}\n\n`;
-          case 'h4': return `#### ${children.trim()}\n\n`;
-          case 'h5': return `##### ${children.trim()}\n\n`;
-          case 'h6': return `###### ${children.trim()}\n\n`;
+          case 'h1': return `\n\n# ${children.trim()}\n\n`;
+          case 'h2': return `\n\n## ${children.trim()}\n\n`;
+          case 'h3': return `\n\n### ${children.trim()}\n\n`;
+          case 'h4': return `\n\n#### ${children.trim()}\n\n`;
+          case 'h5': return `\n\n##### ${children.trim()}\n\n`;
+          case 'h6': return `\n\n###### ${children.trim()}\n\n`;
           case 'p': return children.trim() ? `${children.trim()}\n\n` : '';
           case 'strong':
-          case 'b': return `**${children}**`;
+          case 'b': return wrap_inline('**', children);
           case 'em':
-          case 'i': return `*${children}*`;
+          case 'i': return wrap_inline('*', children);
           case 'u': return `<u>${children}</u>`;
-          case 'a':
+          case 'a': {
             const href = element.getAttribute('href');
-            return href ? `[${children}](${href})` : children;
+            if (!href || !children.trim()) return children.trim() ? children : '';
+            // Confluence draft/resume links are navigation noise, keep the text only
+            if (href.includes('resumedraft.action')) return children;
+            return `[${children}](${href})`;
+          }
+          case 'button':
+          case 'svg':
+          case 'input': return '';
           case 'br': return '\n';
           case 'hr': return '\n---\n\n';
           case 'ul':
@@ -129,7 +171,7 @@ export default function MarkdownConverterPage() {
           case 'meta':
           case 'link': return '';
           case 'blockquote': return `> ${children.trim()}\n\n`;
-          case 'code': return `\`${children}\``;
+          case 'code': return wrap_inline('`', children);
           case 'pre': return `\`\`\`\n${children.trim()}\n\`\`\`\n\n`;
           case 'img': {
             const alt = element.getAttribute('alt') || '';
