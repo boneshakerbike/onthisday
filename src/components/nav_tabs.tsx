@@ -74,7 +74,6 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
     ...(show_coach ? [{ label: 'Coach', href: '/coach' }] : []),
     { label: 'Oura', href: '/health/oura' },
     { label: 'Strava', href: '/health/strava' },
-    { label: 'COROS', href: '/health/coros' },
   ];
   const games_items: NavItem[] = [
     { label: 'Frogger', href: '/games/frogger' },

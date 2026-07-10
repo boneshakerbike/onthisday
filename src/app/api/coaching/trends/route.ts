@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   try {
     const today = mt_epoch_day();
 
-    // Populate daily_metrics from cached Oura + COROS for yesterday
+    // Populate daily_metrics from cached Oura for yesterday
     // (cron runs at 9am UTC = 2-3am MT, so yesterday's data is complete)
     const yesterday_epoch = today - 1;
     const yesterday_str = epoch_day_to_date_str(yesterday_epoch);
