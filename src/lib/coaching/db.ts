@@ -3,7 +3,7 @@
  * Reads from daily_metrics, writes trend_cache and coaching_history
  */
 
-import { get_client, ensure_schema, get_wellness_cache } from '@/lib/db';
+import { get_client, ensure_schema, get_wellness_cache, get_coros_data } from '@/lib/db';
 
 // Numeric columns in daily_metrics that get trend computation
 const TREND_METRICS = [
@@ -197,7 +197,7 @@ export async function save_coaching_session(session: {
 }
 
 /**
- * Populate daily_metrics from wellness_cache (Oura) + optional manual inputs.
+ * Populate daily_metrics from wellness_cache (Oura) + coros_data (COROS) + optional manual inputs.
  * date_str: YYYY-MM-DD, epoch_day: mt_epoch_day() (Mountain Time day boundary)
  */
 export interface InjectMetrics {
@@ -227,7 +227,10 @@ export async function populate_daily_metrics(
   const db = get_client();
   const now = Math.floor(Date.now() / 1000);
 
-  const oura = await get_wellness_cache(date_str);
+  const [oura, coros] = await Promise.all([
+    get_wellness_cache(date_str),
+    get_coros_data(date_str),
+  ]);
 
   // Extract Oura fields — prefer cache, fall back to inject_metrics from live session
   let sleep_duration_min: number | null = null;
@@ -285,20 +288,30 @@ export async function populate_daily_metrics(
     if (isFinite(estimated)) cardiovascular_age = estimated;
   }
 
-  // Recovery from Oura stress balance: restored / (stressed + restored), matching data-injection.ts
+  // Extract COROS fields
+  let vo2_max: number | null = null;
+  let training_load_acute: number | null = null;
+  let training_load_chronic: number | null = null;
   let recovery_pct: number | null = null;
 
-  if (oura) {
-    const stress = oura.daily_stress as { stress_high?: number; recovery_high?: number } | null;
-    if (stress) {
-      const stressed_min = stress.stress_high ? Math.round(stress.stress_high / 60) : 0;
-      const restored_min = stress.recovery_high ? Math.round(stress.recovery_high / 60) : 0;
-      const total = stressed_min + restored_min;
-      if (total > 0) recovery_pct = Math.round((restored_min / total) * 100);
+  if (coros) {
+    const d = coros.data as Record<string, unknown>;
+    const dash = d.dashboard as Record<string, unknown> | undefined;
+
+    if (dash) {
+      const ts = dash.training_status as Record<string, unknown> | undefined;
+      if (ts) {
+        if (ts.load_impact !== undefined) training_load_acute = Number(ts.load_impact);
+        if (ts.base_fitness !== undefined) training_load_chronic = Number(ts.base_fitness);
+      }
+      const rec = dash.recovery as Record<string, unknown> | undefined;
+      if (rec?.percentage !== undefined) recovery_pct = Number(rec.percentage);
+    } else {
+      // Flat field fallback for older data
+      if (d.vo2_max !== undefined) vo2_max = Number(d.vo2_max);
+      if (d.recovery !== undefined) recovery_pct = Number(d.recovery);
+      if (d.training_load !== undefined) training_load_acute = Number(d.training_load);
     }
-  } else if (inject_metrics && inject_metrics.stress_min != null && inject_metrics.restored_min != null) {
-    const total = inject_metrics.stress_min + inject_metrics.restored_min;
-    if (total > 0) recovery_pct = Math.round((inject_metrics.restored_min / total) * 100);
   }
 
   await db.execute({
@@ -314,7 +327,7 @@ export async function populate_daily_metrics(
       epoch_day,
       fin(sleep_duration_min), fin(sleep_efficiency_pct), fin(deep_sleep_min), fin(rem_sleep_min),
       fin(hrv_rmssd), fin(resting_hr), fin(readiness_score), fin(cardiovascular_age), fin(spo2_average),
-      null, null, null, fin(recovery_pct), // vo2_max, training_load_acute, training_load_chronic retired with COROS
+      fin(vo2_max), fin(training_load_acute), fin(training_load_chronic), fin(recovery_pct),
       null, null, // zone2_min_weekly, vo2max_intervals_weekly — computed separately
       fin(manual?.weight_lbs ?? null), fin(manual?.back_pain_scale ?? null),
       manual?.back_mobility_notes ?? null, manual?.bowel_status ?? null, fin(manual?.bowel_scale ?? null), manual?.injury_notes ?? null,

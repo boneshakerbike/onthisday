@@ -1,6 +1,6 @@
 /**
  * Oura Dashboard - Clean, minimal Oura Ring data
- * Essentials summary, native <details>, no emoji
+ * Matches COROS page style: essentials summary, native <details>, no emoji
  */
 
 'use client';

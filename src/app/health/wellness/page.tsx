@@ -11,6 +11,7 @@ import NavTabs from '@/components/nav_tabs';
 const HEALTH_PAGES = [
   { label: 'Oura', href: '/health/oura', description: 'Sleep, readiness, HRV, stress, and activity from Oura Ring' },
   { label: 'Strava', href: '/health/strava', description: 'Athlete profile, training stats, and recent activities' },
+  { label: 'COROS', href: '/health/coros', description: 'Training status, recovery, and activity reports from COROS' },
 ];
 
 export default function HealthHubPage() {
