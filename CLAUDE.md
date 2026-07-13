@@ -47,7 +47,6 @@ src/
       wellness/page.tsx           # Health hub landing page
       oura/page.tsx               # Oura Ring dashboard
       strava/page.tsx             # Strava dashboard
-      coros/page.tsx              # COROS dashboard
     games/
       f1/page.tsx                 # F1 Predictors Championship
       frogger/                    # Pixel art frogger
@@ -65,7 +64,6 @@ src/
       prompts/ prompts/review/
       oura/                       # OAuth: authorize callback data sync disconnect
       strava/                     # OAuth: authorize callback data sync disconnect
-      coros/                      # data save
       f1/                         # schedule drivers predict results leaderboard
                                   # lock reveal state player roster season_progress
                                   # mr-bear/stage mr-bear/poke mr-bear/rookies
