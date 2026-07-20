@@ -164,12 +164,19 @@ export default function CorosPage() {
     }
   }
 
-  const training_status = row ? (row.data as any)?.dashboard?.training_status?.status ?? '—' : null
-  const recovery_pct = row ? (row.data as any)?.dashboard?.recovery?.percentage ?? null : null
-  const recovery_status = row ? (row.data as any)?.dashboard?.recovery?.status ?? null : null
+  const training_status = row
+    ? (row.data as any)?.dashboard?.training_status?.status ?? (row.data as any)?.data?.training_status_dashboard?.status ?? '—'
+    : null
+  const recovery_pct = row
+    ? (row.data as any)?.dashboard?.recovery?.percentage ?? (row.data as any)?.data?.recovery?.percent ?? null
+    : null
+  const recovery_status = row
+    ? (row.data as any)?.dashboard?.recovery?.status ?? (row.data as any)?.data?.recovery?.status ?? null
+    : null
   const recovery_str = recovery_pct != null || recovery_status != null
     ? `${recovery_pct != null ? recovery_pct + '%' : '—'} — ${recovery_status ?? '—'}`
     : '—'
+  const report_markdown = row ? (row.data as any)?.report_markdown ?? (row.data as any)?.markdown : null
 
   return (
     <div className="min-h-screen bg-[#1a1a2e] text-gray-200 p-4">
@@ -212,19 +219,19 @@ export default function CorosPage() {
 
 
             {/* Report Markdown */}
-            {(row.data as any).report_markdown && (
+            {report_markdown && (
               <details className="mb-3 bg-[#0f0f1a] border border-white/10 rounded">
                 <summary className="cursor-pointer flex justify-between items-center px-3 py-2 text-sm text-cyan-400">
                   <span>Report Markdown</span>
                   <button
-                    onClick={copy_section('report', (row.data as any).report_markdown)}
+                    onClick={copy_section('report', report_markdown)}
                     className="text-xs text-cyan-400 hover:text-cyan-300 px-2 py-1 border border-white/10 rounded"
                   >
                     {copiedSection === 'report' ? 'Copied!' : 'Copy'}
                   </button>
                 </summary>
                 <pre className="text-xs text-gray-300 p-3 overflow-x-auto whitespace-pre-wrap">
-                  {(row.data as any).report_markdown}
+                  {report_markdown}
                 </pre>
               </details>
             )}
