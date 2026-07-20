@@ -87,18 +87,17 @@ export default function CorosPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [copiedSection, setCopiedSection] = useState<string | null>(null)
+  const [pasteInput, setPasteInput] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saveStatus, setSaveStatus] = useState<string | null>(null)
 
   useEffect(() => {
     document.title = '8i11 | COROS'
   }, [])
 
-  useEffect(() => {
-    if (!date) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading/error state must reset synchronously on date change
-    setLoading(true)
-    setRow(null)
-    setError(null)
-    fetch(`/api/coros/data?date=${date}`)
+  function fetch_row(d: string) {
+    return fetch(`/api/coros/data?date=${d}`)
       .then(res => {
         if (res.status === 404) return null
         if (!res.ok) return res.json().then(e => { throw new Error(e.error || 'Fetch failed') })
@@ -112,7 +111,48 @@ export default function CorosPage() {
         setError(err.message)
         setLoading(false)
       })
+  }
+
+  useEffect(() => {
+    if (!date) return
+    setLoading(true)
+    setRow(null)
+    setError(null)
+    fetch_row(date)
   }, [date])
+
+  async function save_paste() {
+    if (!pasteInput.trim() || !date) return
+    setSaving(true)
+    setSaveError(null)
+    setSaveStatus(null)
+    try {
+      let data: Record<string, unknown>
+      try {
+        const parsed = JSON.parse(pasteInput)
+        data = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : { report_markdown: pasteInput }
+      } catch {
+        data = { report_markdown: pasteInput }
+      }
+      const res = await fetch('/api/coros/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, data }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || 'Save failed')
+      }
+      setPasteInput('')
+      setSaveStatus('Saved!')
+      setTimeout(() => setSaveStatus(null), 2000)
+      await fetch_row(date)
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Save failed')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   function copy_section(name: string, content: string) {
     return (e: React.MouseEvent) => {
@@ -206,6 +246,29 @@ export default function CorosPage() {
             </details>
           </div>
         )}
+
+        {/* Manual paste-and-save */}
+        <div className="mt-4 border-t border-white/10 pt-4">
+          <h2 className="text-sm text-gray-400 mb-2">Manual Input</h2>
+          <textarea
+            value={pasteInput}
+            onChange={e => setPasteInput(e.target.value)}
+            placeholder="Paste the scraped Markdown or JSON report here, then Save."
+            className="w-full bg-[#0f0f1a] border border-white/10 rounded p-3 text-xs text-gray-200 font-mono resize-none focus:outline-none placeholder-gray-600"
+            style={{ minHeight: '160px' }}
+          />
+          <div className="flex items-center gap-3 mt-2">
+            <button
+              onClick={save_paste}
+              disabled={saving || !pasteInput.trim()}
+              className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 disabled:bg-white/10 disabled:text-gray-500 text-black font-semibold rounded text-sm transition-all"
+            >
+              {saving ? 'Saving...' : 'Save to 8i11'}
+            </button>
+            {saveStatus && <span className="text-green-400 text-sm">{saveStatus}</span>}
+            {saveError && <span className="text-red-400 text-sm">{saveError}</span>}
+          </div>
+        </div>
 
         {/* Chrome Extension Prompt */}
         <div className="mt-4 border-t border-white/10 pt-4">
