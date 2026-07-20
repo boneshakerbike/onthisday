@@ -232,6 +232,31 @@ export default function CoachPage() {
   const dateStr = mt_date_str();
   const epochDay = mt_epoch_day();
 
+  // Hydrate manual-input draft from sessionStorage so refreshes don't lose in-progress entries
+  useEffect(() => {
+    const draft_key = `coach_manual_inputs_${dateStr}`;
+    try {
+      const raw = sessionStorage.getItem(draft_key);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (typeof draft.weight === 'string') setWeight(draft.weight);
+        if (typeof draft.backPain === 'number' || draft.backPain === null) setBackPain(draft.backPain);
+        if (typeof draft.bowel === 'number' || draft.bowel === null) setBowel(draft.bowel);
+        if (typeof draft.injuries === 'string') setInjuries(draft.injuries);
+      }
+    } catch { /* corrupt draft — ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-save manual-input draft as it changes
+  useEffect(() => {
+    const draft_key = `coach_manual_inputs_${dateStr}`;
+    try {
+      sessionStorage.setItem(draft_key, JSON.stringify({ weight, backPain, bowel, injuries }));
+    } catch { /* storage full or unavailable — skip */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weight, backPain, bowel, injuries]);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -577,6 +602,7 @@ export default function CoachPage() {
       const data = await res.json();
       setFinalized(true);
       setSavedSummary(data.summary || '');
+      try { sessionStorage.removeItem(`coach_manual_inputs_${dateStr}`); } catch { /* unavailable — skip */ }
       // Mirror what finalize stored so a re-render shows the completed view
       setTodaySession({
         date: epochDay,

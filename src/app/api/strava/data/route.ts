@@ -37,39 +37,49 @@ function is_cache_fresh(fetched_at: string, ttl_hours = 1): boolean {
 async function fetch_strava_data(tokens: StravaTokens): Promise<{
   athlete: Record<string, unknown>;
   stats: Record<string, unknown>;
+  athlete_ok: boolean;
   activities: Record<string, unknown>[];
+  activities_ok: boolean;
   rate_limited: boolean;
 }> {
   const headers = { 'Authorization': `Bearer ${tokens.access_token}` };
 
-  const [athlete_res, stats_res, activities_res] = await Promise.all([
+  const [athlete_res, stats_res, activities_res] = await Promise.allSettled([
     fetch('https://www.strava.com/api/v3/athlete', { headers }),
     fetch(`https://www.strava.com/api/v3/athletes/${tokens.athlete_id}/stats`, { headers }),
     fetch('https://www.strava.com/api/v3/athlete/activities?per_page=30', { headers }),
   ]);
 
   // Log rate limit usage for monitoring
-  const rate_usage = athlete_res.headers.get('X-RateLimit-Usage');
+  const rate_usage = athlete_res.status === 'fulfilled' ? athlete_res.value.headers.get('X-RateLimit-Usage') : null;
   if (rate_usage) console.log('Strava rate limit usage:', rate_usage);
 
   // Check for rate limiting
-  if (athlete_res.status === 429 || stats_res.status === 429 || activities_res.status === 429) {
-    return { athlete: {}, stats: {}, activities: [], rate_limited: true };
+  const any_429 = [athlete_res, stats_res, activities_res].some(r => r.status === 'fulfilled' && r.value.status === 429);
+  if (any_429) {
+    return { athlete: {}, stats: {}, athlete_ok: false, activities: [], activities_ok: false, rate_limited: true };
   }
 
   // Check for auth failures (401 signals expired/revoked token)
-  if (athlete_res.status === 401 || stats_res.status === 401 || activities_res.status === 401) {
+  const any_401 = [athlete_res, stats_res, activities_res].some(r => r.status === 'fulfilled' && r.value.status === 401);
+  if (any_401) {
     throw new Error('STRAVA_UNAUTHORIZED');
   }
 
-  const athlete = athlete_res.ok ? await athlete_res.json() : {};
-  const stats = stats_res.ok ? await stats_res.json() : {};
-  const activities_raw = activities_res.ok ? await activities_res.json() : [];
+  const athlete_ok = athlete_res.status === 'fulfilled' && athlete_res.value.ok
+    && stats_res.status === 'fulfilled' && stats_res.value.ok;
+  const athlete = athlete_ok ? await (athlete_res as PromiseFulfilledResult<Response>).value.json() : {};
+  const stats = athlete_ok ? await (stats_res as PromiseFulfilledResult<Response>).value.json() : {};
+
+  const activities_ok = activities_res.status === 'fulfilled' && activities_res.value.ok;
+  const activities_raw = activities_ok ? await (activities_res as PromiseFulfilledResult<Response>).value.json() : [];
 
   return {
     athlete,
     stats,
+    athlete_ok,
     activities: Array.isArray(activities_raw) ? activities_raw : [],
+    activities_ok: activities_ok && Array.isArray(activities_raw),
     rate_limited: false,
   };
 }
@@ -100,67 +110,104 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const force = searchParams.get('force') === 'true';
 
-    // Serve from cache if fresh
-    if (!force) {
-      const [athlete_cache, activities_cache] = await Promise.all([
-        get_strava_athlete_cache(),
-        get_strava_activities_cache(),
-      ]);
+    const [athlete_cache, activities_cache] = await Promise.all([
+      get_strava_athlete_cache(),
+      get_strava_activities_cache(),
+    ]);
 
-      if (
-        athlete_cache && is_cache_fresh(athlete_cache.fetched_at) &&
-        activities_cache && is_cache_fresh(activities_cache.fetched_at)
-      ) {
-        return NextResponse.json({
-          success: true,
-          connected: true,
-          cached: true,
-          cached_at: athlete_cache.fetched_at,
-          athlete: athlete_cache.athlete,
-          stats: athlete_cache.stats,
-          activities: activities_cache.activities,
-        });
-      }
+    // Serve from cache if fresh
+    if (
+      !force &&
+      athlete_cache && is_cache_fresh(athlete_cache.fetched_at) &&
+      activities_cache && is_cache_fresh(activities_cache.fetched_at)
+    ) {
+      return NextResponse.json({
+        success: true,
+        connected: true,
+        cached: true,
+        cached_at: athlete_cache.fetched_at,
+        athlete: athlete_cache.athlete,
+        stats: athlete_cache.stats,
+        activities: activities_cache.activities,
+      });
     }
 
     // Fetch fresh data
     let result = await fetch_strava_data(tokens);
 
     if (result.rate_limited) {
+      // Rate limited — serve whatever we have cached rather than blanking the dashboard
+      if (athlete_cache || activities_cache) {
+        return NextResponse.json({
+          success: true,
+          connected: true,
+          cached: true,
+          partial_error: 'Strava rate limit reached — showing last saved data',
+          cached_at: athlete_cache?.fetched_at ?? activities_cache?.fetched_at ?? null,
+          athlete: athlete_cache?.athlete ?? {},
+          stats: athlete_cache?.stats ?? {},
+          activities: activities_cache?.activities ?? [],
+        });
+      }
       return NextResponse.json(
         { error: 'Strava rate limit reached, try again in a few minutes' },
         { status: 429 }
       );
     }
 
-    // 401 retry: refresh token and try once more
-    if (Object.keys(result.athlete).length === 0) {
+    // Profile fetch failed for a non-429 reason: refresh token and try once more
+    if (!result.athlete_ok) {
       try {
         tokens = await refresh_strava_access_token();
         result = await fetch_strava_data(tokens);
       } catch {
-        return NextResponse.json(
-          { error: 'Strava token invalid. Please reconnect.', connected: false },
-          { status: 401 }
-        );
+        // Refresh token itself is invalid — only a hard failure if there's no cache to fall back on
+        if (!athlete_cache) {
+          return NextResponse.json(
+            { error: 'Strava token invalid. Please reconnect.', connected: false },
+            { status: 401 }
+          );
+        }
       }
     }
 
     const fetched_at = new Date().toISOString();
 
-    await Promise.allSettled([
-      save_strava_athlete_cache({ athlete: result.athlete, stats: result.stats, fetched_at }),
-      save_strava_activities_cache({ activities: result.activities, fetched_at }),
-    ]);
+    // Only overwrite each cache with the sub-fetch that actually succeeded
+    const saves: Promise<void>[] = [];
+    if (result.athlete_ok) saves.push(save_strava_athlete_cache({ athlete: result.athlete, stats: result.stats, fetched_at }));
+    if (result.activities_ok) saves.push(save_strava_activities_cache({ activities: result.activities, fetched_at }));
+    await Promise.allSettled(saves);
+
+    const athlete = result.athlete_ok ? result.athlete : (athlete_cache?.athlete ?? {});
+    const stats = result.athlete_ok ? result.stats : (athlete_cache?.stats ?? {});
+    const activities = result.activities_ok ? result.activities : (activities_cache?.activities ?? []);
+
+    if (!result.athlete_ok && !athlete_cache) {
+      return NextResponse.json(
+        { error: 'Failed to fetch Strava profile. Please try again.', connected: true },
+        { status: 502 }
+      );
+    }
+
+    let partial_error: string | null = null;
+    if (!result.athlete_ok && !result.activities_ok) {
+      partial_error = 'Could not refresh Strava data — showing last saved data';
+    } else if (!result.activities_ok) {
+      partial_error = 'Could not refresh recent activities — showing last saved data';
+    } else if (!result.athlete_ok) {
+      partial_error = 'Could not refresh athlete profile — showing last saved data';
+    }
 
     return NextResponse.json({
       success: true,
       connected: true,
       cached: false,
       cached_at: fetched_at,
-      athlete: result.athlete,
-      stats: result.stats,
-      activities: result.activities,
+      athlete,
+      stats,
+      activities,
+      ...(partial_error ? { partial_error } : {}),
     });
 
   } catch (error) {

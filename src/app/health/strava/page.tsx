@@ -198,6 +198,8 @@ function StravaInner() {
   const [activities, set_activities] = useState<Record<string, unknown>[]>([]);
   const [cached_at, set_cached_at] = useState<string | null>(null);
   const [error, set_error] = useState<string | null>(null);
+  const [needs_reconnect, set_needs_reconnect] = useState(false);
+  const [warning, set_warning] = useState<string | null>(null);
   const [toast, set_toast] = useState<string | null>(null);
   const [expanded_ids, set_expanded_ids] = useState<Set<number>>(new Set());
 
@@ -220,8 +222,10 @@ function StravaInner() {
       const res = await fetch(url);
       const data = await res.json();
 
-      if (res.status === 404 && data.connected === false) {
+      if (data.connected === false) {
         set_connected(false);
+        set_needs_reconnect(res.status === 401);
+        if (res.status === 401) set_error(data.error || 'Strava session expired');
         return;
       }
       if (!res.ok) {
@@ -231,11 +235,13 @@ function StravaInner() {
       }
 
       set_connected(true);
+      set_needs_reconnect(false);
       set_athlete(data.athlete);
       set_stats(data.stats);
       set_activities(data.activities || []);
       set_cached_at(data.cached_at || null);
       set_error(null);
+      set_warning(data.partial_error || null);
     } catch {
       set_error('Failed to load Strava data');
     }
@@ -257,9 +263,14 @@ function StravaInner() {
   async function handle_refresh() {
     set_refreshing(true);
     try {
-      await fetch('/api/strava/sync', { method: 'POST' });
+      const sync_res = await fetch('/api/strava/sync', { method: 'POST' });
+      const sync_data = await sync_res.json().catch(() => null);
       await fetch_data(true);
-      show_toast('Refreshed');
+      if (sync_data?.partial_error) {
+        set_warning(sync_data.partial_error);
+      } else {
+        show_toast('Refreshed');
+      }
     } catch {
       set_error('Refresh failed');
     } finally {
@@ -322,9 +333,29 @@ function StravaInner() {
         )}
 
         {/* Error */}
-        {error && (
-          <div className="mb-4 px-4 py-2 bg-red-500/20 border border-red-500/40 rounded text-red-300 text-sm">
-            {error}
+        {error && connected !== false && (
+          <div className="mb-4 px-4 py-2 bg-red-500/20 border border-red-500/40 rounded text-red-300 text-sm flex items-center justify-between gap-4">
+            <span>{error}</span>
+            <button
+              onClick={() => fetch_data()}
+              className="shrink-0 px-3 py-1 text-xs bg-white/10 border border-white/20 rounded hover:bg-white/20 transition"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* Warning: partial failure, showing last saved data */}
+        {warning && (
+          <div className="mb-4 px-4 py-2 bg-yellow-500/20 border border-yellow-500/40 rounded text-yellow-200 text-sm flex items-center justify-between gap-4">
+            <span>{warning}</span>
+            <button
+              onClick={handle_refresh}
+              disabled={refreshing}
+              className="shrink-0 px-3 py-1 text-xs bg-white/10 border border-white/20 rounded hover:bg-white/20 disabled:opacity-50 transition"
+            >
+              {refreshing ? 'Retrying…' : 'Retry'}
+            </button>
           </div>
         )}
 
@@ -337,15 +368,19 @@ function StravaInner() {
         {!loading && connected === false && (
           <div className="border border-white/10 rounded-lg p-8 text-center">
             <div className="text-4xl mb-4">🚴</div>
-            <h2 className="text-lg font-semibold mb-2">Connect Strava</h2>
+            <h2 className="text-lg font-semibold mb-2">
+              {needs_reconnect ? 'Reconnect Strava' : 'Connect Strava'}
+            </h2>
             <p className="text-gray-400 text-sm mb-6">
-              See your athlete profile, training stats, and recent activities.
+              {needs_reconnect
+                ? (error || 'Your Strava connection expired. Please reconnect.')
+                : 'See your athlete profile, training stats, and recent activities.'}
             </p>
             <a
               href="/api/strava/authorize"
               className="inline-block px-6 py-2.5 bg-orange-500 hover:bg-orange-400 text-white font-semibold rounded transition"
             >
-              Connect with Strava
+              {needs_reconnect ? 'Reconnect with Strava' : 'Connect with Strava'}
             </a>
           </div>
         )}

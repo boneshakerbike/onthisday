@@ -10,6 +10,8 @@ import {
   refresh_strava_access_token,
   save_strava_athlete_cache,
   save_strava_activities_cache,
+  get_strava_athlete_cache,
+  get_strava_activities_cache,
 } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
@@ -42,19 +44,43 @@ export async function POST(request: NextRequest) {
 
     const fetched_at = new Date().toISOString();
 
-    const athlete = athlete_res.status === 'fulfilled' && athlete_res.value.ok
-      ? await athlete_res.value.json() : {};
-    const stats = stats_res.status === 'fulfilled' && stats_res.value.ok
-      ? await stats_res.value.json() : {};
+    const athlete_ok = athlete_res.status === 'fulfilled' && athlete_res.value.ok
+      && stats_res.status === 'fulfilled' && stats_res.value.ok;
+    const athlete = athlete_ok ? await (athlete_res as PromiseFulfilledResult<Response>).value.json() : {};
+    const stats = athlete_ok ? await (stats_res as PromiseFulfilledResult<Response>).value.json() : {};
+
     const activities_raw = activities_res.status === 'fulfilled' && activities_res.value.ok
       ? await activities_res.value.json() : [];
+    const activities_ok = activities_res.status === 'fulfilled' && activities_res.value.ok && Array.isArray(activities_raw);
 
-    await Promise.allSettled([
-      save_strava_athlete_cache({ athlete, stats, fetched_at }),
-      save_strava_activities_cache({ activities: Array.isArray(activities_raw) ? activities_raw : [], fetched_at }),
+    // Only overwrite each cache with the sub-fetch that actually succeeded
+    const saves: Promise<void>[] = [];
+    if (athlete_ok) saves.push(save_strava_athlete_cache({ athlete, stats, fetched_at }));
+    if (activities_ok) saves.push(save_strava_activities_cache({ activities: activities_raw, fetched_at }));
+    await Promise.allSettled(saves);
+
+    if (athlete_ok && activities_ok) {
+      return NextResponse.json({ success: true, refreshed_at: fetched_at });
+    }
+
+    // Partial failure — report what refreshed and what fell back to last-saved cache
+    const [cached_athlete, cached_activities] = await Promise.all([
+      athlete_ok ? null : get_strava_athlete_cache(),
+      activities_ok ? null : get_strava_activities_cache(),
     ]);
 
-    return NextResponse.json({ success: true, refreshed_at: fetched_at });
+    return NextResponse.json({
+      success: true,
+      refreshed_at: fetched_at,
+      partial_error: !athlete_ok && !activities_ok
+        ? 'Could not refresh Strava data — showing last saved data'
+        : !activities_ok
+          ? 'Could not refresh recent activities — showing last saved data'
+          : 'Could not refresh athlete profile — showing last saved data',
+      athlete_refreshed: athlete_ok,
+      activities_refreshed: activities_ok,
+      had_fallback: (!athlete_ok && !!cached_athlete) || (!activities_ok && !!cached_activities),
+    });
 
   } catch (error) {
     console.error('Strava sync error:', error);
