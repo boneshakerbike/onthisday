@@ -142,6 +142,8 @@ All model IDs are centralised in `src/lib/models.ts`. Import `MODELS` from there
 
 **Oura Ring:** Standalone OAuth. Tokens in `oura_tokens` table (singleton). 13 endpoints + personal_info. Daily caching via `wellness_cache`. Activity time fields in **seconds**.
 
+**COROS:** `/health/coros` is session-gated by `proxy.ts` — in-browser saves (e.g. the page's Manual Input form) ride the NextAuth cookie, so `X-Guest-Pin` is only needed for out-of-session callers (curl, the Chrome-extension prompt). Display logic supports two JSON shapes and falls back between them: standard (`report_markdown`, `dashboard.training_status.status`, `dashboard.recovery.percentage`) and nested/alt (`markdown`, `data.training_status_dashboard.status`, `data.recovery.percent`). If a save looks like it "worked" but the page renders blank, query `/api/coros/data?date=YYYY-MM-DD` directly first to confirm what actually landed in Turso before assuming the write failed.
+
 **F1 / Mr. Bear:** Pure TypeScript, no LLM. Rankings from last 3 race weekends qualifying averaged. Rookies via `mr_bear_rookies` DB table.
 
 **Story generation:** Claude with ephemeral prompt caching. Every source post linked exactly once. ~$0.17/story with Opus.
