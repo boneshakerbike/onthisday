@@ -25,7 +25,10 @@ export async function GET(request: NextRequest) {
   const state = Array.from(crypto.getRandomValues(new Uint8Array(16)))
     .map(b => b.toString(16).padStart(2, '0')).join('');
 
-  const redirect_uri = `${request.nextUrl.origin}/api/strava/callback`;
+  // Strava's Authorization Callback Domain is locked to the production domain, so preview
+  // deployments (unique per-deploy subdomains) must still send the production redirect_uri.
+  const app_base_url = process.env.NEXT_PUBLIC_APP_URL || 'https://8i11.vercel.app';
+  const redirect_uri = `${app_base_url}/api/strava/callback`;
 
   // Strava scopes are comma-separated (unlike Oura's space-separated)
   const params = new URLSearchParams({

@@ -121,6 +121,10 @@ NEXTAUTH_SECRET=
 ANTHROPIC_API_KEY=
 OURA_CLIENT_ID=
 OURA_CLIENT_SECRET=
+NEXT_PUBLIC_APP_URL=      # optional; defaults to https://8i11.vercel.app. Forces Strava OAuth
+                          # redirect_uri to the production domain even when the flow is
+                          # initiated from a Vercel preview deployment (Strava's Authorization
+                          # Callback Domain doesn't vary per preview subdomain).
 ```
 
 ## Model IDs

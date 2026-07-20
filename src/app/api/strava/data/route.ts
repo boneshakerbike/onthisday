@@ -68,10 +68,19 @@ async function fetch_strava_data(tokens: StravaTokens): Promise<{
 
   const athlete_ok = athlete_res.status === 'fulfilled' && athlete_res.value.ok
     && stats_res.status === 'fulfilled' && stats_res.value.ok;
+  if (!athlete_ok) {
+    console.error('Strava athlete/stats fetch failed:', {
+      athlete: athlete_res.status === 'fulfilled' ? athlete_res.value.status : athlete_res.reason,
+      stats: stats_res.status === 'fulfilled' ? stats_res.value.status : stats_res.reason,
+    });
+  }
   const athlete = athlete_ok ? await (athlete_res as PromiseFulfilledResult<Response>).value.json() : {};
   const stats = athlete_ok ? await (stats_res as PromiseFulfilledResult<Response>).value.json() : {};
 
   const activities_ok = activities_res.status === 'fulfilled' && activities_res.value.ok;
+  if (!activities_ok) {
+    console.error('Strava activities fetch failed:', activities_res.status === 'fulfilled' ? activities_res.value.status : activities_res.reason);
+  }
   const activities_raw = activities_ok ? await (activities_res as PromiseFulfilledResult<Response>).value.json() : [];
 
   return {
@@ -160,7 +169,8 @@ export async function GET(request: NextRequest) {
       try {
         tokens = await refresh_strava_access_token();
         result = await fetch_strava_data(tokens);
-      } catch {
+      } catch (refresh_err) {
+        console.error('Strava token refresh retry failed:', refresh_err);
         // Refresh token itself is invalid — only a hard failure if there's no cache to fall back on
         if (!athlete_cache) {
           return NextResponse.json(

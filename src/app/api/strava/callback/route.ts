@@ -35,6 +35,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Must match the redirect_uri sent to /authorize exactly — always the production domain,
+    // since Strava's Authorization Callback Domain doesn't vary per preview deployment.
+    const app_base_url = process.env.NEXT_PUBLIC_APP_URL || 'https://8i11.vercel.app';
+
     // Exchange code for tokens
     const token_res = await fetch('https://www.strava.com/oauth/token', {
       method: 'POST',
@@ -42,7 +46,7 @@ export async function GET(request: NextRequest) {
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code,
-        redirect_uri: `${base_url}/api/strava/callback`,
+        redirect_uri: `${app_base_url}/api/strava/callback`,
         client_id: process.env.STRAVA_CLIENT_ID || '',
         client_secret: process.env.STRAVA_CLIENT_SECRET || '',
       }),

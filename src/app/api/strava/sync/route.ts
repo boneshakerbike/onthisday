@@ -31,7 +31,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (tokens.expires_at < Math.floor(Date.now() / 1000) + 60) {
-      tokens = await refresh_strava_access_token();
+      try {
+        tokens = await refresh_strava_access_token();
+      } catch (refresh_err) {
+        console.error('Strava sync: token refresh failed:', refresh_err);
+        throw refresh_err;
+      }
     }
 
     const headers = { 'Authorization': `Bearer ${tokens.access_token}` };
@@ -46,12 +51,21 @@ export async function POST(request: NextRequest) {
 
     const athlete_ok = athlete_res.status === 'fulfilled' && athlete_res.value.ok
       && stats_res.status === 'fulfilled' && stats_res.value.ok;
+    if (!athlete_ok) {
+      console.error('Strava sync: athlete/stats fetch failed:', {
+        athlete: athlete_res.status === 'fulfilled' ? athlete_res.value.status : athlete_res.reason,
+        stats: stats_res.status === 'fulfilled' ? stats_res.value.status : stats_res.reason,
+      });
+    }
     const athlete = athlete_ok ? await (athlete_res as PromiseFulfilledResult<Response>).value.json() : {};
     const stats = athlete_ok ? await (stats_res as PromiseFulfilledResult<Response>).value.json() : {};
 
     const activities_raw = activities_res.status === 'fulfilled' && activities_res.value.ok
       ? await activities_res.value.json() : [];
     const activities_ok = activities_res.status === 'fulfilled' && activities_res.value.ok && Array.isArray(activities_raw);
+    if (!activities_ok) {
+      console.error('Strava sync: activities fetch failed:', activities_res.status === 'fulfilled' ? activities_res.value.status : activities_res.reason);
+    }
 
     // Only overwrite each cache with the sub-fetch that actually succeeded
     const saves: Promise<void>[] = [];
