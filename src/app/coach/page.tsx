@@ -476,11 +476,6 @@ export default function CoachPage() {
           const data = await res.json();
           if (data.session) {
             setTodaySession(data.session);
-            // A finalized session already exists server-side — clear any local
-            // draft (and correct for it having already been restored on mount).
-            try { sessionStorage.removeItem(`coach_session_${dateStr}`); } catch { /* unavailable — skip */ }
-            setSessionStarted(false);
-            setMessages([]);
           }
         }
       } catch { /* best effort — form shows as usual */ }
