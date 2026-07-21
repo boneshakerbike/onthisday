@@ -10,7 +10,7 @@ import NavTabs from '@/components/nav_tabs';
 
 const HEALTH_PAGES = [
   { label: 'Oura', href: '/health/oura', description: 'Sleep, readiness, HRV, stress, and activity from Oura Ring' },
-  { label: 'Strava', href: '/health/strava', description: 'Athlete profile, training stats, and recent activities' },
+  { label: 'Ride with GPS', href: '/health/ridewithgps', description: 'Recent cycling, walking, and strength activities' },
   { label: 'COROS', href: '/health/coros', description: 'Training status, recovery, and activity reports from COROS' },
 ];
 

@@ -73,7 +73,7 @@ export default function NavTabs({ theme = 'dark' }: NavTabsProps) {
   const health_items: NavItem[] = [
     ...(show_coach ? [{ label: 'Coach', href: '/coach' }] : []),
     { label: 'Oura', href: '/health/oura' },
-    { label: 'Strava', href: '/health/strava' },
+    { label: 'Ride with GPS', href: '/health/ridewithgps' },
     { label: 'COROS', href: '/health/coros' },
   ];
   const games_items: NavItem[] = [

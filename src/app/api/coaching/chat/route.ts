@@ -1,7 +1,7 @@
 /**
  * API route: POST /api/coaching/chat
  * Multi-turn coaching conversation. Optimized for 1-3 turns.
- * Oura drives decisions. Strava is context. No COROS.
+ * Oura drives decisions. Ride with GPS is context. No COROS.
  */
 
 import { NextRequest, NextResponse } from 'next/server';

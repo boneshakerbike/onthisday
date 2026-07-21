@@ -11,6 +11,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import NavTabs from '@/components/nav_tabs';
 import { mt_date_str, mt_epoch_day, epoch_day_to_date_str } from '@/lib/coaching/day';
+import { rwgps_activity_date_str, type RwgpsActivity } from '@/lib/ridewithgps';
 
 interface ChatMessage {
   role: 'user' | 'assistant';
@@ -44,6 +45,7 @@ interface Metrics {
     moving_time?: number;
     total_elevation_gain?: number;
     average_heartrate?: number;
+    url?: string;
   }[];
 }
 
@@ -128,8 +130,8 @@ function ActivityRow({ activity }: { activity: Metrics['yesterday_activities'] e
   const name = activity.name || 'Activity';
   return (
     <div className="text-sm text-gray-300">
-      {activity.id ? (
-        <a href={`https://www.strava.com/activities/${activity.id}`} target="_blank" rel="noopener noreferrer" className="text-white hover:text-orange-400 underline decoration-zinc-600 hover:decoration-orange-400 transition-colors">{name}</a>
+      {activity.url ? (
+        <a href={activity.url} target="_blank" rel="noopener noreferrer" className="text-white hover:text-orange-400 underline decoration-zinc-600 hover:decoration-orange-400 transition-colors">{name}</a>
       ) : (
         <span className="text-white">{name}</span>
       )}
@@ -227,16 +229,44 @@ export default function CoachPage() {
   const [totalTokens, setTotalTokens] = useState(0);
   const [turnCount, setTurnCount] = useState(0);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  // Cache the initial-load Ride with GPS fetch so startSession() can reuse it
+  // instead of issuing a second network call for the same 5-minute window.
+  const rwgpsDataRef = useRef<{ activities: RwgpsActivity[]; fetched_at: number } | null>(null);
 
   // Day boundary is Mountain Time regardless of where the client runs
   const dateStr = mt_date_str();
   const epochDay = mt_epoch_day();
 
+  // Hydrate manual-input draft from sessionStorage so refreshes don't lose in-progress entries
+  useEffect(() => {
+    const draft_key = `coach_manual_inputs_${dateStr}`;
+    try {
+      const raw = sessionStorage.getItem(draft_key);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (typeof draft.weight === 'string') setWeight(draft.weight);
+        if (typeof draft.backPain === 'number' || draft.backPain === null) setBackPain(draft.backPain);
+        if (typeof draft.bowel === 'number' || draft.bowel === null) setBowel(draft.bowel);
+        if (typeof draft.injuries === 'string') setInjuries(draft.injuries);
+      }
+    } catch { /* corrupt draft — ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-save manual-input draft as it changes
+  useEffect(() => {
+    const draft_key = `coach_manual_inputs_${dateStr}`;
+    try {
+      sessionStorage.setItem(draft_key, JSON.stringify({ weight, backPain, bowel, injuries }));
+    } catch { /* storage full or unavailable — skip */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [weight, backPain, bowel, injuries]);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Load metrics on mount (Oura + Strava, then trends)
+  // Load metrics on mount (Oura + Ride with GPS, then trends)
   useEffect(() => {
     // Repaint instantly from today's cache, then refresh in the background
     const cache_key = `coach_metrics_${dateStr}`;
@@ -253,22 +283,23 @@ export default function CoachPage() {
 
     async function loadMetrics() {
       try {
-        // Fetch Oura and Strava in parallel
-        const [ouraRes, stravaRes] = await Promise.all([
+        // Fetch Oura and Ride with GPS in parallel
+        const [ouraRes, rwgpsRes] = await Promise.all([
           fetch(`/api/oura/data?date=${dateStr}`).catch(() => null),
-          fetch('/api/strava/data').catch(() => null),
+          fetch('/api/ridewithgps/data').catch(() => null),
         ]);
 
         const ouraData = ouraRes?.ok ? await ouraRes.json() : null;
-        const stravaData = stravaRes?.ok ? await stravaRes.json() : null;
+        const rwgpsData = rwgpsRes?.ok ? await rwgpsRes.json() : null;
+        rwgpsDataRef.current = { activities: rwgpsData?.activities || [], fetched_at: Date.now() };
 
         // Build a preview injection to get metrics
         const yesterdayStr = epoch_day_to_date_str(epochDay - 1);
 
-        // Extract yesterday's activities from Strava
-        const stravaActivities = stravaData?.activities?.filter(
-          (a: { start_date_local?: string }) => a.start_date_local?.startsWith(yesterdayStr)
-        ) || [];
+        // Extract yesterday's activities from Ride with GPS
+        const rwgpsActivities = rwgpsDataRef.current.activities.filter(
+          (a: RwgpsActivity) => a.departed_at && rwgps_activity_date_str(a.departed_at) === yesterdayStr
+        );
 
         // Quick metrics extraction from Oura data
         const m: Metrics = {};
@@ -340,13 +371,14 @@ export default function CoachPage() {
           if (isFinite(estimated)) m.cv_age = estimated;
         }
 
-        if (stravaActivities.length > 0) {
-          m.yesterday_activities = stravaActivities.slice(0, 5).map((a: Record<string, unknown>) => ({
-            id: a.id as number,
-            name: a.name, type: a.sport_type || a.type,
-            distance: a.distance as number, moving_time: a.moving_time as number,
-            total_elevation_gain: a.total_elevation_gain as number,
-            average_heartrate: a.average_heartrate as number,
+        if (rwgpsActivities.length > 0) {
+          m.yesterday_activities = rwgpsActivities.slice(0, 5).map((a: RwgpsActivity) => ({
+            id: a.id,
+            name: a.name, type: a.type,
+            distance: a.distance, moving_time: a.moving_time,
+            total_elevation_gain: a.total_elevation_gain,
+            average_heartrate: a.average_heartrate,
+            url: a.url,
           }));
         }
 
@@ -422,14 +454,19 @@ export default function CoachPage() {
     setError('');
 
     try {
-      // Fetch live data
-      const [ouraRes, stravaRes] = await Promise.all([
+      // Fetch live Oura data; reuse the initial-load Ride with GPS fetch if it's
+      // still within the API route's 5-minute revalidate window, rather than
+      // issuing a second network call for the same data.
+      const rwgps_fresh = rwgpsDataRef.current && (Date.now() - rwgpsDataRef.current.fetched_at) < 5 * 60_000;
+      const [ouraRes, rwgpsRes] = await Promise.all([
         fetch(`/api/oura/data?date=${dateStr}`).catch(() => null),
-        fetch('/api/strava/data').catch(() => null),
+        rwgps_fresh ? Promise.resolve(null) : fetch('/api/ridewithgps/data').catch(() => null),
       ]);
 
       const ouraData = ouraRes?.ok ? await ouraRes.json() : null;
-      const stravaData = stravaRes?.ok ? await stravaRes.json() : null;
+      const rwgpsActivities = rwgps_fresh
+        ? rwgpsDataRef.current!.activities
+        : (rwgpsRes?.ok ? (await rwgpsRes.json())?.activities : undefined);
 
       // Build data injection on the server
       const injectRes = await fetch('/api/coaching/inject', {
@@ -446,7 +483,7 @@ export default function CoachPage() {
             injury_notes: injuries || undefined,
           },
           oura_live: ouraData?.success ? ouraData : undefined,
-          strava_activities: stravaData?.activities || undefined,
+          activities: rwgpsActivities || undefined,
         }),
       });
 
@@ -577,6 +614,7 @@ export default function CoachPage() {
       const data = await res.json();
       setFinalized(true);
       setSavedSummary(data.summary || '');
+      try { sessionStorage.removeItem(`coach_manual_inputs_${dateStr}`); } catch { /* unavailable — skip */ }
       // Mirror what finalize stored so a re-render shows the completed view
       setTodaySession({
         date: epochDay,
