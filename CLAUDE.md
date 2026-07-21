@@ -46,7 +46,7 @@ src/
     health/
       wellness/page.tsx           # Health hub landing page
       oura/page.tsx               # Oura Ring dashboard
-      strava/page.tsx             # Strava dashboard
+      ridewithgps/page.tsx        # Ride with GPS dashboard
       coros/page.tsx              # COROS dashboard
     games/
       f1/page.tsx                 # F1 Predictors Championship
@@ -64,7 +64,7 @@ src/
       knowledge-diff/
       prompts/ prompts/review/
       oura/                       # OAuth: authorize callback data sync disconnect
-      strava/                     # OAuth: authorize callback data sync disconnect
+      ridewithgps/                # data (Basic Auth, no OAuth)
       coros/                      # data save
       f1/                         # schedule drivers predict results leaderboard
                                   # lock reveal state player roster season_progress
@@ -104,6 +104,8 @@ Per `src/proxy.ts`:
 Both DBs use same Turso connection in production, same `data/posts.db` locally.
 Schema auto-initializes. Inline `ALTER TABLE` migrations use catch-and-ignore pattern.
 
+`strava_tokens`, `strava_athlete_cache`, `strava_activities_cache` are orphaned — left over from the retired Strava integration (replaced by Ride with GPS). No code references them; intentionally not dropped (no DROP-table migration pattern exists in this codebase).
+
 ## Authentication
 - GitHub OAuth: whitelist via `ALLOWED_GITHUB_USERS` (matches `profile.login`)
 - Guest PIN: `GUEST_PINS=pin1,pin2` env var
@@ -121,6 +123,8 @@ NEXTAUTH_SECRET=
 ANTHROPIC_API_KEY=
 OURA_CLIENT_ID=
 OURA_CLIENT_SECRET=
+RIDEWITHGPS_API_KEY=      # Basic Auth to ridewithgps.com/api/v1/trips.json —
+RIDEWITHGPS_AUTH_TOKEN=   # static, non-expiring, generated once on the RWGPS dashboard
 ```
 
 ## Model IDs
@@ -141,6 +145,8 @@ All model IDs are centralised in `src/lib/models.ts`. Import `MODELS` from there
 **Database detection:** `is_turso = !!process.env.TURSO_DATABASE_URL`
 
 **Oura Ring:** Standalone OAuth. Tokens in `oura_tokens` table (singleton). 13 endpoints + personal_info. Daily caching via `wellness_cache`. Activity time fields in **seconds**.
+
+**Ride with GPS:** Replaced Strava (Strava moved to a subscriber-only API tier). Basic Auth via two static headers (`x-rwgps-api-key`, `x-rwgps-auth-token`) — no OAuth, no token refresh, no DB storage; `/api/ridewithgps/data` is protected only by `proxy.ts`'s default session gate (no exemption needed, unlike Strava/Oura/COROS which needed one for their OAuth callbacks or out-of-session tooling). No DB cache either — relies on Next's `fetch` `revalidate: 300` for brief resilience, trading away the "serve last-known-good on API failure" behavior Strava had for simplicity. `trips.json` has no date-range filter, so "yesterday's activities" is done by fetching a page and filtering client/server-side on `departed_at` via `rwgps_activity_date_str()` in `src/lib/ridewithgps.ts`. That function's naive-vs-offset branch and the assumption that `trips.json` sorts newest-first were reasoned from the OpenAPI spec, not confirmed against live data — verify both against a few known trips the first time real credentials are live, before trusting "yesterday" classification in a coaching session.
 
 **COROS:** `/health/coros` is session-gated by `proxy.ts` — in-browser saves (e.g. the page's Manual Input form) ride the NextAuth cookie, so `X-Guest-Pin` is only needed for out-of-session callers (curl, the Chrome-extension prompt). Display logic supports two JSON shapes and falls back between them: standard (`report_markdown`, `dashboard.training_status.status`, `dashboard.recovery.percentage`) and nested/alt (`markdown`, `data.training_status_dashboard.status`, `data.recovery.percent`). If a save looks like it "worked" but the page renders blank, query `/api/coros/data?date=YYYY-MM-DD` directly first to confirm what actually landed in Turso before assuming the write failed.
 

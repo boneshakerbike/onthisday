@@ -1,11 +1,12 @@
 /**
  * Data injection formatter for coaching sessions.
- * Pulls Oura data from wellness_cache + Strava activities + manual inputs.
- * No COROS. Oura drives decisions. Strava is context only.
+ * Pulls Oura data from wellness_cache + Ride with GPS activities + manual inputs.
+ * No COROS. Oura drives decisions. Activity data is context only.
  */
 
 import { get_wellness_cache } from '@/lib/db';
 import { get_trends, get_last_known_manual_metrics, type TrendRow } from '@/lib/coaching/db';
+import { rwgps_activity_date_str, type RwgpsActivity } from '@/lib/ridewithgps';
 
 export interface ManualInputs {
   weight_lbs?: number;
@@ -35,19 +36,6 @@ interface OuraStressDetail {
   stress_high?: number;
   recovery_high?: number;
   day_summary?: string;
-}
-
-interface StravaActivity {
-  name?: string;
-  type?: string;
-  sport_type?: string;
-  start_date_local?: string;
-  distance?: number;
-  moving_time?: number;
-  total_elevation_gain?: number;
-  average_heartrate?: number;
-  max_heartrate?: number;
-  has_heartrate?: boolean;
 }
 
 function seconds_to_hm(seconds: number): string {
@@ -128,7 +116,7 @@ export async function build_data_injection(
   epoch_day: number,
   manual: ManualInputs,
   oura_live?: Record<string, unknown> | null,
-  strava_activities?: StravaActivity[] | null,
+  activities?: RwgpsActivity[] | null,
 ): Promise<{ injection: string; metrics: Record<string, unknown> }> {
   const yesterday = new Date(date_str + 'T12:00:00');
   yesterday.setDate(yesterday.getDate() - 1);
@@ -294,12 +282,12 @@ export async function build_data_injection(
 
   lines.push('');
 
-  // --- STRAVA ACTIVITIES (yesterday) ---
-  if (strava_activities && strava_activities.length > 0) {
+  // --- ACTIVITIES (yesterday) ---
+  if (activities && activities.length > 0) {
     // Filter to yesterday's activities
-    const yesterday_activities = strava_activities.filter(a => {
-      if (!a.start_date_local) return false;
-      return a.start_date_local.startsWith(yesterday_str);
+    const yesterday_activities = activities.filter(a => {
+      if (!a.departed_at) return false;
+      return rwgps_activity_date_str(a.departed_at) === yesterday_str;
     });
 
     if (yesterday_activities.length > 0) {
@@ -307,24 +295,25 @@ export async function build_data_injection(
       metrics.yesterday_activities = [];
       for (const a of yesterday_activities.slice(0, 5)) {
         const name = a.name || 'Activity';
-        const type = a.sport_type || a.type || '';
+        const type = a.type || '';
         const dist = a.distance ? `${(a.distance / 1609.34).toFixed(1)}mi` : '';
         const elev = a.total_elevation_gain ? `${Math.round(a.total_elevation_gain * 3.281)}ft elev` : '';
         const time = a.moving_time ? `${Math.round(a.moving_time / 60)}min` : '';
         const hr = a.average_heartrate ? `avg HR ${Math.round(a.average_heartrate)}` : '';
         const parts = [type, dist, elev, time, hr].filter(Boolean).join(', ');
         lines.push(`- ${name}: ${parts}`);
-        (metrics.yesterday_activities as StravaActivity[]).push({
-          name, type, distance: a.distance, moving_time: a.moving_time,
+        (metrics.yesterday_activities as RwgpsActivity[]).push({
+          id: a.id, name, type, distance: a.distance, moving_time: a.moving_time,
           total_elevation_gain: a.total_elevation_gain,
           average_heartrate: a.average_heartrate, max_heartrate: a.max_heartrate,
+          url: a.url,
         });
       }
     } else {
       lines.push('No activities recorded yesterday');
     }
   } else {
-    lines.push('No Strava data available');
+    lines.push('No activity data available');
   }
 
   lines.push('');

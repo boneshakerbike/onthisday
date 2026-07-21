@@ -106,12 +106,12 @@ export default function HomePage() {
     },
     {
       title: 'Health',
-      description: 'Oura Ring, Strava, and COROS training data',
+      description: 'Oura Ring, Ride with GPS, and COROS training data',
       color: 'green',
       links: [
         ...(is_admin ? [{ label: 'Coach', href: '/coach' }] : []),
         { label: 'Oura', href: '/health/oura' },
-        { label: 'Strava', href: '/health/strava' },
+        { label: 'Ride with GPS', href: '/health/ridewithgps' },
         { label: 'COROS', href: '/health/coros' },
       ],
     },
