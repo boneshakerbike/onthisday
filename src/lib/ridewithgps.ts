@@ -47,7 +47,10 @@ export function trip_to_activity(trip: RwgpsTripSummary): RwgpsActivity {
     total_elevation_gain: trip.elevation_gain ?? 0,
     average_heartrate: trip.avg_hr ?? undefined,
     max_heartrate: trip.max_hr ?? undefined,
-    url: trip.web_url ?? undefined,
+    // trips.json's list response doesn't populate web_url in practice (confirmed
+    // against live data) even though the OpenAPI schema documents the field —
+    // construct the trip page URL directly from its id instead.
+    url: trip.web_url || (trip.id ? `https://ridewithgps.com/trips/${trip.id}` : undefined),
     departed_at: trip.departed_at ?? undefined,
   };
 }

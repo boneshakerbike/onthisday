@@ -64,7 +64,16 @@ describe('trip_to_activity', () => {
     });
     expect(activity.average_heartrate).toBeUndefined();
     expect(activity.max_heartrate).toBeUndefined();
-    expect(activity.url).toBeUndefined();
+  });
+
+  it('constructs a trip URL from the id when web_url is absent (confirmed against live data — trips.json never returns it)', () => {
+    const trip: RwgpsTripSummary = { id: 399118168 };
+    expect(trip_to_activity(trip).url).toBe('https://ridewithgps.com/trips/399118168');
+  });
+
+  it('prefers web_url over the constructed URL when present', () => {
+    const trip: RwgpsTripSummary = { id: 1, web_url: 'https://ridewithgps.com/trips/1?privacy_code=abc' };
+    expect(trip_to_activity(trip).url).toBe('https://ridewithgps.com/trips/1?privacy_code=abc');
   });
 
   it('falls back to fit_sport when activity_type is absent', () => {
