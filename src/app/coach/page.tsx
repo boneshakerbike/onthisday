@@ -253,6 +253,30 @@ export default function CoachPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Restore an in-progress chat session from sessionStorage. Runs unconditionally
+  // on mount — a local read, independent of the loadTodaySession network call —
+  // so a slow/failed fetch never blocks recovering the conversation. If today's
+  // session turns out to already be finalized server-side, loadTodaySession
+  // corrects for it afterward (see below).
+  useEffect(() => {
+    const session_key = `coach_session_${dateStr}`;
+    try {
+      const raw = sessionStorage.getItem(session_key);
+      if (raw) {
+        const draft = JSON.parse(raw);
+        if (Array.isArray(draft.messages) && draft.messages.length > 0) {
+          setMessages(draft.messages);
+          setSessionStarted(Boolean(draft.sessionStarted));
+          setMetricsCollapsed(Boolean(draft.sessionStarted));
+          if (typeof draft.dataInjection === 'string') setDataInjection(draft.dataInjection);
+          if (typeof draft.turnCount === 'number') setTurnCount(draft.turnCount);
+          if (typeof draft.totalTokens === 'number') setTotalTokens(draft.totalTokens);
+        }
+      }
+    } catch { /* corrupt draft — ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Auto-save manual-input draft as it changes
   useEffect(() => {
     const draft_key = `coach_manual_inputs_${dateStr}`;
@@ -261,6 +285,16 @@ export default function CoachPage() {
     } catch { /* storage full or unavailable — skip */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weight, backPain, bowel, injuries]);
+
+  // Auto-save the in-progress chat session as it changes
+  useEffect(() => {
+    if (!sessionStarted || finalized) return;
+    const session_key = `coach_session_${dateStr}`;
+    try {
+      sessionStorage.setItem(session_key, JSON.stringify({ messages, sessionStarted, dataInjection, turnCount, totalTokens }));
+    } catch { /* storage full or unavailable — skip */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, sessionStarted, dataInjection, turnCount, totalTokens, finalized]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -440,7 +474,9 @@ export default function CoachPage() {
         const res = await fetch(`/api/coaching/today?date=${epochDay}`);
         if (res.ok) {
           const data = await res.json();
-          if (data.session) setTodaySession(data.session);
+          if (data.session) {
+            setTodaySession(data.session);
+          }
         }
       } catch { /* best effort — form shows as usual */ }
       setTodayChecked(true);
@@ -614,7 +650,10 @@ export default function CoachPage() {
       const data = await res.json();
       setFinalized(true);
       setSavedSummary(data.summary || '');
-      try { sessionStorage.removeItem(`coach_manual_inputs_${dateStr}`); } catch { /* unavailable — skip */ }
+      try {
+        sessionStorage.removeItem(`coach_manual_inputs_${dateStr}`);
+        sessionStorage.removeItem(`coach_session_${dateStr}`);
+      } catch { /* unavailable — skip */ }
       // Mirror what finalize stored so a re-render shows the completed view
       setTodaySession({
         date: epochDay,
