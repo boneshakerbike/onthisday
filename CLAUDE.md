@@ -16,12 +16,17 @@
 | AI | @anthropic-ai/sdk |
 | Testing | vitest |
 
+## Environment Note
+
+This machine is a VM, **not** a dev environment. The app deploys via Vercel (pushes to `main` auto-deploy; PRs get previews) — nothing app-runtime needs to run locally. Do not start a local server to verify changes unless explicitly asked; use the Vercel preview instead. Local commands are only for the pre-PR gate: `npm run build`, `npm run lint`, `npx vitest`.
+
 ## Development Commands
 ```bash
-npm run dev      # Start dev server on :3000
-npm run build    # Build for production
-npm run lint     # ESLint
+npm run build    # Build for production (pre-PR gate)
+npm run lint     # ESLint (pre-PR gate)
 npx vitest       # Run tests (src/lib/f1/__tests__/)
+npm start        # Local server on :3000 if ever needed (after build)
+                 # Avoid `npm run dev` on this VM — Fast Refresh reload loop
 ```
 
 ## Project Structure
