@@ -7,6 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import { createClient, Client } from '@libsql/client';
 import { StoryAudit } from '@/lib/story_audit';
+import { normalize_title, TitlePair } from '@/lib/substack_titles';
 
 // Detect if we're using Turso (production) or SQLite (local)
 const is_turso = !!process.env.TURSO_DATABASE_URL;
@@ -137,6 +138,22 @@ async function init_schema(): Promise<void> {
       content TEXT NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
+  `);
+
+  // Every title/subtitle the Substack generator has offered, so it never
+  // repeats itself across generations.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS substack_titles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      subtitle TEXT,
+      title_norm TEXT NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await db.execute(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_substack_titles_norm ON substack_titles(title_norm)
   `);
 
   // Coaching tables
@@ -1844,6 +1861,66 @@ export async function delete_text_note(id: string): Promise<boolean> {
     args: [id]
   });
   return result.rowsAffected > 0;
+}
+
+// ============================================================================
+// Substack title history (Say What? → Substack Post)
+// ============================================================================
+
+/**
+ * Titles already published to Substack, newest first. The `posts` table is the
+ * Substack archive import, so these are the real used-title history.
+ */
+export async function get_published_titles(limit: number = 200): Promise<TitlePair[]> {
+  await ensure_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'SELECT title, subtitle FROM posts ORDER BY local_date DESC LIMIT ?',
+    args: [limit]
+  });
+
+  return result.rows.map(row => ({
+    title: (row.title as string) || '',
+    subtitle: (row.subtitle as string) || ''
+  })).filter(p => p.title);
+}
+
+/** Titles the generator has previously offered, newest first. */
+export async function get_generated_titles(limit: number = 200): Promise<TitlePair[]> {
+  await ensure_schema();
+  const db = get_client();
+
+  const result = await db.execute({
+    sql: 'SELECT title, subtitle FROM substack_titles ORDER BY id DESC LIMIT ?',
+    args: [limit]
+  });
+
+  return result.rows.map(row => ({
+    title: (row.title as string) || '',
+    subtitle: (row.subtitle as string) || ''
+  })).filter(p => p.title);
+}
+
+/** Record offered titles. Duplicates are ignored via the unique norm index. */
+export async function record_generated_titles(pairs: TitlePair[]): Promise<void> {
+  if (pairs.length === 0) return;
+  await ensure_schema();
+  const db = get_client();
+
+  for (const pair of pairs) {
+    const norm = normalize_title(pair.title);
+    if (!norm) continue;
+    try {
+      await db.execute({
+        sql: 'INSERT OR IGNORE INTO substack_titles (title, subtitle, title_norm) VALUES (?, ?, ?)',
+        args: [pair.title, pair.subtitle || null, norm]
+      });
+    } catch (e) {
+      // Title history is best-effort — never fail a generation over it
+      console.error('record_generated_titles failed:', e instanceof Error ? e.message : String(e));
+    }
+  }
 }
 
 // ============================================================================

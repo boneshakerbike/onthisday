@@ -7,6 +7,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import Anthropic from '@anthropic-ai/sdk';
 import { MODELS } from '@/lib/models';
+import {
+  all_offered_pairs,
+  CLICHE_PATTERNS,
+  find_title_problems,
+  parse_substack_output,
+  pick_title_angles,
+  TitlePair,
+} from '@/lib/substack_titles';
+import { get_generated_titles, get_published_titles, record_generated_titles } from '@/lib/db';
 
 // Substack generation with vision can run long; Vercel Pro allows up to 300s.
 export const maxDuration = 300;
@@ -58,6 +67,28 @@ export async function POST(request: NextRequest) {
       }
 
       const client = new Anthropic({ apiKey: api_key });
+
+      // Title history: published Substack posts + everything this tool has
+      // previously offered. Best-effort — a DB hiccup must not block a story.
+      let used_titles: TitlePair[] = [];
+      try {
+        const [published, generated] = await Promise.all([
+          get_published_titles(150),
+          get_generated_titles(150),
+        ]);
+        used_titles = [...generated, ...published];
+      } catch (e) {
+        console.error('Title history lookup failed:', e instanceof Error ? e.message : String(e));
+      }
+
+      const previous_titles = used_titles.map(t => t.title);
+      const angles = pick_title_angles(3);
+
+      const used_titles_block = used_titles.length > 0
+        ? used_titles.slice(0, 200).map(t => `- ${t.title}`).join('\n')
+        : '(none yet)';
+
+      const banned_templates_block = CLICHE_PATTERNS.map(p => `- ${p.name}`).join('\n');
 
       const prompt_text = `You will be acting as a creative story generator that helps users transform their experiences into engaging Substack narratives.
 
@@ -111,12 +142,42 @@ Write for friends, family, and outdoor enthusiasts. The story should feel like s
 **Ending:**
 Always conclude with a reflective, meaningful takeaway that conveys appreciation or gratitude in a subtle, grounded way. The closing thought should feel original and lived-in, not like a slogan or aphorism. Avoid formulaic wisdom, inspirational clichEs, or stock structures. Aim for a quiet insight that deepens the moment rather than summarizing it. Avoid cliche words like "maybe".
 
+## Titles and Subtitles
+
+This is the part that matters most, and the part most often done badly. Read these rules carefully.
+
+**The title** (2 to 7 words):
+- It must come out of THIS story's specific details. If the title could sit on top of somebody else's post about a different day, it is wrong.
+- Funny is good. Quirky is good. Dry is good. Generic wistfulness is not.
+- Use the actual nouns from the story, the odd ones especially: the equipment, the place names, the animals, the errands, the rule the author made up.
+- No colons. No "A Story of". No rhyming. No alliteration for its own sake.
+
+**Banned title templates.** These are worn out. Do not produce a title that fits any of these shapes, in any wording:
+${banned_templates_block}
+
+Also avoid anything that merely rhymes with those shapes, e.g. "Something Something, Again and Again", "When the Wind Had Other Plans", "The Quiet Art of Waiting". If a title feels like it came pre-made off a shelf, throw it out and write another.
+
+**Titles already used.** Every title below has been used before. Do not repeat any of them and do not produce a near-reword of one:
+${used_titles_block}
+
+**Angles to try for this post.** Push at least a couple of your options through these specific approaches:
+${angles.map(a => `- ${a}`).join('\n')}
+
+**The subtitle** (10 to 25 words, one sentence, no period required):
+- This is NOT a second punchline. It is the deck: it tells the reader what the post actually contains, in a wry, slightly deadpan voice.
+- Concrete and specific. Listing the real things that happened is good, especially when the list is absurd on its own.
+- Examples of the right shape and length:
+  - "Blood draws, physical therapy, wasps, brake repairs, and the surprisingly exhausting act of doing the right thing."
+  - "A masterclass in how an entire day can disappear without turning a single pedal."
+  - "Featuring a vampire, a physical therapist, angry wasps, hydraulic brakes, and exactly zero mountain biking."
+- Do not use those examples. They show the register and length only.
+
 **Required Output Format:**
 
 Present your story using the following exact format:
 
-Title: [Write a 2-5 word title that is witty and sparks curiosity]
-Sub Title: [Write a 2-5 word subtitle that is funny or ironic]
+Title: [The strongest title, per the rules above]
+Sub Title: [The matching subtitle, per the rules above]
 
 [Write the complete narrative here following all guidelines above. Do not use any tags.]
 
@@ -124,7 +185,17 @@ captions
 
 [If images were provided, create a bulleted list of short witty captions for each image. Format as "Image 1: [Caption]", "Image 2: [Caption]"]
 
-[If no images were provided, write "No images provided."]`;
+[If no images were provided, write "No images provided."]
+
+alternate titles
+
+[Six more title and subtitle pairs, each genuinely different from the headline pair and from each other, not six rewordings of one idea. Range from dry to absurd. Follow every title and subtitle rule above. Format each on one line, exactly like this:]
+1. Title: [title] | Sub Title: [subtitle]
+2. Title: [title] | Sub Title: [subtitle]
+3. Title: [title] | Sub Title: [subtitle]
+4. Title: [title] | Sub Title: [subtitle]
+5. Title: [title] | Sub Title: [subtitle]
+6. Title: [title] | Sub Title: [subtitle]`;
 
       const content_blocks: Anthropic.MessageParam['content'] = [];
 
@@ -143,16 +214,65 @@ captions
 
       content_blocks.push({ type: 'text', text: prompt_text });
 
-      const substack_result = await client.messages.create({
+      const messages: Anthropic.MessageParam[] = [{ role: 'user', content: content_blocks }];
+
+      const run_substack = (msgs: Anthropic.MessageParam[]) => client.messages.create({
         model: MODELS.SUBSTACK,
         max_tokens: 10000,
         thinking: { type: 'disabled' },
-        messages: [{ role: 'user', content: content_blocks }],
+        messages: msgs,
       });
 
-      const substack_raw = substack_result.content[0].type === 'text'
-        ? substack_result.content[0].text.trim()
-        : '';
+      const text_of = (result: Anthropic.Message) =>
+        result.content[0]?.type === 'text' ? result.content[0].text.trim() : '';
+
+      const first = await run_substack(messages);
+      let substack_raw = text_of(first);
+      let input_tokens = first.usage.input_tokens;
+      let output_tokens = first.usage.output_tokens;
+
+      let parsed = parse_substack_output(substack_raw);
+      const problems = find_title_problems(parsed, previous_titles);
+
+      // One corrective pass when the model reaches for a worn-out template or
+      // repeats a title. Narrative stays put; only the titles get rewritten.
+      if (problems.length > 0 && substack_raw) {
+        const retry_instruction = `These titles do not pass:
+
+${problems.map(p => `- "${p.title}" ${p.reason}`).join('\n')}
+
+Output the post again, byte for byte identical in the narrative and the captions, but replace every title and subtitle listed above with a new one. Keep the same output format. The replacements must not fit any banned template, must not repeat or reword any already-used title, and must be built from the specific details of this story.`;
+
+        try {
+          const second = await run_substack([
+            ...messages,
+            { role: 'assistant', content: substack_raw },
+            { role: 'user', content: retry_instruction },
+          ]);
+          const retry_raw = text_of(second);
+          input_tokens += second.usage.input_tokens;
+          output_tokens += second.usage.output_tokens;
+
+          const retry_parsed = parse_substack_output(retry_raw);
+          // Only take the retry if it is actually cleaner than the first pass.
+          if (
+            retry_parsed.title &&
+            find_title_problems(retry_parsed, previous_titles).length < problems.length
+          ) {
+            substack_raw = retry_raw;
+            parsed = retry_parsed;
+          }
+        } catch (e) {
+          console.error('Substack title retry failed:', e instanceof Error ? e.message : String(e));
+        }
+      }
+
+      try {
+        await record_generated_titles(all_offered_pairs(parsed));
+      } catch (e) {
+        console.error('Title history write failed:', e instanceof Error ? e.message : String(e));
+      }
+
       const substack_text = substack_raw
         .replace(/\s*—\s*/g, ', ')
         .replace(/\s*–\s*/g, ', ');
@@ -160,10 +280,7 @@ captions
       return NextResponse.json({
         success: true,
         substack: substack_text,
-        usage: {
-          input_tokens: substack_result.usage.input_tokens,
-          output_tokens: substack_result.usage.output_tokens,
-        },
+        usage: { input_tokens, output_tokens },
       });
     }
 
