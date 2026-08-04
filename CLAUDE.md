@@ -103,7 +103,7 @@ Per `src/proxy.ts`:
 - API: `/api/auth/*`, `/api/health`, `/api/stories`, `/api/prompts`, `/api/oura/*`
 
 ## Database Schema
-**Main DB:** `posts`, `archive_info`, `stories`, `story_audits`, `mr_bear_rookies`
+**Main DB:** `posts`, `archive_info`, `stories`, `story_audits`, `mr_bear_rookies`, `substack_titles`
 **F1 DB:** `f1_seasons`, `f1_sessions`, `f1_drivers`, `f1_predictions`, `f1_scores`, `f1_player_state`, `f1_cancelled_rounds`
 
 Both DBs use same Turso connection in production, same `data/posts.db` locally.
@@ -158,6 +158,8 @@ All model IDs are centralised in `src/lib/models.ts`. Import `MODELS` from there
 **F1 / Mr. Bear:** Pure TypeScript, no LLM. Rankings from last 3 race weekends qualifying averaged. Rookies via `mr_bear_rookies` DB table.
 
 **Story generation:** Claude with ephemeral prompt caching. Every source post linked exactly once. ~$0.17/story with Opus.
+
+**Substack titles:** `/api/clean-text` mode `substack` returns a headline title/subtitle plus six alternates. Anti-formula logic lives in `src/lib/substack_titles.ts` (pure, tested): a banned-template list of overdone title shapes, near-duplicate detection (≥60% content-word overlap), output parsing, and rotating "angles" injected per request for variety. Titles are deduped against both `substack_titles` (everything the tool has offered, including unpicked alternates) and the `posts` archive (real published titles). Offending titles trigger one corrective retry that keeps the narrative intact. All history reads/writes are best-effort — a DB failure degrades to a normal generation rather than losing the story. Note: because unpicked alternates are recorded, regenerating the same story cannot return a title from a previous run.
 
 **Uploads:** 4.5MB Vercel limit. Client batches posts (500/req) and HTML (50/req).
 
