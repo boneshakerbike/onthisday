@@ -4,7 +4,22 @@ export type StoryAuditIssueType =
   | 'missing_src'
   | 'empty_anchor'
   | 'broken_image_tag'
+  | 'broken_markup'
+  | 'missing_images'
+  | 'post_too_short'
   | 'missing_content';
+
+export const STORY_AUDIT_ISSUE_LABELS: Record<StoryAuditIssueType, string> = {
+  malformed_url: 'Malformed URL',
+  missing_href: 'Missing href',
+  missing_src: 'Missing src',
+  empty_anchor: 'Empty anchor',
+  broken_image_tag: 'Broken image tag',
+  broken_markup: 'Broken markup',
+  missing_images: 'Missing images',
+  post_too_short: 'Post too short',
+  missing_content: 'Missing content',
+};
 
 export interface StoryAuditIssue {
   type: StoryAuditIssueType;
@@ -105,6 +120,192 @@ function find_broken_image_tags(html: string): StoryAuditIssue[] {
   return issues;
 }
 
+/**
+ * Posts under this many sentences are stubs worth revisiting. They stay in the
+ * story — the flag just makes them easy to find later.
+ */
+const SHORT_POST_SENTENCE_LIMIT = 3;
+
+/**
+ * Hosts that used to serve images for these posts and no longer do. Imgur links
+ * still resolve (they serve a "removed" placeholder), so liveness cannot be
+ * probed over the network — the host itself is the signal.
+ */
+const DEAD_IMAGE_HOSTS = ['imgur.com'];
+
+/** WordPress shortcodes that should never survive into rendered post content. */
+const WORDPRESS_SHORTCODE_NAMES = [
+  'gallery',
+  'caption',
+  'wp_caption',
+  'embed',
+  'playlist',
+  'audio',
+  'video',
+  'slideshow',
+  'youtube',
+  'vimeo',
+  'soundcloud',
+];
+
+/** Shortcodes that stand in for images, so their absence means a lost gallery. */
+const IMAGE_SHORTCODE_NAMES = ['gallery', 'caption', 'wp_caption', 'slideshow', 'playlist'];
+
+const SHORTCODE_REGEX = new RegExp(
+  `\\[\\/?(?:${WORDPRESS_SHORTCODE_NAMES.join('|')})\\b[^\\]]*\\]`,
+  'gi'
+);
+
+const WP_BLOCK_COMMENT_REGEX = /<!--\s*\/?\s*wp:[\w/-]+[^>]*-->/gi;
+
+/** Tags that read as plain text once entity-escaped markup leaks into a post. */
+const ESCAPED_TAG_REGEX = /<\/?(?:img|a|div|figure|figcaption|iframe|span|p)\b[^<]{0,200}>/i;
+
+const IMGUR_URL_REGEX = /https?:\/\/(?:[a-z0-9-]+\.)?imgur\.com\/[^\s"'<>)\]]+/gi;
+
+function host_of(value: string): string | null {
+  try {
+    return new URL(value, 'https://8i11.substack.com').hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function is_dead_image_host(value: string): boolean {
+  const host = host_of(value);
+
+  if (!host) {
+    return false;
+  }
+
+  return DEAD_IMAGE_HOSTS.some(dead => host === dead || host.endsWith(`.${dead}`));
+}
+
+/**
+ * Split post content into sentences. Block-level tags count as sentence breaks
+ * so that paragraphs without terminal punctuation are not merged into one.
+ */
+function split_sentences(html: string): string[] {
+  const marked = html
+    // Leaked shortcodes are not prose and must not pad the sentence count.
+    .replace(SHORTCODE_REGEX, ' ')
+    .replace(/<\/(?:p|div|li|h[1-6]|blockquote|figcaption)>|<br\s*\/?>/gi, ' . ');
+
+  return strip_html(marked)
+    .split(/(?<=[.!?])["'”’)\]]*\s+/)
+    .map(sentence => sentence.trim())
+    .filter(sentence => /[a-z0-9]/i.test(sentence));
+}
+
+function count_words(html: string): number {
+  const text = strip_html(html);
+  return text ? text.split(/\s+/).filter(Boolean).length : 0;
+}
+
+/**
+ * Flag WordPress leftovers that render as literal text instead of markup:
+ * shortcodes, block comments, and entity-escaped tags.
+ */
+function find_broken_markup(html: string): StoryAuditIssue[] {
+  const issues: StoryAuditIssue[] = [];
+  const text = strip_html(html);
+  const has_image = /<img\b/i.test(html);
+  const seen_shortcodes = new Set<string>();
+
+  let shortcode_match: RegExpExecArray | null;
+  SHORTCODE_REGEX.lastIndex = 0;
+  while ((shortcode_match = SHORTCODE_REGEX.exec(text)) !== null) {
+    const shortcode = shortcode_match[0];
+    const name = (/^\[\/?\s*([a-z_]+)/i.exec(shortcode)?.[1] || '').toLowerCase();
+
+    // Dedupe by shortcode name so an opening and closing pair reads as one problem.
+    if (seen_shortcodes.has(name)) {
+      continue;
+    }
+    seen_shortcodes.add(name);
+
+    const expects_image = IMAGE_SHORTCODE_NAMES.includes(name);
+    const index = html.indexOf(shortcode);
+
+    issues.push({
+      type: 'broken_markup',
+      message:
+        expects_image && !has_image
+          ? `WordPress [${name}] markup left as plain text and the post has no images: ${shortcode}`
+          : `WordPress [${name}] markup left as plain text: ${shortcode}`,
+      line: index === -1 ? null : line_for_index(html, index),
+    });
+  }
+
+  let comment_match: RegExpExecArray | null;
+  WP_BLOCK_COMMENT_REGEX.lastIndex = 0;
+  while ((comment_match = WP_BLOCK_COMMENT_REGEX.exec(html)) !== null) {
+    issues.push({
+      type: 'broken_markup',
+      message: `Leftover WordPress block markup: ${comment_match[0]}`,
+      line: line_for_index(html, comment_match.index),
+    });
+  }
+
+  const escaped_tag = text.match(ESCAPED_TAG_REGEX);
+  if (escaped_tag) {
+    issues.push({
+      type: 'broken_markup',
+      message: `Escaped HTML is rendering as plain text: ${escaped_tag[0].slice(0, 80)}`,
+      line: null,
+    });
+  }
+
+  return issues;
+}
+
+/**
+ * Flag references to image hosts that no longer serve these photos, whether they
+ * appear as an image source, a link, or a bare URL left in the text.
+ */
+function find_missing_images(html: string): StoryAuditIssue[] {
+  const issues: StoryAuditIssue[] = [];
+  const seen = new Set<string>();
+
+  const add = (url: string, index: number | null) => {
+    const key = url.toLowerCase();
+
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+
+    issues.push({
+      type: 'missing_images',
+      message: `Image is hosted on a retired host and no longer loads: ${url}`,
+      line: index === null ? null : line_for_index(html, index),
+    });
+  };
+
+  const tag_regex = /<(img|a)\b([^>]*)>/gi;
+  let tag_match: RegExpExecArray | null;
+  while ((tag_match = tag_regex.exec(html)) !== null) {
+    const attrs = tag_match[2] || '';
+    const value = tag_match[1].toLowerCase() === 'img'
+      ? read_attr(attrs, 'src')
+      : read_attr(attrs, 'href');
+
+    if (value && is_dead_image_host(value)) {
+      add(value, tag_match.index);
+    }
+  }
+
+  const text = strip_html(html);
+  let text_match: RegExpExecArray | null;
+  IMGUR_URL_REGEX.lastIndex = 0;
+  while ((text_match = IMGUR_URL_REGEX.exec(text)) !== null) {
+    const index = html.indexOf(text_match[0]);
+    add(text_match[0], index === -1 ? null : index);
+  }
+
+  return issues;
+}
+
 export function build_story_audit(posts: AuditableSourcePost[]): StoryAudit {
   const sources = posts.map((post): StoryAuditSource => {
     const issues: StoryAuditIssue[] = [];
@@ -188,6 +389,21 @@ export function build_story_audit(posts: AuditableSourcePost[]): StoryAudit {
     }
 
     issues.push(...find_broken_image_tags(html));
+    issues.push(...find_broken_markup(html));
+    issues.push(...find_missing_images(html));
+
+    if (html.trim()) {
+      const sentences = split_sentences(html);
+
+      if (sentences.length > 0 && sentences.length <= SHORT_POST_SENTENCE_LIMIT) {
+        const words = count_words(html);
+        issues.push({
+          type: 'post_too_short',
+          message: `Post is only ${sentences.length} sentence${sentences.length === 1 ? '' : 's'} (${words} word${words === 1 ? '' : 's'}) — likely a stub worth expanding.`,
+          line: null,
+        });
+      }
+    }
 
     const unique_urls = Array.from(new Set(urls_used));
 

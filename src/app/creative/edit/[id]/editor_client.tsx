@@ -4,7 +4,11 @@ import Link from 'next/link';
 import { startTransition, useDeferredValue, useRef, useState } from 'react';
 import NavTabs from '@/components/nav_tabs';
 import MicButton from '@/components/mic_button';
-import { StoryAudit } from '@/lib/story_audit';
+import {
+  StoryAudit,
+  StoryAuditIssueType,
+  STORY_AUDIT_ISSUE_LABELS,
+} from '@/lib/story_audit';
 import { build_story_body_html, extract_story_title } from '@/lib/story_markup';
 
 interface EditorStory {
@@ -20,6 +24,30 @@ interface StoryEditorProps {
   story: EditorStory;
   initial_audit: StoryAudit | null;
   initial_audit_updated_at: string | null;
+}
+
+function issue_label(type: StoryAuditIssueType): string {
+  return STORY_AUDIT_ISSUE_LABELS[type] || type.replace(/_/g, ' ');
+}
+
+function count_issue_types(audit: StoryAudit | null): [StoryAuditIssueType, number][] {
+  if (!audit) {
+    return [];
+  }
+
+  const counts = new Map<StoryAuditIssueType, number>();
+
+  for (const source of audit.sources) {
+    for (const issue of source.issues) {
+      counts.set(issue.type, (counts.get(issue.type) || 0) + 1);
+    }
+  }
+
+  return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
+}
+
+function source_issue_types(issues: { type: StoryAuditIssueType }[]): StoryAuditIssueType[] {
+  return Array.from(new Set(issues.map(issue => issue.type)));
 }
 
 export default function StoryEditor({
@@ -43,6 +71,10 @@ export default function StoryEditor({
 
   const preview_title = extract_story_title(deferred_content, story.date_display);
   const preview_body = build_story_body_html(deferred_content);
+
+  // Derived here rather than stored, so audits saved before these flags existed
+  // still render a breakdown.
+  const issue_type_counts = count_issue_types(audit);
 
   const save_story = async () => {
     set_saving(true);
@@ -160,7 +192,7 @@ export default function StoryEditor({
           )}
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)_320px]">
-            <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+            <section className="min-w-0 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300/70">
                   HTML Source
@@ -240,7 +272,7 @@ export default function StoryEditor({
               />
             </section>
 
-            <section className="rounded-3xl border border-white/10 bg-[#f8f3ec] p-5 text-[#37352f]">
+            <section className="min-w-0 rounded-3xl border border-white/10 bg-[#f8f3ec] p-5 text-[#37352f]">
               <div className="mb-5 border-b border-[#e5e0d8] pb-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a56d4f]">
                   Live Preview
@@ -259,9 +291,9 @@ export default function StoryEditor({
               />
             </section>
 
-            <aside className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+            <aside className="min-w-0 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
               <div className="mb-4 flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300/70">
                     Audit Sidebar
                   </h2>
@@ -274,6 +306,18 @@ export default function StoryEditor({
                     <p className="mt-1 text-xs text-slate-500">
                       Updated {new Date(audit_updated_at).toLocaleString()}
                     </p>
+                  )}
+                  {issue_type_counts.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {issue_type_counts.map(([type, count]) => (
+                        <span
+                          key={type}
+                          className="rounded-full border border-amber-300/25 bg-amber-300/10 px-2.5 py-1 text-[0.7rem] font-medium text-amber-100"
+                        >
+                          {issue_label(type)} · {count}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
                 <button
@@ -308,18 +352,36 @@ export default function StoryEditor({
                     >
                       <summary className="cursor-pointer list-none">
                         <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-medium text-white">{source.title}</p>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-white break-words">{source.title}</p>
                             <a
                               href={source.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="mt-1 block text-xs text-cyan-300 hover:text-cyan-200"
+                              className="mt-1 block break-all text-xs text-cyan-300 hover:text-cyan-200"
                             >
                               {source.url}
                             </a>
+                            {source.issue_count > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                {source_issue_types(source.issues).map((type) => (
+                                  <span
+                                    key={type}
+                                    className="rounded-full border border-amber-300/25 bg-amber-300/10 px-2 py-0.5 text-[0.68rem] font-medium text-amber-100"
+                                  >
+                                    {issue_label(type)}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                          <span className="rounded-full border border-white/10 px-2.5 py-1 text-xs text-slate-300">
+                          <span
+                            className={`shrink-0 rounded-full border px-2.5 py-1 text-xs ${
+                              source.issue_count > 0
+                                ? 'border-amber-300/30 bg-amber-300/10 text-amber-100'
+                                : 'border-white/10 text-slate-300'
+                            }`}
+                          >
                             {source.issue_count}
                           </span>
                         </div>
@@ -348,7 +410,10 @@ export default function StoryEditor({
                                 key={`${source.post_id}-${issue.type}-${index}`}
                                 className="rounded-xl border border-amber-300/15 bg-amber-300/5 px-3 py-2"
                               >
-                                <p className="font-medium text-amber-100">{issue.message}</p>
+                                <p className="mb-1 text-[0.68rem] font-semibold uppercase tracking-[0.12em] text-amber-300/80">
+                                  {issue_label(issue.type)}
+                                </p>
+                                <p className="font-medium text-amber-100 break-words">{issue.message}</p>
                                 {issue.line !== null && (
                                   <p className="mt-1 text-xs text-amber-200/80">Line {issue.line}</p>
                                 )}
