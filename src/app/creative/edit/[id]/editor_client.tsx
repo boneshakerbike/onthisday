@@ -192,7 +192,7 @@ export default function StoryEditor({
           )}
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)_320px]">
-            <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+            <section className="min-w-0 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300/70">
                   HTML Source
@@ -272,7 +272,7 @@ export default function StoryEditor({
               />
             </section>
 
-            <section className="rounded-3xl border border-white/10 bg-[#f8f3ec] p-5 text-[#37352f]">
+            <section className="min-w-0 rounded-3xl border border-white/10 bg-[#f8f3ec] p-5 text-[#37352f]">
               <div className="mb-5 border-b border-[#e5e0d8] pb-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a56d4f]">
                   Live Preview
@@ -291,9 +291,9 @@ export default function StoryEditor({
               />
             </section>
 
-            <aside className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+            <aside className="min-w-0 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
               <div className="mb-4 flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300/70">
                     Audit Sidebar
                   </h2>
@@ -352,13 +352,13 @@ export default function StoryEditor({
                     >
                       <summary className="cursor-pointer list-none">
                         <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-medium text-white">{source.title}</p>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-white break-words">{source.title}</p>
                             <a
                               href={source.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="mt-1 block text-xs text-cyan-300 hover:text-cyan-200"
+                              className="mt-1 block break-all text-xs text-cyan-300 hover:text-cyan-200"
                             >
                               {source.url}
                             </a>
