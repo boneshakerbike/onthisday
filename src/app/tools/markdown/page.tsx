@@ -7,7 +7,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import NavTabs from '@/components/nav_tabs';
-import MicButton from '@/components/mic_button';
 
 export default function MarkdownConverterPage() {
   const [markdown_content, set_markdown_content] = useState('');
@@ -275,7 +274,6 @@ export default function MarkdownConverterPage() {
   };
 
   // Apply a new markdown value and re-sync the rich editor preview.
-  // Used by both the textarea onChange and the MicButton dictation path.
   const apply_markdown = (markdown: string) => {
     set_markdown_content(markdown);
 
@@ -451,7 +449,7 @@ export default function MarkdownConverterPage() {
           <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden min-w-0">
             <div className="bg-white/5 px-4 py-2 border-b border-white/10 flex justify-between items-center">
               <h3 className="font-medium text-gray-300">Markdown</h3>
-              <div className="flex flex-col sm:flex-row gap-2 items-center">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <button
                   onClick={copy_markdown}
                   className="px-3 py-2 sm:py-1 bg-[#333] sm:bg-white/10 hover:bg-cyan-400/20 rounded border border-[#555] sm:border-white/20 text-sm text-gray-300 transition-all"
@@ -466,7 +464,6 @@ export default function MarkdownConverterPage() {
                 >
                   Clear
                 </button>
-                <MicButton textarea_ref={markdown_textarea_ref} value={markdown_content} on_change={apply_markdown} />
               </div>
             </div>
 

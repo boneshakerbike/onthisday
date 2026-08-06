@@ -5,9 +5,8 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import NavTabs from '@/components/nav_tabs';
-import MicButton from '@/components/mic_button';
 
 interface Prompt {
   id: string;
@@ -46,8 +45,6 @@ export default function PromptLibraryPage() {
   const [active_prompt, set_active_prompt] = useState<Prompt | null>(null);
   const [versions, set_versions] = useState<PromptVersion[]>([]);
   const [editor_content, set_editor_content] = useState('');
-  const editor_ref = useRef<HTMLTextAreaElement>(null);
-  const notes_ref = useRef<HTMLTextAreaElement>(null);
   const [saving, set_saving] = useState(false);
   const [show_history, set_show_history] = useState(false);
   const [viewing_version, set_viewing_version] = useState<PromptVersion | null>(null);
@@ -613,7 +610,6 @@ export default function PromptLibraryPage() {
         ) : (
           <div className="mb-4">
             <textarea
-              ref={editor_ref}
               value={editor_content}
               onChange={(e) => set_editor_content(e.target.value)}
               placeholder="Write your prompt here..."
@@ -621,10 +617,7 @@ export default function PromptLibraryPage() {
             />
             <div className="flex items-center justify-between mt-1">
               <span className="text-xs text-gray-400">{editor_content.length.toLocaleString()} characters</span>
-              <div className="flex items-center gap-2">
-                {has_unsaved && <span className="text-xs text-amber-400">Unsaved changes</span>}
-                <MicButton textarea_ref={editor_ref} value={editor_content} on_change={set_editor_content} />
-              </div>
+              {has_unsaved && <span className="text-xs text-amber-400">Unsaved changes</span>}
             </div>
           </div>
         )}
@@ -645,15 +638,9 @@ export default function PromptLibraryPage() {
                 >
                   {saving_notes ? 'Saving...' : 'Save notes'}
                 </button>
-                <MicButton
-                  textarea_ref={notes_ref}
-                  value={prompt_notes}
-                  on_change={(next) => { set_prompt_notes(next); set_notes_saved(false); }}
-                />
               </div>
             </div>
             <textarea
-              ref={notes_ref}
               value={prompt_notes}
               onChange={(e) => { set_prompt_notes(e.target.value); set_notes_saved(false); }}
               onBlur={handle_save_notes}

@@ -5,9 +5,8 @@
 
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import NavTabs from '@/components/nav_tabs';
-import MicButton from '@/components/mic_button';
 
 export default function InstructionStripperPage() {
   const [input, set_input] = useState('');
@@ -16,7 +15,6 @@ export default function InstructionStripperPage() {
   const [error, set_error] = useState<string | null>(null);
   const [copy_status, set_copy_status] = useState<string | null>(null);
   const [usage, set_usage] = useState<{ input_tokens: number; output_tokens: number } | null>(null);
-  const input_ref = useRef<HTMLTextAreaElement>(null);
 
   const strip = async () => {
     if (!input.trim()) return;
@@ -92,13 +90,9 @@ export default function InstructionStripperPage() {
           <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
             <div className="bg-white/5 px-4 py-2 border-b border-white/10 flex justify-between items-center">
               <h3 className="font-medium text-gray-300">Paste AI Output</h3>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-400">{input.length.toLocaleString()} chars</span>
-                <MicButton textarea_ref={input_ref} value={input} on_change={set_input} disabled={loading} />
-              </div>
+              <span className="text-xs text-gray-400">{input.length.toLocaleString()} chars</span>
             </div>
             <textarea
-              ref={input_ref}
               value={input}
               onChange={e => set_input(e.target.value)}
               placeholder={`Paste the AI response here. For example:\n\nHere's a prompt for VS Code AI chat:\n\n---\n\nAudit: Session Initialization Flow\n\nTrace the exact sequence of operations...\n\n---\n\nPaste that into VS Code AI chat and bring the results back here.`}
