@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import NavTabs from '@/components/nav_tabs';
+import { build_issue_url } from '@/lib/github_issue';
 
 interface TextNote {
   id: string;
@@ -202,6 +203,21 @@ export default function TextCleanerPage() {
       set_copy_status('Copy failed');
       setTimeout(() => set_copy_status(null), 2000);
     }
+  };
+
+  // Open GitHub's own new-issue form with the cleaned text prefilled; the issue is
+  // submitted there, so no token or API route is involved.
+  const send_to_github = () => {
+    if (!cleaned.trim()) return;
+    const { url, truncated } = build_issue_url(cleaned);
+    if (truncated) {
+      // Not awaited: window.open has to run inside the click gesture or popup
+      // blockers (mobile Safari especially) swallow it.
+      navigator.clipboard?.writeText(cleaned).catch(() => {});
+      set_copy_status('Too long for a link, full text copied to clipboard');
+      setTimeout(() => set_copy_status(null), 4000);
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const clear_all = () => {
@@ -507,6 +523,13 @@ export default function TextCleanerPage() {
                     className="px-3 py-2 sm:py-1 bg-[#333] sm:bg-white/10 hover:bg-amber-400/20 disabled:bg-white/10 disabled:text-gray-500 rounded border border-[#555] sm:border-white/20 text-sm text-gray-300 transition-all"
                   >
                     {loading_action === 'save' ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={send_to_github}
+                    title="Open a prefilled GitHub issue with this text"
+                    className="px-3 py-2 sm:py-1 bg-[#333] sm:bg-white/10 hover:bg-sky-400/20 rounded border border-[#555] sm:border-white/20 text-sm text-gray-300 transition-all"
+                  >
+                    GitHub
                   </button>
                   <button
                     onClick={() => copy_output(cleaned)}
