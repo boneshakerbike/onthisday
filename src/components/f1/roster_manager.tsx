@@ -93,6 +93,9 @@ export default function RosterManager({
         }
         set_selected_rookies(Array.isArray(data.rookies) ? data.rookies : []);
         set_rookie_driver_names((data.driver_names && typeof data.driver_names === 'object') ? data.driver_names : {});
+        if (data.driver_names_error) {
+          set_rookies_message(`Live driver list unavailable (${data.driver_names_error}) — using cached drivers`);
+        }
       } catch {
         if (!cancelled) set_rookies_message('Failed to load rookies');
       } finally {
@@ -354,8 +357,13 @@ export default function RosterManager({
     }
   };
 
-  const rookie_driver_entries = Object.entries(rookie_driver_names)
-    .sort((a, b) => a[1].localeCompare(b[1]));
+  // The rookie picker prefers the name map from the API, but falls back to the
+  // cached `drivers` prop so a Jolpica outage doesn't blank the panel.
+  const rookie_driver_entries = (
+    Object.keys(rookie_driver_names).length > 0
+      ? Object.entries(rookie_driver_names)
+      : drivers.map(d => [d.driver_id, `${d.given_name} ${d.family_name}`] as [string, string])
+  ).sort((a, b) => a[1].localeCompare(b[1]));
   const admin_cancelled_rounds = cancelled_rounds.filter(r => r.source === 'admin');
 
   return (
@@ -519,7 +527,9 @@ export default function RosterManager({
             {rookies_loading ? (
               <div style={{ color: '#d1d5db', fontSize: '0.75rem' }}>Loading drivers...</div>
             ) : rookie_driver_entries.length === 0 ? (
-              <div style={{ color: '#d1d5db', fontSize: '0.75rem' }}>No drivers found for {season}</div>
+              <div style={{ color: '#d1d5db', fontSize: '0.75rem' }}>
+                No drivers cached for {season} yet. Open the predictions form for a round to populate them.
+              </div>
             ) : (
               <div style={{ maxHeight: '210px', overflowY: 'auto', display: 'grid', gap: '0.35rem' }}>
                 {rookie_driver_entries.map(([driver_id, name]) => (
