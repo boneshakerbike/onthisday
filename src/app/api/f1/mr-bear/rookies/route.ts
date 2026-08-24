@@ -18,11 +18,20 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const [rookies, driver_names] = await Promise.all([
-      get_mr_bear_rookies(season),
-      get_driver_name_map(season),
-    ]);
-    return NextResponse.json({ season, rookies, driver_names });
+    // The saved rookie list must survive a driver-list failure, so the two reads
+    // are independent: only a DB failure is a genuine 500 here.
+    const rookies = await get_mr_bear_rookies(season);
+
+    let driver_names: Record<string, string> = {};
+    let driver_names_error: string | null = null;
+    try {
+      driver_names = await get_driver_name_map(season);
+    } catch (error) {
+      driver_names_error = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Mr Bear rookies: driver name map failed:', error);
+    }
+
+    return NextResponse.json({ season, rookies, driver_names, driver_names_error });
   } catch (error) {
     console.error('Mr Bear rookies GET error:', error);
     return NextResponse.json({ error: 'Failed to fetch rookie list' }, { status: 500 });

@@ -6,6 +6,7 @@
 
 import type { SessionType } from './types';
 import { get_cached_results, get_scratched_drivers } from './db';
+import { get_drivers } from './cache';
 import { get_mr_bear_rookies } from '@/lib/db';
 
 const BASE = 'https://api.jolpi.ca/ergast/f1';
@@ -26,11 +27,12 @@ async function jolpica_fetch(path: string): Promise<any> {
 // — Driver name map (for bear-name detection) ————————
 
 export async function get_driver_name_map(season: number): Promise<Record<string, string>> {
-  const data = await jolpica_fetch(`/${season}/drivers.json?limit=50`);
-  const drivers = data.DriverTable?.Drivers || [];
+  // Cache-through: DB first, Jolpica only on a miss. Keeps this in step with the
+  // driver list the rest of the F1 app uses, and survives a Jolpica outage.
+  const drivers = await get_drivers(season);
   const map: Record<string, string> = {};
   for (const d of drivers) {
-    map[d.driverId] = `${d.givenName} ${d.familyName}`;
+    map[d.driver_id] = `${d.given_name} ${d.family_name}`;
   }
   return map;
 }
