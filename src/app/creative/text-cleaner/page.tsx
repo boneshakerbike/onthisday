@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import NavTabs from '@/components/nav_tabs';
 import { build_issue_url } from '@/lib/github_issue';
+import { knowledge_filename } from '@/lib/knowledge_doc';
 
 interface TextNote {
   id: string;
@@ -19,8 +20,8 @@ export default function TextCleanerPage() {
   const [input, set_input] = useState('');
   const [cleaned, set_cleaned] = useState('');
   const [story, set_story] = useState('');
-  const [loading_action, set_loading_action] = useState<'clean' | 'clarify' | 'story' | 'substack' | 'save' | 'delete' | null>(null);
-  const [output_mode, set_output_mode] = useState<'clean' | 'clarify' | null>(null);
+  const [loading_action, set_loading_action] = useState<'clean' | 'clarify' | 'knowledge' | 'story' | 'substack' | 'save' | 'delete' | null>(null);
+  const [output_mode, set_output_mode] = useState<'clean' | 'clarify' | 'knowledge' | null>(null);
   const [error, set_error] = useState<string | null>(null);
   const [copy_status, set_copy_status] = useState<string | null>(null);
   const [clean_usage, set_clean_usage] = useState<{ input_tokens: number; output_tokens: number } | null>(null);
@@ -83,7 +84,11 @@ export default function TextCleanerPage() {
       if (saved_cleaned) set_cleaned(saved_cleaned);
       if (saved_story)   set_story(saved_story);
       if (saved_cleaned) {
-        set_output_mode(saved_output_mode === 'clarify' ? 'clarify' : 'clean');
+        set_output_mode(
+          saved_output_mode === 'clarify' || saved_output_mode === 'knowledge'
+            ? saved_output_mode
+            : 'clean'
+        );
       }
     } catch {
       // localStorage unavailable — skip restore
@@ -134,7 +139,13 @@ export default function TextCleanerPage() {
     return `Couldn't ${action} — try again.`;
   };
 
-  const run_rewrite = async (op: 'clean' | 'clarify') => {
+  const rewrite_labels: Record<'clean' | 'clarify' | 'knowledge', string> = {
+    clean: 'clean text',
+    clarify: 'clarify text',
+    knowledge: 'build knowledge doc',
+  };
+
+  const run_rewrite = async (op: 'clean' | 'clarify' | 'knowledge') => {
     if (!input.trim()) return;
 
     set_loading_action(op);
@@ -142,7 +153,7 @@ export default function TextCleanerPage() {
 
     try {
       const { res, data } = await post_clean_text(
-        op === 'clarify' ? { content: input, mode: 'clarify' } : { content: input }
+        op === 'clean' ? { content: input } : { content: input, mode: op }
       );
 
       if (!res.ok) {
@@ -158,7 +169,7 @@ export default function TextCleanerPage() {
       set_substack('');
       set_substack_usage(null);
     } catch (e) {
-      set_error(describe_request_error(e, op === 'clarify' ? 'clarify text' : 'clean text'));
+      set_error(describe_request_error(e, rewrite_labels[op]));
     } finally {
       set_loading_action(null);
     }
@@ -166,6 +177,20 @@ export default function TextCleanerPage() {
 
   const clean = () => run_rewrite('clean');
   const clarify = () => run_rewrite('clarify');
+  const knowledge_doc = () => run_rewrite('knowledge');
+
+  // Hand the markdown to the browser as a file. Object URL rather than a data:
+  // URL so a long document isn't capped by the URL length limit.
+  const download_knowledge = () => {
+    if (!cleaned.trim()) return;
+    const blob = new Blob([cleaned], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = knowledge_filename(cleaned);
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const turn_into_story = async (content?: string) => {
     const text = content || cleaned;
@@ -478,6 +503,14 @@ export default function TextCleanerPage() {
               </button>
             </div>
             <button
+              onClick={knowledge_doc}
+              disabled={!!loading_action || !input.trim()}
+              title="Distil this into a knowledge document in Markdown"
+              className="w-full sm:w-auto px-8 py-[14px] sm:py-3 bg-cyan-500 hover:bg-cyan-400 disabled:bg-white/10 disabled:text-gray-500 text-black font-semibold rounded-lg transition-all text-sm"
+            >
+              {loading_action === 'knowledge' ? 'Distilling...' : 'Knowledge'}
+            </button>
+            <button
               onClick={clear_all}
               className="w-full sm:w-auto px-4 py-2.5 sm:py-3 bg-[#333] sm:bg-white/10 hover:bg-red-400/20 rounded-lg border border-[#555] sm:border-white/20 text-gray-300 text-sm transition-all"
             >
@@ -502,7 +535,9 @@ export default function TextCleanerPage() {
             <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">
               <div className="bg-white/5 px-4 py-2 border-b border-white/10 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                 <div className="flex items-center gap-3">
-                  <h3 className="font-medium text-gray-300">{output_mode === 'clarify' ? 'Clarified' : 'Cleaned'}</h3>
+                  <h3 className="font-medium text-gray-300">
+                    {output_mode === 'clarify' ? 'Clarified' : output_mode === 'knowledge' ? 'Knowledge Doc' : 'Cleaned'}
+                  </h3>
                   {clean_usage && (
                     <span className="text-xs text-gray-400">
                       {clean_usage.input_tokens + clean_usage.output_tokens} tokens
@@ -531,6 +566,15 @@ export default function TextCleanerPage() {
                   >
                     GitHub
                   </button>
+                  {output_mode === 'knowledge' && (
+                    <button
+                      onClick={download_knowledge}
+                      title={`Download as ${knowledge_filename(cleaned)}`}
+                      className="px-3 py-2 sm:py-1 bg-[#333] sm:bg-white/10 hover:bg-violet-400/20 rounded border border-[#555] sm:border-white/20 text-sm text-gray-300 transition-all"
+                    >
+                      Download .md
+                    </button>
+                  )}
                   <button
                     onClick={() => copy_output(cleaned)}
                     className="px-3 py-2 sm:py-1 bg-[#333] sm:bg-white/10 hover:bg-cyan-400/20 rounded border border-[#555] sm:border-white/20 text-sm text-gray-300 transition-all"
