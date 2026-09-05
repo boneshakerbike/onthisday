@@ -294,8 +294,20 @@ Output the post again, byte for byte identical in the narrative and the captions
       return NextResponse.json({ error: 'Content is required' }, { status: 400 });
     }
 
-    if (content.length > 20000) {
-      return NextResponse.json({ error: 'Content too large (max 20,000 characters)' }, { status: 400 });
+    // Clean/clarify/story rewrite roughly 1:1, so their input has to stay under
+    // what max_tokens can emit. Knowledge distils instead — a long input collapses
+    // into a short document — so it takes far more in. Neither is anywhere near
+    // Sonnet 5's context window; the binding constraint is output length.
+    const max_input = operation === 'knowledge' ? 200000 : 20000;
+    if (content.length > max_input) {
+      return NextResponse.json(
+        {
+          error: operation === 'knowledge'
+            ? `Content too large (max ${max_input.toLocaleString()} characters). Split it into a couple of documents.`
+            : `Content too large (max ${max_input.toLocaleString()} characters). The Knowledge button takes much longer input.`,
+        },
+        { status: 400 }
+      );
     }
 
     const client = new Anthropic({ apiKey: api_key });
@@ -371,7 +383,7 @@ Return only the cleaned text. No commentary, no quotes, no preamble.`;
 
     const result = await client.messages.create({
       model: MODELS.CLEAN_TEXT,
-      max_tokens: 6144,
+      max_tokens: operation === 'knowledge' ? 16000 : 6144,
       thinking: { type: 'disabled' },
       messages: [{ role: 'user', content: prompt_text }],
     });
@@ -397,6 +409,9 @@ Return only the cleaned text. No commentary, no quotes, no preamble.`;
     return NextResponse.json({
       success: true,
       cleaned,
+      // A long source can still run the document past max_tokens. Say so rather
+      // than handing back a file that stops mid-sentence.
+      truncated: result.stop_reason === 'max_tokens',
       usage: {
         input_tokens: result.usage.input_tokens,
         output_tokens: result.usage.output_tokens

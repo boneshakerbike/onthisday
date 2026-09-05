@@ -101,7 +101,7 @@ export default function TextCleanerPage() {
   // Returns { res, data } for any JSON response (ok or not) so callers handle server
   // errors; throws Error('TIMEOUT') for non-JSON bodies (504 gateway pages) and the
   // underlying TypeError for dropped connections. Real server errors are not retried.
-  const post_clean_text = async (body: object): Promise<{ res: Response; data: { error?: string; cleaned?: string; story?: string; substack?: string; usage?: { input_tokens: number; output_tokens: number } } }> => {
+  const post_clean_text = async (body: object): Promise<{ res: Response; data: { error?: string; cleaned?: string; story?: string; substack?: string; truncated?: boolean; usage?: { input_tokens: number; output_tokens: number } } }> => {
     let last_err: unknown;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
@@ -163,6 +163,9 @@ export default function TextCleanerPage() {
 
       set_cleaned(data.cleaned ?? '');
       set_clean_usage(data.usage ?? null);
+      if (data.truncated) {
+        set_error('The document hit the output limit and stops early. Try a shorter source.');
+      }
       set_output_mode(op);
       set_story('');
       set_story_usage(null);
