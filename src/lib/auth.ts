@@ -40,6 +40,12 @@ export const auth_options: NextAuthOptions = {
     GitHubProvider({
       clientId: process.env.GITHUB_CLIENT_ID ?? '',
       clientSecret: process.env.GITHUB_CLIENT_SECRET ?? '',
+      // GitHub now returns an `iss` parameter on the OAuth callback (RFC 9207).
+      // openid-client validates it against the issuer, and next-auth v4's GitHub
+      // provider never set one, so the check threw
+      // "issuer must be configured on the issuer" and every sign-in failed with
+      // ?error=OAuthCallback. Naming the issuer lets that comparison succeed.
+      issuer: 'https://github.com',
       // openid-client defaults to a 3500ms timeout for every outgoing call.
       // The GitHub callback makes two of them back to back (token exchange,
       // then api.github.com/user), and on a cold serverless function either
