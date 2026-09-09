@@ -7,11 +7,45 @@ import { NextAuthOptions } from 'next-auth';
 import GitHubProvider from 'next-auth/providers/github';
 import CredentialsProvider from 'next-auth/providers/credentials';
 
+/** Timeout for OAuth calls to GitHub. See the GitHubProvider comment below. */
+const OAUTH_HTTP_TIMEOUT_MS = 10_000;
+
+/**
+ * Unwraps the error NextAuth reports so the underlying cause reaches the logs.
+ * NextAuth wraps OAuth failures in an OAuthCallbackError whose own message is
+ * often all that gets printed; openid-client's RPError carries the useful
+ * detail (HTTP status and provider response body) on nested properties.
+ */
+function describe_auth_error(metadata: unknown): Record<string, unknown> {
+  const error = (metadata as { error?: unknown })?.error ?? metadata;
+  const e = error as {
+    name?: string;
+    message?: string;
+    stack?: string;
+    response?: { status?: number; body?: unknown };
+    cause?: { message?: string };
+  };
+  return {
+    name: e?.name,
+    message: e?.message,
+    cause: e?.cause?.message,
+    status: e?.response?.status,
+    body: e?.response?.body,
+    stack: e?.stack,
+  };
+}
+
 export const auth_options: NextAuthOptions = {
   providers: [
     GitHubProvider({
       clientId: process.env.GITHUB_CLIENT_ID ?? '',
       clientSecret: process.env.GITHUB_CLIENT_SECRET ?? '',
+      // openid-client defaults to a 3500ms timeout for every outgoing call.
+      // The GitHub callback makes two of them back to back (token exchange,
+      // then api.github.com/user), and on a cold serverless function either
+      // can exceed that, aborting the whole callback with ?error=OAuthCallback
+      // after the user has already authorised on GitHub.
+      httpOptions: { timeout: OAUTH_HTTP_TIMEOUT_MS },
     }),
     CredentialsProvider({
       id: 'guest-pin',
@@ -86,8 +120,12 @@ export const auth_options: NextAuthOptions = {
 
       // Restrict GitHub login to allowed users by unique login (not display name)
       // Set ALLOWED_GITHUB_USERS=user1,user2 in env, or defaults to boneshakerbike
-      const allowed_users = process.env.ALLOWED_GITHUB_USERS?.split(',').map(u => u.trim())
-        || ['boneshakerbike'];
+      // A blank or comma-only ALLOWED_GITHUB_USERS must fall back to the
+      // default rather than producing [''] and denying every login.
+      const configured_users = process.env.ALLOWED_GITHUB_USERS?.split(',')
+        .map(u => u.trim())
+        .filter(Boolean) ?? [];
+      const allowed_users = configured_users.length > 0 ? configured_users : ['boneshakerbike'];
 
       if (account?.provider === 'github') {
         const login = (profile as { login?: string })?.login ?? '';
@@ -107,6 +145,15 @@ export const auth_options: NextAuthOptions = {
       }
       return session;
     },
+  },
+  logger: {
+    error(code, metadata) {
+      console.error(`[next-auth][error][${code}]`, JSON.stringify(describe_auth_error(metadata)));
+    },
+    warn(code) {
+      console.warn(`[next-auth][warn][${code}]`);
+    },
+    debug() {},
   },
   session: {
     strategy: 'jwt',
