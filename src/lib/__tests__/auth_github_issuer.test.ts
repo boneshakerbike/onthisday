@@ -10,7 +10,7 @@ import { auth_options } from '../auth';
  * ?error=OAuthCallback.
  */
 
-const GITHUB_ISSUER = 'https://github.com';
+const GITHUB_ISSUER = 'https://github.com/login/oauth';
 
 function callback_client(issuer_value: string | undefined) {
   const issuer = new Issuer({

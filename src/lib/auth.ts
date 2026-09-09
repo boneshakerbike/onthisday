@@ -44,8 +44,10 @@ export const auth_options: NextAuthOptions = {
       // openid-client validates it against the issuer, and next-auth v4's GitHub
       // provider never set one, so the check threw
       // "issuer must be configured on the issuer" and every sign-in failed with
-      // ?error=OAuthCallback. Naming the issuer lets that comparison succeed.
-      issuer: 'https://github.com',
+      // ?error=OAuthCallback. GitHub's issuer identifier is the full
+      // https://github.com/login/oauth, not the bare origin; the bare origin
+      // trades that TypeError for "iss mismatch".
+      issuer: 'https://github.com/login/oauth',
       // openid-client defaults to a 3500ms timeout for every outgoing call.
       // The GitHub callback makes two of them back to back (token exchange,
       // then api.github.com/user), and on a cold serverless function either
